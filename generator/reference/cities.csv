@@ -1,0 +1,28 @@
+city,province,weight
+Jakarta Selatan,DKI Jakarta,12
+Jakarta Barat,DKI Jakarta,9
+Jakarta Timur,DKI Jakarta,9
+Jakarta Utara,DKI Jakarta,6
+Jakarta Pusat,DKI Jakarta,5
+Bekasi,Jawa Barat,8
+Bogor,Jawa Barat,6
+Depok,Jawa Barat,6
+Bandung,Jawa Barat,8
+Tangerang,Banten,8
+Tangerang Selatan,Banten,6
+Surabaya,Jawa Timur,9
+Malang,Jawa Timur,4
+Semarang,Jawa Tengah,5
+Surakarta,Jawa Tengah,3
+Yogyakarta,DI Yogyakarta,4
+Denpasar,Bali,3
+Medan,Sumatera Utara,6
+Palembang,Sumatera Selatan,3
+Pekanbaru,Riau,2
+Padang,Sumatera Barat,2
+Batam,Kepulauan Riau,2
+Makassar,Sulawesi Selatan,4
+Manado,Sulawesi Utara,2
+Balikpapan,Kalimantan Timur,2
+Banjarmasin,Kalimantan Selatan,2
+Pontianak,Kalimantan Barat,2
