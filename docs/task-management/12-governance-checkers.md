@@ -31,6 +31,12 @@ plan written here instead of in chat.
   database or upstream tables. As a result a final `select *` or an unaliased expression is an
   error (`check_bundle`), because its columns cannot be known statically. No model in the repo
   had either.
+- **Jinja branches are expanded, not stripped** (Codex review on PR #13). Each
+  `{% if %}`/`{% elif %}`/`{% else %}` combination is rendered and parsed on its own (at most
+  64); every variant must be one SELECT with the same columns, so a target-conditional pair of
+  SELECTs that disagree fails instead of being read from its first branch. An
+  `is_incremental()` filter passes (`{{ this }}` and `{{ config() }}` are rendered too).
+  A `{% for %}` loop fails: its output cannot be known without running Jinja.
 - **Column naming rules** (`.agents/rules/dbt.md`, reasons in `history/dbt.md`): snake_case
   with one `_` between words (`__` stays the name-part separator); a leading `_` only for the six
   audit columns; no bare generic names (`id`, `name`, `date`, `status`, ...); a money column
@@ -64,7 +70,7 @@ plan written here instead of in chat.
 
 ## Done
 
-- `uv run pytest -q` → 171 passed (72 new: naming 27, bundle 13, layers 9, audit columns 9,
+- `uv run pytest -q` → 174 passed (75 new: naming 27, bundle 16, layers 9, audit columns 9,
   gateway-only 14; `uv run pytest -q tests/governance/test_check_<name>.py` each).
 - Each bad-model test fails the checker it targets: a wrong prefix, domain, folder or cadence,
   a non-snake_case, generic or unitless money column (naming); missing YAML, descriptions or key

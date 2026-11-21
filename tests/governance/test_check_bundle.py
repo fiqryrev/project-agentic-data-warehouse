@@ -88,3 +88,33 @@ def test_yaml_without_sql_fails(tmp_path):
     root = make_project(tmp_path)
     write(root, "models/mart/sales/_mart__refunds.yml", yml)
     assert any("'rpt__sales__refunds__daily' has no SQL model" in e for e in errors(root))
+
+
+def test_if_else_branches_with_different_columns_fail(tmp_path):
+    root = make_project(tmp_path)
+    write(root, "models/mart/sales/rpt__sales__orders__daily.sql",
+          "{% if target.name == 'ci' %} select order_date from {{ ref('fact__sales__orders') }}\n"
+          "{% else %} select order_date, count(*) as orders, sum(amount_idr) as amount_idr, "
+          "{{ dbt_audit_columns() }} from {{ ref('fact__sales__orders') }} group by 1 {% endif %}")
+    assert any("if/else branches output different columns" in e for e in errors(root))
+
+
+def test_incremental_filter_and_config_pass(tmp_path):
+    root = make_project(tmp_path)
+    sql = (root / "models/mart/sales/rpt__sales__orders__daily.sql").read_text()
+    write(root, "models/mart/sales/rpt__sales__orders__daily.sql",
+          "{{ config(materialized='incremental') }}\n" + sql.replace(
+              "group by 1", "{% if is_incremental() %} where order_date > "
+              "(select max(order_date) from {{ this }}) {% endif %}\ngroup by 1"))
+    assert errors(root) == []
+
+
+def test_for_loop_and_two_statements_fail(tmp_path):
+    root = make_project(tmp_path)
+    write(root, "models/mart/sales/rpt__sales__orders__daily.sql",
+          "select {% for c in ['order_date'] %}{{ c }}{% endfor %} from {{ ref('fact__sales__orders') }}")
+    write(root, "models/warehouse/sales/fact__sales__orders.sql",
+          "select order_id from {{ ref('staging__shop__orders') }}; select 1 as order_id")
+    errs = errors(root)
+    assert any("{% for %} loop cannot be read statically" in e for e in errs)
+    assert any("renders to 2 statements" in e for e in errs)
