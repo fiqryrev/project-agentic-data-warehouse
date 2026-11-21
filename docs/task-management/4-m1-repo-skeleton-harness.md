@@ -38,13 +38,17 @@ prices given for 2026-11-21. Ask the owner before pushing or opening the PR; nev
 - **Secrets:** `check_secrets` (home paths, provider key shapes, tracked env files) plus
   gitleaks in CI. The write hook reuses the same patterns.
 - **Rule files:** budget of 40 lines, 4,000 bytes and 200 characters per line each.
+- **Bash guard checks the repository Git would use** (Codex review on PR #5): it follows
+  `cd <dir>` inside the command and Git's global `-C`, `--git-dir` and `--work-tree`, so
+  `git -C <main checkout> commit` from an issue worktree is blocked. Push refspecs whose
+  destination is the default branch, and `--all`/`--mirror`, are read from the arguments.
 - **MCP duty** is declared `none` with a reason; no MCP server is wired yet.
 - Pricing `source_url` is `https://platform.claude.com/docs/en/about-claude/pricing`
   (the official docs page, which lists the cache-write rates; the marketing URL redirects).
 
 ## Done
 
-- `uv run pytest -q` → 58 passed (footer, each checker, hooks, activity log).
+- `uv run pytest -q` → 60 passed (footer, each checker, hooks, activity log).
 - `uv run python -m helpers.check_entry_size`, `check_harness_parity`, `check_secrets`,
   `check_prices` → OK on this branch.
 - `uv run python -m helpers.check_pr_body --body-file tests/governance/fixtures/pr_bodies/bad_untokened.md`

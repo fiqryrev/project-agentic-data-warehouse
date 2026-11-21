@@ -19,19 +19,71 @@ def run_hook(script, payload):
                           capture_output=True, text=True)
 
 
+def fake_branches(mapping, default="7-x"):
+    """branch_of stub: the branch depends on the directory and the -C/--git-dir options."""
+    def branch_of(cwd, git_globals):
+        key = cwd
+        for i, opt in enumerate(git_globals):
+            if opt in ("-C", "--git-dir", "--work-tree") and i + 1 < len(git_globals):
+                key = git_globals[i + 1]
+            elif opt.startswith(("--git-dir=", "--work-tree=")):
+                key = opt.split("=", 1)[1]
+        return mapping.get(key, default)
+    return branch_of
+
+
+ON_ISSUE = fake_branches({})
+ON_MAIN = fake_branches({}, default="main")
+
+
 def test_bash_guard_blocks_merge_and_default_branch():
-    assert guard_bash.reasons("gh pr merge 5 --squash", "7-x")
-    assert guard_bash.reasons("git push origin main", "7-x")
-    assert guard_bash.reasons("git push origin HEAD:main", "7-x")
-    assert guard_bash.reasons("cat .env", "7-x")
-    assert guard_bash.reasons("git commit -m x", "main")
+    assert guard_bash.reasons("gh pr merge 5 --squash", "/wt", ON_ISSUE)
+    assert guard_bash.reasons("gh -R a/b pr merge 5", "/wt", ON_ISSUE)
+    assert guard_bash.reasons("git push origin main", "/wt", ON_ISSUE)
+    assert guard_bash.reasons("git push origin HEAD:main", "/wt", ON_ISSUE)
+    assert guard_bash.reasons("git push origin +HEAD:refs/heads/master", "/wt", ON_ISSUE)
+    assert guard_bash.reasons("git push --all origin", "/wt", ON_ISSUE)
+    assert guard_bash.reasons("cat .env", "/wt", ON_ISSUE)
+    assert guard_bash.reasons("git commit -m x", "/wt", ON_MAIN)
+
+
+def test_bash_guard_follows_git_target_repository():
+    """Codex review on PR #5: `git -C <main checkout> commit` from an issue worktree."""
+    branches = fake_branches({"/repo": "main", "../repo": "main", "/repo/.git": "main"})
+    for cmd in [
+        "git -C /repo commit -m x",
+        "git -c user.name=x -C /repo commit -m x",
+        "git --git-dir=/repo/.git commit -m x",
+        "git --work-tree /repo commit -m x",
+        "cd /repo && git commit -m x",
+        "git status; cd /repo && GIT_EDITOR=true git commit",
+        "git -C /repo push",
+        "git -C /repo push origin HEAD",
+    ]:
+        assert guard_bash.reasons(cmd, "/wt", branches), cmd
+    assert guard_bash.reasons("git -C /wt commit -m x", "/wt", branches) == []
+    assert guard_bash.reasons("git -C /repo status", "/wt", branches) == []
+
+
+def test_bash_guard_reads_the_real_branch_of_c_target(tmp_path):
+    """End to end with real git: the hook resolves -C itself."""
+    import subprocess as sp
+    main_repo, wt = tmp_path / "repo", tmp_path / "wt"
+    for d, b in ((main_repo, "main"), (wt, "7-x")):
+        d.mkdir()
+        sp.run(["git", "init", "-q", "-b", b], cwd=d, check=True)
+    assert guard_bash.reasons(f"git -C {main_repo} commit -m x", str(wt))
+    assert guard_bash.reasons(f"cd {main_repo} && git commit -m x", str(wt))
+    assert guard_bash.reasons("git commit -m x", str(wt)) == []
 
 
 def test_bash_guard_allows_normal_work():
-    assert guard_bash.reasons("git push -u origin 7-main-loader", "7-main-loader") == []
-    assert guard_bash.reasons("git commit -m 'x'", "7-x") == []
-    assert guard_bash.reasons("cat .env.example", "7-x") == []
-    assert guard_bash.reasons("uv run pytest -q", "main") == []
+    assert guard_bash.reasons("git push -u origin 7-main-loader", "/wt", ON_ISSUE) == []
+    assert guard_bash.reasons("git push -o ci.skip origin 7-x", "/wt", ON_ISSUE) == []
+    assert guard_bash.reasons("git commit -m 'fix main page'", "/wt", ON_ISSUE) == []
+    assert guard_bash.reasons("cat .env.example", "/wt", ON_ISSUE) == []
+    assert guard_bash.reasons("uv run pytest -q", "/wt", ON_MAIN) == []
+    assert guard_bash.reasons("git log main..HEAD", "/wt", ON_MAIN) == []
 
 
 def test_bash_guard_exit_code_blocks():
