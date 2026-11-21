@@ -1,0 +1,32 @@
+# List prices in USD per million tokens, read by helpers/ai_usage_footer.py.
+# Keyed by provider, then by the provider's API model id. Every model has five rates:
+# input, cache_write_5m, cache_write_1h, cache_read, output.
+# Optional per model: fast_multiplier (number) and long_context
+# ({threshold_input_tokens: N, rates: {the same five keys}}).
+# source_url must be the provider's official pricing page. Check it with:
+#   uv run python helpers/ai_usage_footer.py check-prices
+stale_after_days: 90
+
+providers:
+  anthropic:
+    source_url: https://platform.claude.com/docs/en/about-claude/pricing
+    verified_on: 2026-11-21
+    models:
+      claude-opus-5-5:
+        input: 4
+        cache_write_5m: 5
+        cache_write_1h: 8
+        cache_read: 0.20
+        output: 20
+      claude-fable-5-2:
+        input: 8
+        cache_write_5m: 10
+        cache_write_1h: 16
+        cache_read: 0.20
+        output: 40
+      claude-haiku-5-5:
+        input: 0.10
+        cache_write_5m: 0.125
+        cache_write_1h: 0.20
+        cache_read: 0.01
+        output: 0.50

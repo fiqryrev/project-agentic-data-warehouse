@@ -1,0 +1,76 @@
+name: ci
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  governance:
+    name: governance
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: install
+        run: uv sync --locked
+
+      # Every check below runs even if an earlier one failed, so one run shows all problems.
+      - name: tests
+        run: uv run pytest -q
+
+      - name: check_entry_size
+        if: success() || failure()
+        run: uv run python -m helpers.check_entry_size
+
+      - name: check_harness_parity
+        if: success() || failure()
+        run: uv run python -m helpers.check_harness_parity
+
+      - name: check_secrets
+        if: success() || failure()
+        run: uv run python -m helpers.check_secrets
+
+      - name: check_prices
+        if: success() || failure()
+        run: uv run python -m helpers.check_prices
+
+      - name: check_worknote
+        if: github.event_name == 'pull_request' && (success() || failure())
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+        run: uv run python -m helpers.check_worknote --base "origin/$BASE_REF" --branch "$HEAD_REF"
+
+      - name: check_pr_body
+        if: github.event_name == 'pull_request' && (success() || failure())
+        run: uv run python -m helpers.check_pr_body
+
+  gitleaks:
+    name: gitleaks
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
