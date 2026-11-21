@@ -78,7 +78,7 @@ plan written here instead of in chat.
   the lake, staging reading a second lake table, a ref to a missing model (layers); a lake table
   without `_source_file`/`_loaded_at`/`_batch_id`, a warehouse model without the audit macro,
   staging dropping `_dt` (audit columns); a provider host or key name in code (gateway-only).
-- `make checks` → all eleven checkers OK on the repository.
+- `make checks` → all ten checkers OK on the repository.
 - `uv run python -m helpers.check_audit_columns --db data/ci/dwh.duckdb` → OK against the
   3-day CI build.
 - `make dbt-ci` → `Summary: 115 total | 110 success | 5 warn` (unchanged from M4).
