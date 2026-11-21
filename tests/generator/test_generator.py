@@ -104,15 +104,17 @@ def test_keys_resolve_except_planted_orphans(land):
     for day in DAYS:
         i = model.day_index(day)
         orders = read(out, "shop", "orders", day)
-        ids = {o["order_id"] for o in orders}
-        assert all(1 <= o["customer_id"] <= model.customers_through(i) for o in orders)
+        for o in orders:
+            created_i = model.day_index(o["created_at"].date())
+            assert o["order_id"] // c.ORDER_ID_DAY == created_i
+            assert 1 <= o["customer_id"] <= model.customers_through(created_i)
         items = read(out, "shop", "order_items", day)
-        assert {x["order_id"] for x in items} == ids
+        assert {x["order_id"] // c.ORDER_ID_DAY for x in items} == {i}
         for x in items:
             assert (x["product_id"] <= model.products_through(i)
                     or x["product_id"] >= c.ORPHAN_PRODUCT_BASE)
         for table in ("payments", "shipments", "refunds"):
-            assert {r["order_id"] for r in read(out, "shop", table, day)} <= ids
+            assert all(model.order_exists(SEED, r["order_id"]) for r in read(out, "shop", table, day))
         codes = {o["voucher_code"] for o in orders if o["voucher_code"]}
         assert all(code.startswith("HEMAT2026") for code in codes)
 
@@ -121,14 +123,20 @@ def test_ledger_matches_shop_money(land):
     out, _ = land
     day = DAYS[4]
     payments = {p["order_id"]: p for p in read(out, "shop", "payments", day)}
-    refunds = {r["order_id"]: r["amount_idr"] for r in read(out, "shop", "refunds", day)}
+    refunds = {r["order_id"]: r for r in read(out, "shop", "refunds", day)}
     invoices = read(out, "ledger", "invoices", day)
-    assert len(invoices) == len(payments)
+    first = [v for v in invoices if v["refund_idr"] == 0]
+    adjusted = [v for v in invoices if v["refund_idr"] > 0]
+    assert len(first) == len(payments) and len(adjusted) == len(refunds) > 0
     for inv in invoices:
         oid = int(inv["order_ref"].removeprefix("ORD-"))
-        gross = payments[oid]["amount_idr"]
-        refund = refunds.get(oid, 0)
-        assert inv["gross_idr"] == gross and inv["refund_idr"] == refund
+        gross, refund = inv["gross_idr"], inv["refund_idr"]
+        if refund:
+            assert refunds[oid]["amount_idr"] == refund
+            assert inv["posted_at"] == refunds[oid]["refunded_at"]
+        else:
+            assert payments[oid]["amount_idr"] == gross
+            assert inv["posted_at"] == payments[oid]["paid_at"]
         assert inv["net_revenue_idr"] == round((gross - refund) / (1 + c.TAX_RATE))
         assert inv["cust_ref"].startswith("C-") and len(inv["cust_ref"]) == 9
         expected = "REFUNDED" if refund >= gross and refund else "PARTIAL_REFUND" if refund else "PAID"
@@ -141,40 +149,83 @@ def test_ledger_matches_shop_money(land):
         assert s["payout_idr"] + s["commission_idr"] == s["gross_sales_idr"]
 
 
+# --------------------------------------------------------------------------- time
+
+
+TIMESTAMPS = {
+    ("shop", "orders"): ("created_at", "updated_at"),
+    ("shop", "payments"): ("paid_at",),
+    ("shop", "shipments"): ("shipped_at", "delivered_at"),
+    ("shop", "refunds"): ("refunded_at",),
+    ("ledger", "invoices"): ("posted_at",),
+    ("shop", "customers"): ("created_at",),
+    ("shop", "products"): ("created_at",),
+}
+
+
+def test_no_timestamp_after_its_partition_day(land):
+    """Codex review on PR #7: a partition is what the source knew by the end of that day."""
+    out, _ = land
+    for day in DAYS:
+        end = dt.datetime.combine(day + dt.timedelta(days=1), dt.time())
+        for (source, table), cols in TIMESTAMPS.items():
+            for row in read(out, source, table, day):
+                for col in cols:
+                    assert row[col] is None or row[col] < end, (table, col, row)
+
+
+def test_status_matches_events_up_to_the_row(land):
+    """An order row's status is the last event by the end of its updated_at day."""
+    out, _ = land
+    for day in DAYS:
+        for o in read(out, "shop", "orders", day):
+            t = model.timeline(SEED, o["order_id"])
+            seen = [s for ts, s in t["events"] if ts.date() <= o["updated_at"].date()]
+            expected = seen[-1]
+            if expected == "shipped" and day >= c.STATUS_RENAME_DATE:
+                expected = "in_transit"
+            assert o["order_status"] == expected
+            assert o["updated_at"] in [ts for ts, _ in t["events"]]
+        for s in read(out, "shop", "shipments", day):
+            assert (s["delivered_at"] is not None) == (s["shipment_status"] == "delivered")
+
+
 # --------------------------------------------------------------------------- defects
 
 
 def test_duplicates_exact_count(land):
     out, _ = land
     for day in DAYS:
-        orders = read(out, "shop", "orders", day)
-        counts = Counter(o["order_id"] for o in orders)
-        unique = len(counts)
-        dups = [o for o, n in counts.items() if n > 1]
-        assert len(dups) == round(unique * c.DUPLICATE_RATE)
-        assert all(counts[o] == 2 for o in dups)
+        rows = read(out, "shop", "orders", day)
+        counts = Counter(tuple(sorted(r.items())) for r in rows)
+        dups = [k for k, n in counts.items() if n > 1]
+        assert len(dups) == round(len(counts) * c.DUPLICATE_RATE)
+        assert all(counts[k] == 2 for k in dups)
 
 
 def test_late_rows(land):
     out, _ = land
-    assert all(o["created_at"].date() == DAYS[0] for o in read(out, "shop", "orders", DAYS[0]))
+    assert all(o["updated_at"].date() == DAYS[0] for o in read(out, "shop", "orders", DAYS[0]))
     for day in DAYS[1:]:
-        orders = {o["order_id"]: o for o in read(out, "shop", "orders", day)}
-        late = [o for o in orders.values() if o["created_at"].date() < day]
-        on_time = len(orders) - len(late)
-        assert len(late) == round(on_time * c.LATE_RATE)
+        i = model.day_index(day)
+        rows = {tuple(sorted(r.items())) for r in read(out, "shop", "orders", day)}
+        late = [dict(r) for r in rows if dict(r)["updated_at"].date() < day]
+        expected = sum(1 for back in range(1, c.LATE_MAX_LAG_DAYS + 1) if i - back >= 0
+                       for lag in model._late_plan(SEED, model.day_of(i - back))[1].values()
+                       if lag == back)
+        assert len(late) == expected > 0
         for o in late:
-            lag = (day - o["created_at"].date()).days
-            assert 1 <= lag <= c.LATE_MAX_LAG_DAYS
-            assert o["order_id"] % c.ORDER_ID_DAY > c.LATE_ID_OFFSET
+            assert 1 <= (day - o["updated_at"].date()).days <= c.LATE_MAX_LAG_DAYS
+        held = model._late_plan(SEED, day)[1]
+        on_time = len(rows) - len(late)
+        assert len(held) == round((on_time + len(held)) * c.LATE_RATE)
 
 
-def test_orphan_keys(land):
+def test_orphan_keys_are_rare_and_marked(land):
     out, _ = land
-    for day in DAYS:
-        items = read(out, "shop", "order_items", day)
-        orphans = [x for x in items if x["product_id"] >= c.ORPHAN_PRODUCT_BASE]
-        assert len(orphans) == round(len(items) * c.ORPHAN_RATE)
+    items = [x for day in DAYS for x in read(out, "shop", "order_items", day)]
+    orphans = [x for x in items if x["product_id"] >= c.ORPHAN_PRODUCT_BASE]
+    assert 0 < len(orphans) < len(items) * c.ORPHAN_RATE * 3
 
 
 def test_status_renamed_mid_history(land):
@@ -183,8 +234,10 @@ def test_status_renamed_mid_history(land):
     after = {o["order_status"] for o in read(out, "shop", "orders", DAYS[3])}
     assert "shipped" in before and "in_transit" not in before
     assert "in_transit" in after and "shipped" not in after
+    assert {"delivered", "paid", "placed"} <= before
+    ship_before = {s["shipment_status"] for s in read(out, "shop", "shipments", DAYS[2])}
     ship_after = {s["shipment_status"] for s in read(out, "shop", "shipments", DAYS[3])}
-    assert "shipped" not in ship_after
+    assert "shipped" in ship_before and "shipped" not in ship_after
 
 
 def test_city_casing(land):

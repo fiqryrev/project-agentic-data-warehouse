@@ -178,57 +178,74 @@ def campaign(seed: int, month: int, k: int, day: dt.date) -> dict:
 
 
 # --------------------------------------------------------------------------- orders
+#
+# Every order has a timeline (created, then paid or cancelled, shipped, delivered, maybe
+# refunded) that is a pure function of (seed, order_id). A partition holds what the source
+# wrote that day: an order row for each order with an event on that day, carrying its state at
+# the end of the day, plus the payment, shipment, refund and ledger rows of that day's
+# events. No timestamp in a partition is later than the end of its day.
 
 
-def _order_count(seed: int, day: dt.date) -> int:
+def order_count(seed: int, day: dt.date) -> int:
     r = rng(seed, "volume", day.isoformat())
     i = day_index(day)
     n = c.ORDERS_PER_DAY * c.WEEKDAY_FACTOR[day.weekday()] * (1 + c.DAILY_GROWTH * i)
     return int(round(n * r.uniform(0.9, 1.1)))
 
 
-def _status(r: random.Random, partition_day: dt.date) -> str:
-    s = r.choices(list(c.STATUS_WEIGHTS), weights=list(c.STATUS_WEIGHTS.values()))[0]
-    if s == "shipped" and partition_day >= c.STATUS_RENAME_DATE:
-        return "in_transit"
-    return s
+def order_exists(seed: int, order_id: int) -> bool:
+    i, k = divmod(order_id, c.ORDER_ID_DAY)
+    return i >= 0 and 1 <= k <= order_count(seed, day_of(i))
 
 
-def _one_order(seed: int, r: random.Random, order_id: int, order_day_i: int,
-               partition_day: dt.date) -> dict:
-    """An order with its items and money, before defects are applied."""
-    order_day = day_of(order_day_i)
-    created = at(order_day, r.randrange(86_400))
-    status = _status(r, partition_day)
+def _secs(r: random.Random, bounds: tuple[int, int]) -> dt.timedelta:
+    return dt.timedelta(seconds=r.randint(*bounds))
+
+
+def timeline(seed: int, order_id: int) -> dict:
+    """One order with its items, money and event times."""
+    i = order_id // c.ORDER_ID_DAY
+    day = day_of(i)
+    r = rng(seed, "order", order_id)
+    created = at(day, r.randrange(86_400))
     voucher_code = None
     if r.random() < c.VOUCHER_RATE:
-        voucher_code = f"HEMAT{month_key(order_day)}{r.randint(1, c.VOUCHERS_PER_MONTH)}"
+        voucher_code = f"HEMAT{month_key(day)}{r.randint(1, c.VOUCHERS_PER_MONTH)}"
     items = []
     for line in range(1, r.choices((1, 2, 3, 4), weights=(50, 30, 15, 5))[0] + 1):
-        pid = r.randint(1, products_through(order_day_i))
-        items.append({
-            "order_item_id": order_id * 10 + line,
-            "order_id": order_id,
-            "product_id": pid,
-            "quantity": r.choices((1, 2, 3), weights=(75, 18, 7))[0],
-            "unit_price_idr": product(seed, pid)["price_idr"],
-        })
-    return {
-        "order": {
-            "order_id": order_id,
-            "customer_id": r.randint(1, customers_through(order_day_i)),
-            "order_status": status,
-            "voucher_code": voucher_code,
-            "shipping_fee_idr": r.choice(c.SHIPPING_FEES),
-            "created_at": created,
-        },
-        "items": items,
-        "payment_method": r.choice(c.PAYMENT_METHODS),
-        "pay_delay": r.randint(60, 6 * 3600),
-        "courier": r.choice(c.COURIERS),
-        "ship_delay": r.randint(2 * 3600, 30 * 3600),
-        "deliver_delay": r.randint(86_400, 4 * 86_400),
-    }
+        pid = r.randint(1, products_through(i))
+        price = product(seed, pid)["price_idr"]
+        if rng(seed, "orphan", order_id, line).random() < c.ORPHAN_RATE:
+            pid = c.ORPHAN_PRODUCT_BASE + r.randrange(1_000_000)
+        items.append({"order_item_id": order_id * 10 + line, "order_id": order_id,
+                      "product_id": pid, "quantity": r.choices((1, 2, 3), weights=(75, 18, 7))[0],
+                      "unit_price_idr": price})
+    order = {"order_id": order_id, "customer_id": r.randint(1, customers_through(i)),
+             "voucher_code": voucher_code, "shipping_fee_idr": r.choice(c.SHIPPING_FEES),
+             "created_at": created}
+    subtotal = sum(x["quantity"] * x["unit_price_idr"] for x in items)
+    t = {"order": order, "items": items, "gross": subtotal - _discount(seed, order, subtotal)
+         + order["shipping_fee_idr"], "payment_method": r.choice(c.PAYMENT_METHODS),
+         "courier": r.choice(c.COURIERS), "events": [(created, "placed")]}
+    outcome = r.choices(list(c.OUTCOME_WEIGHTS), weights=list(c.OUTCOME_WEIGHTS.values()))[0]
+    if outcome == "cancelled":
+        t["events"].append((created + _secs(r, c.CANCEL_DELAY), "cancelled"))
+    elif outcome == "completed":
+        paid = created + _secs(r, c.PAY_DELAY)
+        shipped = paid + _secs(r, c.SHIP_DELAY)
+        delivered = shipped + _secs(r, c.DELIVER_DELAY)
+        t["events"] += [(paid, "paid"), (shipped, "shipped"), (delivered, "delivered")]
+        t.update(paid_at=paid, shipped_at=shipped, delivered_at=delivered)
+        if r.random() < c.REFUND_RATE:
+            first = items[0]
+            full = r.random() < 0.3
+            t["refund"] = {
+                "amount": t["gross"] if full else min(t["gross"],
+                                                      first["quantity"] * first["unit_price_idr"]),
+                "reason": r.choice(c.REFUND_REASONS),
+                "at": delivered + _secs(r, c.REFUND_DELAY),
+            }
+    return t
 
 
 def _discount(seed: int, order: dict, subtotal: int) -> int:
@@ -240,6 +257,83 @@ def _discount(seed: int, order: dict, subtotal: int) -> int:
     if subtotal < v["min_spend_idr"]:
         return 0
     return min(subtotal * v["discount_pct"] // 100, v["max_discount_idr"])
+
+
+@lru_cache(maxsize=64)
+def _timelines_of(seed: int, i: int) -> tuple[dict, ...]:
+    """All orders created on day index i."""
+    return tuple(timeline(seed, i * c.ORDER_ID_DAY + k)
+                 for k in range(1, order_count(seed, day_of(i)) + 1))
+
+
+def _active(seed: int, day: dt.date) -> list[dict]:
+    """Orders that may have an event on this day (created within the lifecycle horizon)."""
+    i = day_index(day)
+    return [t for x in range(max(0, i - c.LIFECYCLE_DAYS), i + 1) for t in _timelines_of(seed, x)]
+
+
+def _on(ts: dt.datetime | None, day: dt.date) -> bool:
+    return ts is not None and ts.date() == day
+
+
+def _invoice(t: dict, refund: int, posted: dt.datetime) -> dict:
+    o, gross = t["order"], t["gross"]
+    return {
+        "invoice_id": f"INV-{o['order_id']}",
+        "order_ref": f"ORD-{o['order_id']}",
+        "cust_ref": f"C-{o['customer_id']:07d}",
+        "invoice_date": t["paid_at"].date(),
+        "invoice_status": ("REFUNDED" if refund and refund >= gross
+                           else "PARTIAL_REFUND" if refund else "PAID"),
+        "gross_idr": gross,
+        "tax_idr": int(round(gross - gross / (1 + c.TAX_RATE))),
+        "refund_idr": refund,
+        "net_revenue_idr": int(round((gross - refund) / (1 + c.TAX_RATE))),
+        "posted_at": posted,
+    }
+
+
+def base_order_rows(seed: int, day: dt.date) -> Rows:
+    """Order rows as the source wrote them on this day, before late delivery or duplicates."""
+    rows = []
+    for t in _active(seed, day):
+        todays = [(ts, s) for ts, s in t["events"] if ts.date() == day]
+        if not todays:
+            continue
+        cut = [(ts, s) for ts, s in t["events"] if ts.date() <= day]
+        rows.append({**t["order"], "order_status": cut[-1][1], "updated_at": todays[-1][0]})
+    return rows
+
+
+def _late_plan(seed: int, day: dt.date) -> tuple[Rows, dict[int, int]]:
+    """The day's base rows, and {row index: days late} for the rows held back."""
+    rows = base_order_rows(seed, day)
+    r = rng(seed, "late", day.isoformat())
+    held = sorted(r.sample(range(len(rows)), exact_count(len(rows), c.LATE_RATE)))
+    return rows, {k: r.randint(1, c.LATE_MAX_LAG_DAYS) for k in held}
+
+
+def order_rows(seed: int, day: dt.date) -> Rows:
+    """The day's order rows with the documented defects: late rows and duplicates."""
+    i = day_index(day)
+    rows, held_today = _late_plan(seed, day)
+    keep = [x for k, x in enumerate(rows) if k not in held_today]
+    for back in range(1, c.LATE_MAX_LAG_DAYS + 1):
+        if i - back < 0:
+            continue
+        earlier, held = _late_plan(seed, day_of(i - back))
+        keep += [dict(earlier[k]) for k, lag in held.items() if lag == back]
+    for x in keep:
+        if x["order_status"] == "shipped" and day >= c.STATUS_RENAME_DATE:
+            x["order_status"] = "in_transit"
+    r = rng(seed, "duplicates", day.isoformat())
+    dup = set(r.sample(range(len(keep)), exact_count(len(keep), c.DUPLICATE_RATE)))
+    out = []
+    for k, x in enumerate(keep):
+        out.append(x)
+        if k in dup:
+            out.append(dict(x))
+    return out
 
 
 def build_day(seed: int, day: dt.date) -> dict[tuple[str, str], Rows]:
@@ -269,90 +363,43 @@ def build_day(seed: int, day: dt.date) -> dict[tuple[str, str], Rows]:
     campaigns = [campaign(seed, month, k, day) for k in range(1, c.CAMPAIGNS_PER_MONTH + 1)]
     out["marketing", "campaigns"] = campaigns if starts_catalog(day) else []
 
-    # orders of the day, then late arrivals from up to three days back
-    r = rng(seed, "orders", day.isoformat())
-    built = [_one_order(seed, r, i * c.ORDER_ID_DAY + k + 1, i, day)
-             for k in range(_order_count(seed, day))]
-    n_late = exact_count(len(built), c.LATE_RATE)
-    for j in range(n_late if i > 0 else 0):
-        lag = r.randint(1, min(c.LATE_MAX_LAG_DAYS, i))
-        oid = (i - lag) * c.ORDER_ID_DAY + c.LATE_ID_OFFSET + (lag - 1) * c.LATE_ID_PER_LAG + j + 1
-        built.append(_one_order(seed, r, oid, i - lag, day))
-
-    orders, items, payments, shipments, refunds = [], [], [], [], []
-    invoices, lines = [], []
+    out["shop", "orders"] = order_rows(seed, day)
+    items, payments, shipments, refunds, invoices, lines = [], [], [], [], [], []
     seller_sales: dict[int, int] = {}
-    for b in built:
-        o = b["order"]
-        orders.append(o)
-        items.extend(b["items"])
-    # orphan keys: a few items point at products that never existed
-    r_def = rng(seed, "defects", day.isoformat())
-    for idx in sorted(r_def.sample(range(len(items)), exact_count(len(items), c.ORPHAN_RATE))):
-        items[idx]["product_id"] = c.ORPHAN_PRODUCT_BASE + r_def.randrange(1_000_000)
-
-    delivered = [b for b in built if b["order"]["order_status"] == "delivered"]
-    refunded = {id(b) for b in r_def.sample(delivered, exact_count(len(delivered), c.REFUND_RATE))}
-    for b in built:
-        o = b["order"]
-        status = o["order_status"]
-        if status not in c.PAID_STATUSES:
-            continue
-        subtotal = sum(x["quantity"] * x["unit_price_idr"] for x in b["items"])
-        gross = subtotal - _discount(seed, o, subtotal) + o["shipping_fee_idr"]
-        paid_at = o["created_at"] + dt.timedelta(seconds=b["pay_delay"])
-        payments.append({"payment_id": o["order_id"], "order_id": o["order_id"],
-                         "payment_method": b["payment_method"], "amount_idr": gross,
-                         "paid_at": paid_at})
-        if status in c.SHIPPED_STATUSES:
-            shipped_at = paid_at + dt.timedelta(seconds=b["ship_delay"])
+    renamed = day >= c.STATUS_RENAME_DATE
+    for t in _active(seed, day):
+        o = t["order"]
+        oid = o["order_id"]
+        if _on(o["created_at"], day):
+            items.extend(dict(x) for x in t["items"])
+        if _on(t.get("paid_at"), day):
+            payments.append({"payment_id": oid, "order_id": oid,
+                             "payment_method": t["payment_method"], "amount_idr": t["gross"],
+                             "paid_at": t["paid_at"]})
+            invoices.append(_invoice(t, 0, t["paid_at"]))
+            for n, x in enumerate(t["items"], 1):
+                amount = x["quantity"] * x["unit_price_idr"]
+                lines.append({"invoice_id": f"INV-{oid}", "line_no": n,
+                              "product_ref": x["product_id"], "quantity": x["quantity"],
+                              "line_amount_idr": amount})
+                if x["product_id"] < c.ORPHAN_PRODUCT_BASE:
+                    sid = product(seed, x["product_id"])["seller_id"]
+                    seller_sales[sid] = seller_sales.get(sid, 0) + amount
+        shipped_today, delivered_today = _on(t.get("shipped_at"), day), _on(t.get("delivered_at"), day)
+        if shipped_today or delivered_today:
             shipments.append({
-                "shipment_id": o["order_id"], "order_id": o["order_id"],
-                "courier": b["courier"], "shipment_status": status, "shipped_at": shipped_at,
-                "delivered_at": (shipped_at + dt.timedelta(seconds=b["deliver_delay"])
-                                 if status == "delivered" else None),
+                "shipment_id": oid, "order_id": oid, "courier": t["courier"],
+                "shipment_status": ("delivered" if delivered_today
+                                    else "in_transit" if renamed else "shipped"),
+                "shipped_at": t["shipped_at"],
+                "delivered_at": t["delivered_at"] if delivered_today else None,
             })
-        refund = 0
-        if id(b) in refunded:
-            r_ref = rng(seed, "refund", o["order_id"])
-            full = r_ref.random() < 0.3
-            first = b["items"][0]
-            refund = gross if full else min(gross, first["quantity"] * first["unit_price_idr"])
-            refunds.append({"refund_id": o["order_id"], "order_id": o["order_id"],
-                            "refund_reason": r_ref.choice(c.REFUND_REASONS),
-                            "amount_idr": refund,
-                            "refunded_at": paid_at + dt.timedelta(days=r_ref.randint(3, 10))})
-        tax = int(round(gross - gross / (1 + c.TAX_RATE)))
-        invoices.append({
-            "invoice_id": f"INV-{o['order_id']}",
-            "order_ref": f"ORD-{o['order_id']}",
-            "cust_ref": f"C-{o['customer_id']:07d}",
-            "invoice_date": paid_at.date(),
-            "invoice_status": ("REFUNDED" if refund and refund >= gross
-                               else "PARTIAL_REFUND" if refund else "PAID"),
-            "gross_idr": gross,
-            "tax_idr": tax,
-            "refund_idr": refund,
-            "net_revenue_idr": int(round((gross - refund) / (1 + c.TAX_RATE))),
-        })
-        for n, x in enumerate(b["items"], 1):
-            amount = x["quantity"] * x["unit_price_idr"]
-            lines.append({"invoice_id": f"INV-{o['order_id']}", "line_no": n,
-                          "product_ref": x["product_id"], "quantity": x["quantity"],
-                          "line_amount_idr": amount})
-            if x["product_id"] < c.ORPHAN_PRODUCT_BASE:
-                sid = product(seed, x["product_id"])["seller_id"]
-                seller_sales[sid] = seller_sales.get(sid, 0) + amount
+        refund = t.get("refund")
+        if refund and _on(refund["at"], day):
+            refunds.append({"refund_id": oid, "order_id": oid, "refund_reason": refund["reason"],
+                            "amount_idr": refund["amount"], "refunded_at": refund["at"]})
+            invoices.append(_invoice(t, refund["amount"], refund["at"]))
 
-    # duplicates: a few order rows are delivered twice by the source
-    dup = set(r_def.sample(range(len(orders)), exact_count(len(orders), c.DUPLICATE_RATE)))
-    with_dups = []
-    for idx, o in enumerate(orders):
-        with_dups.append(o)
-        if idx in dup:
-            with_dups.append(dict(o))
-
-    out["shop", "orders"] = with_dups
     out["shop", "order_items"] = items
     out["shop", "payments"] = payments
     out["shop", "shipments"] = shipments

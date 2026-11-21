@@ -20,24 +20,28 @@ ORDERS_PER_DAY = 500
 WEEKDAY_FACTOR = (1.0, 0.95, 0.95, 1.0, 1.1, 1.25, 1.2)  # Monday .. Sunday
 DAILY_GROWTH = 0.0015
 
-# order_id = <day index> * ORDER_ID_DAY + <n>; late arrivals use the top of the range.
+# order_id = <day index of creation> * ORDER_ID_DAY + <n>
 ORDER_ID_DAY = 100_000
-LATE_ID_OFFSET = 90_000
-LATE_ID_PER_LAG = 3_000
 ORPHAN_PRODUCT_BASE = 9_000_000
 
-# Order outcome mix (status at the time the partition is written).
-STATUS_WEIGHTS = {"placed": 5, "paid": 15, "shipped": 25, "delivered": 50, "cancelled": 5}
-PAID_STATUSES = {"paid", "shipped", "in_transit", "delivered"}
-SHIPPED_STATUSES = {"shipped", "in_transit", "delivered"}
+# Order lifecycle. An order is abandoned (stays placed), cancelled, or completed:
+# paid, shipped, delivered, and for some a refund after delivery. Delays in seconds.
+OUTCOME_WEIGHTS = {"abandoned": 4, "cancelled": 5, "completed": 91}
+CANCEL_DELAY = (10 * 60, 12 * 3600)
+PAY_DELAY = (60, 6 * 3600)
+SHIP_DELAY = (2 * 3600, 30 * 3600)
+DELIVER_DELAY = (12 * 3600, 4 * 86_400)
+REFUND_DELAY = (86_400, 7 * 86_400)
+# Upper bound in days from creation to the last possible event (refund).
+LIFECYCLE_DAYS = 13
 VOUCHER_RATE = 0.10
-REFUND_RATE = 0.03
+REFUND_RATE = 0.03  # of completed orders
 
 # Documented defects (generator/DEFECTS.md). Counts per partition are exact: round(n * rate).
 DUPLICATE_RATE = 0.005
 LATE_RATE = 0.02
 LATE_MAX_LAG_DAYS = 3
-ORPHAN_RATE = 0.002
+ORPHAN_RATE = 0.002  # per order line, a seeded coin flip (not an exact count)
 CASING_RATE = 0.10
 
 TAX_RATE = 0.11  # PPN, included in shop prices

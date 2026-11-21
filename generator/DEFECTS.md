@@ -22,19 +22,26 @@ has a file every day, empty when nothing happened.
 | `shop` | `sellers` | new seller: 120, then 1 a day | creation day |
 | `shop` | `products` | new product: 600, then 8 a day | creation day |
 | `shop` | `vouchers` | voucher code, 5 per month | the 1st (and 2026-01-01) |
-| `shop` | `orders` | order (about 500 a day, weekly pattern, slow growth) | order day, or later (late rows) |
-| `shop` | `order_items` | order line, 1 to 4 per order | with its order |
-| `shop` | `payments` | payment of an order in `paid`, `shipped`/`in_transit` or `delivered` | with its order |
-| `shop` | `shipments` | shipment of an order in `shipped`/`in_transit` or `delivered` | with its order |
-| `shop` | `refunds` | refund, 3% of delivered orders (30% full, else the first line) | with its order |
-| `ledger` | `invoices` | invoice of a paid order | with its order |
-| `ledger` | `invoice_lines` | invoice line | with its invoice |
+| `shop` | `orders` | order state: one row per order on each day it has an event (placed, paid, cancelled, shipped, delivered); about 500 new orders a day | each event day, or later (late rows) |
+| `shop` | `order_items` | order line, 1 to 4 per order | creation day |
+| `shop` | `payments` | payment (91% of orders complete; 4% are abandoned, 5% cancelled) | payment day |
+| `shop` | `shipments` | shipment state: a row when shipped, another when delivered | each event day |
+| `shop` | `refunds` | refund, 3% of completed orders, 1 to 7 days after delivery (30% full, else the first line) | refund day |
+| `ledger` | `invoices` | invoice posting: once when paid, again with the refund when refunded | payment day, refund day |
+| `ledger` | `invoice_lines` | invoice line | payment day |
 | `ledger` | `settlements` | seller payout for the day's invoice lines, 5% commission | partition day |
 | `marketing` | `campaigns` | campaign, 3 per month, channel rotates | the 1st (and 2026-01-01) |
 | `marketing` | `daily_spend` | campaign and day | every day |
 
-Money is in whole rupiah (`*_idr`, int64). Timestamps are naive UTC. The status of an order is
-its status when the partition was written; a later partition does not update it.
+Money is in whole rupiah (`*_idr`, int64). Timestamps are naive UTC.
+
+Each order has a timeline drawn from `(seed, order_id)`: created, then cancelled within 12
+hours, or paid within 6 hours, shipped 2 to 30 hours later, delivered 12 hours to 4 days
+after that, and for some a refund 1 to 7 days after delivery. A partition holds what the
+source wrote that day: an `orders` row for every order with an event that day, carrying its
+status at the end of the day and `updated_at` = the day's last event, plus the payment,
+shipment, refund and ledger rows of that day's events. **No timestamp in a partition is later
+than the end of its day** (tested), so the latest row per `order_id` is the current state.
 
 ## The ledger disagrees with the shop on purpose
 
@@ -46,19 +53,19 @@ its status when the partition was written; a later partition does not update it.
 | Status vocabulary | `placed`, `paid`, `shipped`/`in_transit`, `delivered`, `cancelled` | `PAID`, `PARTIAL_REFUND`, `REFUNDED` |
 | Revenue | `payments.amount_idr`: items minus voucher plus shipping, PPN included | `net_revenue_idr` = (gross minus refund) / 1.11, net of refunds and the 11% PPN |
 | Lines | `order_items` | `invoice_lines` hold items before voucher and shipping, so they do not sum to `gross_idr` |
-| Refund date | `refunds.refunded_at` 3 to 10 days after payment | refund already in the invoice of the order day |
+| Refund | a `refunds` row | the invoice posted again with `refund_idr` and the new status, `invoice_date` unchanged |
 
 ## Documented defects
 
-Counts are exact per partition: `round(n * rate)`, chosen by a seeded draw.
+Counts are exact per partition, `round(n * rate)` chosen by a seeded draw, except orphan keys.
 
 | Defect | Where | Rate | How to spot it |
 |---|---|---|---|
 | Casing | `shop.customers.city` all upper or all lower case | 10% of a day's new customers | `city <> initcap(city)` |
 | Duplicates | `shop.orders`: a row appears twice, identical | 0.5% of the day's orders | `count(*) > 1` per `order_id` |
-| Late rows | `shop.orders` (with items, payments, ...): an order from 1 to 3 days earlier lands in today's partition | 2% of the day's orders | `created_at::date < dt`; their ids are `<day> * 100000 + 90001 ..` |
-| Orphan keys | `shop.order_items.product_id` (and `ledger.invoice_lines.product_ref`) points at a product that never existed | 0.2% of the day's items | ids from 9,000,000; no match in `products`; left out of settlements |
-| Renamed status | `shop.orders.order_status` and `shop.shipments.shipment_status`: `shipped` becomes `in_transit` | partitions from 2026-06-01 | both values exist across history, never in one partition |
+| Late rows | `shop.orders`: a row written 1 to 3 days earlier is held back and lands in a later partition, possibly after a newer row of the same order | 2% of the day's order rows | `updated_at::date < dt` |
+| Orphan keys | `shop.order_items.product_id` (and `ledger.invoice_lines.product_ref`) points at a product that never existed | about 0.2% of lines (a seeded draw per line) | ids from 9,000,000; no match in `products`; left out of settlements |
+| Renamed status | `shop.orders.order_status` and `shop.shipments.shipment_status`: `shipped` becomes `in_transit` | partitions from 2026-06-01, late rows included | both values exist across history, never in one partition |
 
 A staging model fixes each of these and says how; the knowledge base records them as `da-`
 entries (M6).
