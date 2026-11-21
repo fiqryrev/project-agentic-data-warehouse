@@ -1,0 +1,13 @@
+# Why the dbt model rules exist
+
+Each entry: rule number, date added, the reason. Read on demand; not loaded by default.
+
+- 1-3, 2026-11-22: PLAN section 4. The name carries the layer and domain, so a table read in Auto Ontology or a chat answer says where it sits without a lookup; a folder that disagrees with the name hides a model from whoever owns the domain.
+- 4, 2026-11-22: one `_` between words keeps `__` free as the separator between name parts; the leading `_` marks columns a loader or dbt adds, so they never mix with business columns.
+- 5, 2026-11-22: a bare `status` or `date` is ambiguous once two tables are joined, and Auto Ontology names its concepts after columns.
+- 6, 2026-11-22: amounts come in rupiah and percentages; a unit in the name keeps a chat answer from adding the two. Only the unit is checked, because the type of `_at`, `_date` and `is_` columns needs a database.
+- 7-8, 2026-11-22: `persist_docs` turns the YAML into the comments Auto Ontology reads; an undocumented or misspelled column reaches it without meaning. The checkers read the select list with DuckDB's parser, which cannot expand `*` without the upstream tables.
+- 9, 2026-11-22: a duplicate on the grain double-counts every sum built on it; a key test is the cheapest guard. `unique` alone allows a null key, so it needs `not_null` beside it.
+- 10, 2026-11-22: PLAN section 4. Downward-only lineage keeps a staging fix from being bypassed and keeps the mart from depending on raw shapes. Staging is 1:1 with a lake table: one source, the one its name points at.
+- 11, 2026-11-22: PLAN section 7. Audit columns answer "where did this row come from" without a lineage tool. Staging keeps `_dt` so a warehouse row can be traced to its partition.
+- 12, 2026-11-22: PLAN section 8.1. A direct provider call skips the budgets, job tags and traces the gateway records. PLAN.md and docs/m0-findings.md are exempt as design records; tests/governance/ holds the bad fixtures.

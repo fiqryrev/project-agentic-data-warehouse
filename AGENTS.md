@@ -116,12 +116,17 @@ The PostToolUse hook logs every tool call the same way. Logs are gitignored.
 | secrets and home paths | `uv run python -m helpers.check_secrets` (and gitleaks in CI) |
 | pricing file | `uv run python -m helpers.check_prices` |
 | DuckDB file compatibility | `uv run python -m helpers.check_duckdb_compat` |
+| model and column names | `uv run python -m helpers.check_naming` |
+| model bundle (YAML, docs, key test) | `uv run python -m helpers.check_bundle` |
+| layer reads | `uv run python -m helpers.check_layers` |
+| audit columns | `uv run python -m helpers.check_audit_columns` |
+| model calls only via the gateway | `uv run python -m helpers.check_gateway_only` |
 | worknote | `uv run python -m helpers.check_worknote --base origin/main` |
 | PR body | `uv run python -m helpers.check_pr_body --body-file pr-body.md` |
 | dbt (job `dbt`) | `make dbt-ci`: 3 generated days, loaded, then `dbt build --target ci` |
 
-Later milestones add `check_naming`, `check_bundle`, `check_layers`, `check_audit_columns`,
-`check_knowledge` and `check_gateway_only`.
+The dbt checkers read the project statically (`helpers/dbtlib.py`); model and column rules
+are in `.agents/rules/dbt.md`. M6 adds `check_knowledge`.
 
 ## Data access
 

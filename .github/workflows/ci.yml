@@ -53,6 +53,26 @@ jobs:
         if: success() || failure()
         run: uv run python -m helpers.check_duckdb_compat
 
+      - name: check_naming
+        if: success() || failure()
+        run: uv run python -m helpers.check_naming
+
+      - name: check_bundle
+        if: success() || failure()
+        run: uv run python -m helpers.check_bundle
+
+      - name: check_layers
+        if: success() || failure()
+        run: uv run python -m helpers.check_layers
+
+      - name: check_audit_columns
+        if: success() || failure()
+        run: uv run python -m helpers.check_audit_columns
+
+      - name: check_gateway_only
+        if: success() || failure()
+        run: uv run python -m helpers.check_gateway_only
+
       - name: check_worknote
         if: github.event_name == 'pull_request' && (success() || failure())
         env:
