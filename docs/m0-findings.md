@@ -234,7 +234,12 @@ Auto Ontology always sends `top_n` on the `/rerank` shape, and `additional_drop_
 does not apply to rerank in 1.110.2. The `nvidia_nim/ranking/...` variant goes to `/v1/ranking`,
 which returns 404 for this model. This is the fallback PLAN section 13 already names for a role that fails. The pass-through keeps Auto Ontology's native NVIDIA payload
 (URL ending in `/reranking` is used as-is) and still requires a gateway key. Cost of the
-pass-through: LiteLLM does not count rerank tokens or cost for it. Rerank is only used in
+pass-through: LiteLLM logs and traces the call but records no tokens and no cost. Checked with
+the Phoenix callback: the rerank call produced spans named `litellm_proxy_request` and
+`litellm_request` with `llm.model_name = nvidia/nemotron-3.5-rerank-8b` and no token or cost
+attributes, while an embed call in the same run carried `llm.token_count.total` and
+`llm.cost.total`; the response header said `x-litellm-key-spend: 0.0`. NVIDIA's response does
+include `usage.prompt_tokens`, but the trace does not keep the response body. Rerank is only used in
 semantic compile for bridge tables (`semantic/bridge_tables.py`), so this is a small share of
 calls.
 

@@ -267,6 +267,10 @@ RERANK_ENDPOINT=http://llm-gateway:4000/nvidia/rerank/reranking   # ends in /rer
   splits by purpose.
 - **Recorded per call:** alias, provider, model, input tokens, output tokens, reasoning tokens
   when the provider reports them, cached tokens, cost in USD, latency, status, error.
+  Exception: calls on a pass-through route (today only rerank) are logged and traced with model,
+  latency, status and call id, but LiteLLM records no tokens and no cost for them (measured in
+  M0). The telemetry mart reports them as a call count with an estimated cost (calls times the
+  average tokens per rerank call measured at compile, at list price), labeled as estimated.
 - **Reasoning content** is stored only when the provider returns it and only locally. With
   synthetic data this is safe; before any real data, decide what may leave the machine.
 
@@ -507,10 +511,10 @@ M11 needs M10. M12 last.
 |---|---|
 | dbt v2 DuckDB adapter lacks a feature the design assumes | M0: seeds, incremental, snapshots, `persist_docs` and double-underscore names all pass on 2.0.12; fallback stays `dbt-duckdb` on dbt Core 1.x |
 | Auto Ontology on DuckDB is less exercised than on Postgres | M0 ingests a real file; fallback is publishing to Postgres |
-| Auto Ontology's NVIDIA-specific client paths break through the gateway | `openai/` alias names; M0 tests all four roles. A role that still fails is routed through a gateway pass-through route that forwards the provider's native API unchanged, so its calls are still counted, costed and traced. Never a direct provider URL: that would break the gateway-only invariant and `check_gateway_only` |
+| Auto Ontology's NVIDIA-specific client paths break through the gateway | `openai/` alias names; M0 tests all four roles. A role that still fails is routed through a gateway pass-through route that forwards the provider's native API unchanged, so its calls are still counted and traced; they are not costed by the gateway and get the estimated cost described in section 8.1. Never a direct provider URL: that would break the gateway-only invariant and `check_gateway_only` |
 | Model calls cannot be linked to their answer | Confirmed in M0. Time-window linking, stated in the UI; overlay patch or upstream request for a header hook |
 | Auto Ontology ignores DuckDB column comments, so dbt docs never reach it | Confirmed in M0: the DuckDB connector reads `information_schema` without comments. Small connector patch (overlay or upstream) reading `duckdb_columns().comment` into the existing `description` field |
-| Rerank through LiteLLM's `/rerank` fails for NVIDIA (`top_k` rejected) | Pass-through route (section 8.1); rerank calls are then not costed by the gateway, a small share since rerank runs only for bridge tables at compile |
+| Rerank through LiteLLM's `/rerank` fails for NVIDIA (`top_k` rejected) | Pass-through route (section 8.1); rerank calls are then counted and traced but not costed by the gateway, so their cost is an estimate (section 8.1). A small share, since rerank runs only for bridge tables at compile. If it grows, a LiteLLM custom handler that reads `usage.prompt_tokens` from NVIDIA's response gives an exact cost |
 | An NVIDIA model is overloaded (M0: `nemotron-3.5-embed-1b` returned 503 all day) | Embedding alias on `nemotron-3-embed-1b`, served by NVIDIA and OpenRouter with identical vectors, so a fallback needs no re-ingest |
 | Laptop memory with all profiles up | Compose profiles; M0 measured about 4 GiB for ontology plus obs, so Langfuse stays; Phoenix if Airflow pushes the VM over |
 | Labels never get done | Queue capped at a small daily sample; golden-set failures always queued; the weekly quality mart shows unlabeled counts |
