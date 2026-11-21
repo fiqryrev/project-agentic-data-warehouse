@@ -464,7 +464,7 @@ M11 needs M10. M12 last.
 |---|---|
 | dbt v2 DuckDB adapter lacks a feature the design assumes | M0 checks each; fallback is `dbt-duckdb` on dbt Core 1.x |
 | Auto Ontology on DuckDB is less exercised than on Postgres | M0 ingests a real file; fallback is publishing to Postgres |
-| Auto Ontology's NVIDIA-specific client paths break through the gateway | `openai/` alias names; M0 tests all four roles; per-role fallback to a direct provider URL, still counted by provider-side usage |
+| Auto Ontology's NVIDIA-specific client paths break through the gateway | `openai/` alias names; M0 tests all four roles. A role that still fails is routed through a gateway pass-through route that forwards the provider's native API unchanged, so its calls are still counted, costed and traced. Never a direct provider URL: that would break the gateway-only invariant and `check_gateway_only` |
 | Model calls cannot be linked to their answer | Time-window linking, stated in the UI; upstream request for a header hook |
 | Laptop memory with all profiles up | Compose profiles; Phoenix instead of Langfuse if M0 says so |
 | Labels never get done | Queue capped at a small daily sample; golden-set failures always queued; the weekly quality mart shows unlabeled counts |
