@@ -186,6 +186,12 @@ def test_bad_frontmatter_or_body_fails(tmp_path, old, new, expect):
     assert any(expect in e for e in errs), errs
 
 
+def test_one_day_ahead_is_clock_difference(tmp_path):
+    # written on 2026-11-23 in UTC+7 while CI's UTC date is still 2026-11-22
+    root = make_kb(tmp_path, da=DA.format(verified="2026-11-23"))
+    assert errors(root) == []
+
+
 def test_future_verification_fails(tmp_path):
     root = make_kb(tmp_path, da=DA.format(verified="2026-12-01"))
     assert any("in the future" in e for e in errors(root))

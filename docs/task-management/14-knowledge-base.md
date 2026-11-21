@@ -49,6 +49,9 @@ change AGENTS.md, the Makefile and `ci.yml`.
 - **Found while writing da-0001:** DuckDB has no `initcap`, though `generator/DEFECTS.md` gives
   `city <> initcap(city)` as the way to spot the casing defect. The entry gives a working query
   (`city = upper(city) or city = lower(city)`). DEFECTS.md is left unchanged here; see Open.
+- **One day of clock slack for future dates.** CI runs in UTC; an entry written in the evening
+  in UTC+7 carries tomorrow's UTC date, and the first CI run failed every entry as "in the
+  future". `last_verified` may be at most one day ahead of the checker's date.
 - **No `cold/` folder yet.** PLAN lists `.agents/knowledge/cold/` for retired entries; with ten
   active entries a `status` field is enough.
 
@@ -57,13 +60,14 @@ change AGENTS.md, the Makefile and `ci.yml`.
 - `uv run python -m helpers.check_knowledge` → `10 entries; retrieval recall 1.00`, OK.
 - `uv run python -m helpers.check_knowledge --today 2027-03-01` → five errors, one per `da-`
   entry: `stale, last verified 2026-11-22 (99 days ...)`.
-- `uv run pytest -q tests/governance/test_check_knowledge.py` → 30 passed (stale, unevidenced,
+- `uv run pytest -q tests/governance/test_check_knowledge.py` → 31 passed (stale, unevidenced,
   unresolvable or unquoted evidence, missing fields, bad id, status, dates, paths, supersedes,
   sections, Counts without SQL, duplicate ids, hand-edited generated doc, recall below floor,
   CLI `new`/`list`/`show`/`render`).
 - Defect counts on the 3-day CI dataset (`make dbt-ci`, queries in each entry): casing 208 of
   2,088 customer rows; 12 duplicated order rows; 10 late rows of 2,532; 3 orphan lines of 2,971.
   Rename on the scratch build: 666 `shipped` rows on 05-31, 619 `in_transit` on 06-01.
+- `uv run python -m helpers.check_knowledge --today 2026-11-21` (CI's UTC date) → OK.
 - `uv run python -m helpers.kb search "late arriving rows"` → da-0003 first.
 
 ## Open

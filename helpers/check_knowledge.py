@@ -34,6 +34,7 @@ except ModuleNotFoundError:
 NAME = "check_knowledge"
 MAX_AGE = {"da": 90, "de": 365}
 WARN_DAYS = 14
+CLOCK_SLACK = dtm.timedelta(days=1)   # an entry dated in UTC+14 is still "today" in CI's UTC
 EVALS = kb.KB_DIR / "evals" / "retrieval.yaml"
 
 
@@ -90,7 +91,7 @@ def entry_errors(e: kb.Entry, root: Path, today: dtm.date,
     else:
         if created > verified:
             errors.append(f"{where}: created is after last_verified")
-        if verified > today:
+        if verified > today + CLOCK_SLACK:
             errors.append(f"{where}: last_verified {verified} is in the future")
         age = (today - verified).days
         limit = MAX_AGE[e.kind]
