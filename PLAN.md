@@ -60,16 +60,20 @@ that block a bad change.
 | DuckDB allows one read-write process or many read-only processes on a file, not both | DuckDB concurrency docs | Auto Ontology never opens the file dbt writes (D2) |
 | DuckDB connections work only through `CONNECTION_STRINGS`, not the UI | auto-ontology `docs/connections.md` | Connection is set in `.env` |
 | Auto Ontology reads four model roles from env: `REASONING_*`, `NON_REASONING_*`, `EMBED_*`, `RERANK_*`, each with its own endpoint, key and model | auto-ontology `.env.example`, `utils/model_config.py` | Every role can point at a gateway URL without code changes |
-| Chat client choice depends on the model name: `openai/`, `azure/`, `aws/` prefixes use `ChatOpenAI`; anything else uses `ChatNVIDIA` | auto-ontology `utils/llm_invoke.py` `_build_client` | Gateway aliases are named `openai/<alias>` so the standard OpenAI client is used (verify in M0) |
+| Chat client choice depends on the model name: `openai/`, `azure/`, `aws/` prefixes use `ChatOpenAI`; anything else uses `ChatNVIDIA` | auto-ontology `utils/llm_invoke.py` `_build_client` | Gateway aliases are named `openai/<alias>` so the standard OpenAI client is used; the alias is sent unchanged, so the gateway model name is literally `openai/<alias>` (verified in M0) |
 | Embeddings use the OpenAI `/embeddings` API plus NVIDIA fields in `extra_body` (`input_type`); ingest and query must use the same embedding model | auto-ontology `utils/embedding.py`, `.env.example` | Changing the embedding model means a full re-ingest; keep it fixed while chat models are swapped |
-| Rerank posts `{"query", "documents", "top_n"}` when the URL ends in `/rerank`, NVIDIA's own shape otherwise | auto-ontology `utils/rerank.py` | A gateway `/rerank` route can carry it (verify in M0) |
+| Rerank posts `{"query", "documents", "top_n"}` when the URL ends in `/rerank`, NVIDIA's own shape otherwise | auto-ontology `utils/rerank.py` | LiteLLM's `/rerank` sends `top_k`, which NVIDIA rejects (M0); the gateway uses a pass-through route ending in `/reranking`, which Auto Ontology calls with NVIDIA's native shape |
 | The chat API returns the answer, SQL, rows and a step trace (`thoughts`), and accepts an optional `conversation_id` | auto-ontology `docs/conversation-api.md` | Our own client can record full answer traces |
 | Ingestion service: ingest at startup, then every `INGEST_INTERVAL_HOURS`; `POST /semantic/compile` on port 3002, unauthenticated | auto-ontology `ingestion_service/router.py` | Airflow triggers compile on the private network; 3002 never published |
 | Airflow 3.3.x docs exist; official compose defaults to CeleryExecutor | airflow.apache.org | Own slim compose with LocalExecutor |
 
-Not verified yet, checked in M0: LiteLLM proxy and Langfuse current versions and laptop memory
-use; whether OpenRouter serves an embedding model suitable here; whether Auto Ontology can pass
-a request id or extra header to the model client.
+Checked in M0 (`docs/m0-findings.md`, 2026-11-21): dbt v2 is PyPI `dbt==2.0.12` and bundles
+DuckDB 1.5.4; LiteLLM v1.110.2 carries chat and embed for Auto Ontology, but its NVIDIA rerank
+mapping sends `top_k`, which NVIDIA rejects, so rerank goes through a pass-through route; the
+current Langfuse is v4.83.0 (about 2.5 GiB idle on the laptop, Phoenix about 0.6 GiB);
+OpenRouter serves `nvidia/nemotron-3-embed-1b` with the same vectors as NVIDIA; Auto Ontology
+cannot forward a request id or header to its model client, and does not read DuckDB column
+comments.
 
 ## 3. Decisions
 
@@ -78,8 +82,11 @@ Ontology locks 1.5.5; a 2.0-format file would be unreadable by both. A CI check 
 three builds can open the same file. Move to 2.0 when both ship it.
 
 **D2. Serving: a published DuckDB snapshot.** Airflow copies the `warehouse` and `mart` schemas
-into a new file, renames it atomically into `data/serve/`, and Auto Ontology mounts it
-read-only. Fallback if the spike fails: publish the same tables to Postgres.
+into a new file (`COPY FROM DATABASE`, which keeps comments), renames it atomically into
+`data/serve/`, and Auto Ontology mounts the directory read-only (a single-file mount would pin
+the old inode). Both Auto Ontology services cache the open file, so the refresh task restarts
+`auto-ontology` and `ingestion-service` after each publish (verified in M0). Fallback if this
+ever fails: publish the same tables to Postgres.
 
 **D3. Data: deterministic generator first, open dataset as an optional second domain.**
 
@@ -88,7 +95,9 @@ read-only. Fallback if the spike fails: publish the same tables to Postgres.
 **D5. One LLM gateway in front of every provider: LiteLLM proxy.** OpenAI-compatible, routes to
 NVIDIA, OpenRouter, OpenAI, Anthropic, local models and others; records tokens and cost per
 call; enforces budgets; sends traces to Langfuse. Auto Ontology is configured with gateway
-aliases, never with a provider URL. Alternatives: calling providers directly (no single place to
+aliases, never with a provider URL. M0: chat and embed use OpenAI-compatible aliases; rerank uses
+a LiteLLM pass-through route to NVIDIA's native endpoint, because LiteLLM v1.110.2 maps `top_n`
+to `top_k` and NVIDIA rejects it. Alternatives: calling providers directly (no single place to
 count or swap), or OpenRouter alone as the gateway (one vendor, no local tracing, no budget
 control of our own).
 
@@ -96,7 +105,9 @@ control of our own).
 queues for human review, datasets and experiment comparison in one open-source tool. Cost:
 self-hosting needs its own Postgres, ClickHouse, Redis and object storage. Lighter fallback:
 Arize Phoenix, one container, with traces, annotations and datasets but fewer review workflows.
-M0 measures memory; if both stacks will not fit a laptop, use Phoenix.
+M0 measured Langfuse v4.83.0 at about 2.5 GiB and Phoenix 22 at about 0.6 GiB beside Auto
+Ontology; Langfuse fits, so it stays. Traces go in through LiteLLM's `langfuse_otel` callback;
+Langfuse v4 serves reads from the v2 API only.
 
 ## 4. Layers and naming
 
@@ -181,10 +192,14 @@ Platform sources, landed daily by the same loader:
 - **load_lake:** `DELETE WHERE dt = ds` then `INSERT ... FROM read_parquet`. Idempotent.
 - **dbt build:** `BashOperator` calling the dbt v2 binary.
 - **publish_snapshot:** temp file, row counts verified, atomic rename, last 7 kept.
-- **refresh_ontology:** restart through a docker-socket-proxy limited to container restart;
-  semantic compile only when the schema hash changed.
-- **Resources:** about 8 GB for core plus ontology; the obs profile adds an estimated 3 to 4 GB
-  with Langfuse (measured in M0). `make up-core`, `make up-ontology`, `make up-obs`.
+- **refresh_ontology:** restart `auto-ontology` and `ingestion-service` through a
+  docker-socket-proxy limited to container restart (both hold the old file open until then);
+  semantic compile only when the schema hash changed. The compile flag
+  `semantic_compilation_enabled` lives in `frontend.configurations`, created by the frontend
+  migration.
+- **Resources:** about 8 GB for core plus ontology; the obs profile adds about 3.2 GiB
+  (Langfuse 2.5, LiteLLM 0.65; measured in M0). Auto Ontology's backend, ingestion service and
+  Postgres took 0.8 GiB. `make up-core`, `make up-ontology`, `make up-obs`.
 
 ## 7. Traceability, history and knowledge
 
@@ -227,9 +242,12 @@ model_list:
   - model_name: openai/adw-non-reasoning
     litellm_params: { model: nvidia_nim/<model-id>,  api_key: os.environ/NVIDIA_API_KEY }
   - model_name: adw-embed                   # fixed; changing it forces a re-ingest
-    litellm_params: { model: nvidia_nim/<embed-id>,  api_key: os.environ/NVIDIA_API_KEY }
-  - model_name: adw-rerank
-    litellm_params: { model: nvidia_nim/<rerank-id>, api_key: os.environ/NVIDIA_API_KEY }
+    litellm_params: { model: nvidia_nim/nvidia/nemotron-3-embed-1b, api_key: os.environ/NVIDIA_API_KEY }
+general_settings:
+  pass_through_endpoints:                   # rerank: LiteLLM's /rerank sends top_k, NVIDIA rejects it (M0)
+    - path: /nvidia/rerank/reranking
+      target: https://ai.api.nvidia.com/v1/retrieval/nvidia/<rerank-id>/reranking
+      headers: { Authorization: bearer os.environ/NVIDIA_API_KEY }
 ```
 
 ```dotenv
@@ -237,7 +255,7 @@ model_list:
 REASONING_ENDPOINT=http://llm-gateway:4000/v1
 REASONING_MODEL=openai/adw-reasoning
 REASONING_API_KEY=<gateway virtual key for auto-ontology>
-RERANK_ENDPOINT=http://llm-gateway:4000/rerank
+RERANK_ENDPOINT=http://llm-gateway:4000/nvidia/rerank/reranking   # ends in /reranking: native payload
 ```
 
 - **Swapping provider** (for example to a new OpenRouter key or model) is one edit to
@@ -260,9 +278,11 @@ RERANK_ENDPOINT=http://llm-gateway:4000/rerank
 | Answer | `ask` client (our code) calling the Auto Ontology chat API | Question, answer, SQL, rows, step trace (`thoughts`), snapshot id, conversation id, total cost |
 | Run | Airflow | One trace per DAG run linking golden-question answers and the compile step |
 
-Linking model calls to their answer: M0 checks whether Auto Ontology can forward a request id or
-header to its model client. If it can, calls nest under the answer exactly. If not, calls are
-attached by caller key and time window, and the plan says so in the UI.
+Linking model calls to their answer: M0 found that Auto Ontology cannot forward a request id or
+header to its model client (one answer showed up as 22 unrelated traces). Calls are attached by
+caller key and time window, with golden questions asked one at a time, and the UI says so. A
+small overlay patch that passes a per-request id in `_build_client`, `embed_texts` and `_scores`
+is the next step if the window is too coarse.
 
 Questions asked in the Auto Ontology web UI are still counted and costed by the gateway, but only
 questions asked through the `ask` client (CLI, golden runner, review app) get a full answer trace.
@@ -485,11 +505,14 @@ M11 needs M10. M12 last.
 
 | Risk | Mitigation |
 |---|---|
-| dbt v2 DuckDB adapter lacks a feature the design assumes | M0 checks each; fallback is `dbt-duckdb` on dbt Core 1.x |
+| dbt v2 DuckDB adapter lacks a feature the design assumes | M0: seeds, incremental, snapshots, `persist_docs` and double-underscore names all pass on 2.0.12; fallback stays `dbt-duckdb` on dbt Core 1.x |
 | Auto Ontology on DuckDB is less exercised than on Postgres | M0 ingests a real file; fallback is publishing to Postgres |
 | Auto Ontology's NVIDIA-specific client paths break through the gateway | `openai/` alias names; M0 tests all four roles. A role that still fails is routed through a gateway pass-through route that forwards the provider's native API unchanged, so its calls are still counted, costed and traced. Never a direct provider URL: that would break the gateway-only invariant and `check_gateway_only` |
-| Model calls cannot be linked to their answer | Time-window linking, stated in the UI; upstream request for a header hook |
-| Laptop memory with all profiles up | Compose profiles; Phoenix instead of Langfuse if M0 says so |
+| Model calls cannot be linked to their answer | Confirmed in M0. Time-window linking, stated in the UI; overlay patch or upstream request for a header hook |
+| Auto Ontology ignores DuckDB column comments, so dbt docs never reach it | Confirmed in M0: the DuckDB connector reads `information_schema` without comments. Small connector patch (overlay or upstream) reading `duckdb_columns().comment` into the existing `description` field |
+| Rerank through LiteLLM's `/rerank` fails for NVIDIA (`top_k` rejected) | Pass-through route (section 8.1); rerank calls are then not costed by the gateway, a small share since rerank runs only for bridge tables at compile |
+| An NVIDIA model is overloaded (M0: `nemotron-3.5-embed-1b` returned 503 all day) | Embedding alias on `nemotron-3-embed-1b`, served by NVIDIA and OpenRouter with identical vectors, so a fallback needs no re-ingest |
+| Laptop memory with all profiles up | Compose profiles; M0 measured about 4 GiB for ontology plus obs, so Langfuse stays; Phoenix if Airflow pushes the VM over |
 | Labels never get done | Queue capped at a small daily sample; golden-set failures always queued; the weekly quality mart shows unlabeled counts |
 | A provider swap changes accuracy silently | A swap PR must carry the comparison table; golden runner runs daily |
 | Sending data to an external provider | Synthetic data in v1; a data-egress decision record before any real data |
