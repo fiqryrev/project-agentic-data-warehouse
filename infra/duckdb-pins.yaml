@@ -1,0 +1,16 @@
+# DuckDB builds that must open the same warehouse file (PLAN decision D1).
+# helpers/check_duckdb_compat.py reads this file. Sources: docs/m0-findings.md, "Version pins found".
+# Change a pin only together with the component it describes, and re-run the check.
+
+# The loader's own DuckDB, as pinned in pyproject.toml. It writes the file.
+loader: ">=1.5.5,<1.6"
+
+# Other builds that open the file. mode rw: opens it read-write and writes a table that the
+# loader's build must then read back; mode ro: opens it read-only.
+readers:
+  dbt:
+    version: "1.5.4"   # libadbc_driver_duckdb-1.5.4 downloaded by dbt==2.0.12 (M0)
+    mode: rw
+  auto_ontology:
+    version: "1.5.5"   # duckdb==1.5.5 locked by NVIDIA/auto-ontology@f3c310c7a279 (M0)
+    mode: ro
