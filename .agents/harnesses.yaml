@@ -1,0 +1,29 @@
+# Registry of wired agent tools and their six duties (PLAN section 9).
+# helpers/check_harness_parity.py derives what it checks from this file. A duty that a tool
+# does not use yet is declared as {none: <reason>}; leaving a duty out fails CI.
+# Rule mirrors per tool are generated only when a second tool is wired.
+duties: [entry, rules, skills, hooks, permissions, mcp]
+
+harnesses:
+  claude-code:
+    name: Claude Code
+    status: wired
+    entry:
+      file: CLAUDE.md
+      imports: AGENTS.md
+    rules:
+      path: .agents/rules
+      via: AGENTS.md
+    skills:
+      path: .claude/skills          # symlink to the shared folder
+      source: .agents/skills
+    hooks:
+      settings: .claude/settings.json
+      scripts:
+        - .claude/hooks/guard_bash.py
+        - .claude/hooks/guard_write.py
+        - helpers/log_agent_action.py
+    permissions:
+      settings: .claude/settings.json
+    mcp:
+      none: no MCP server is wired yet; add .mcp.json and declare it here when one is
