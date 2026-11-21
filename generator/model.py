@@ -105,13 +105,15 @@ def customer(seed: int, cid: int) -> dict:
     last = r.choice(reference("last_names"))["last_name"]
     city = _city(r)
     day = day_of(created_day(c.BASE_CUSTOMERS, c.NEW_CUSTOMERS_PER_DAY, cid))
+    seconds = r.randrange(86_400)
     return {
         "customer_id": cid,
         "full_name": f"{first} {last}",
         "email": f"{first.lower()}.{last.lower()}.{cid}@example.com",
         "city": city["city"],
         "province": city["province"],
-        "created_at": at(day, r.randrange(86_400)),
+        # the base customers were migrated at go-live, midnight of the first day
+        "created_at": at(day, 0 if cid <= c.BASE_CUSTOMERS else seconds),
     }
 
 
@@ -129,11 +131,29 @@ def movers(seed: int, day: dt.date) -> list[int]:
     return sorted(r.sample(range(1, existing + 1), exact_count(existing, c.MOVE_RATE)))
 
 
+@lru_cache(maxsize=4096)
+def _movers_on(seed: int, i: int) -> frozenset[int]:
+    return frozenset(movers(seed, day_of(i)))
+
+
+def previous_move_day(seed: int, cid: int, i: int) -> int | None:
+    """The last day index before i on which the customer moved, if any."""
+    born = created_day(c.BASE_CUSTOMERS, c.NEW_CUSTOMERS_PER_DAY, cid)
+    for j in range(i - 1, born, -1):
+        if cid in _movers_on(seed, j):
+            return j
+    return None
+
+
+@lru_cache(maxsize=65_536)
 def moved_customer(seed: int, cid: int, day: dt.date) -> dict:
-    """The customer's row as the shop writes it on the day they move."""
+    """The customer's row as the shop writes it on the day they move. The destination is
+    never the city they live in just before the move (their latest version)."""
     row = customer(seed, cid)
+    before = previous_move_day(seed, cid, day_index(day))
+    current = row if before is None else moved_customer(seed, cid, day_of(before))
     r = rng(seed, "move", cid, day.isoformat())
-    cities = [x for x in reference("cities") if x["city"] != row["city"]]
+    cities = [x for x in reference("cities") if x["city"] != current["city"]]
     city = r.choices(cities, weights=[int(x["weight"]) for x in cities])[0]
     row.update(city=city["city"], province=city["province"],
                updated_at=at(day, r.randrange(86_400)))
@@ -294,7 +314,10 @@ def timeline(seed: int, order_id: int) -> dict:
         items.append({"order_item_id": order_id * 10 + line, "order_id": order_id,
                       "product_id": pid, "quantity": r.choices((1, 2, 3), weights=(75, 18, 7))[0],
                       "unit_price_idr": price})
-    order = {"order_id": order_id, "customer_id": r.randint(1, customers_through(i)),
+    # customers who existed before the order: those created before the order day (on the
+    # first day, the base customers migrated at midnight)
+    order = {"order_id": order_id,
+             "customer_id": r.randint(1, customers_through(i - 1) if i else c.BASE_CUSTOMERS),
              "voucher_code": voucher_code, "shipping_fee_idr": r.choice(c.SHIPPING_FEES),
              "created_at": created}
     subtotal = sum(x["quantity"] * x["unit_price_idr"] for x in items)
@@ -422,7 +445,7 @@ def build_day(seed: int, day: dt.date) -> dict[tuple[str, str], Rows]:
          "parent_name": x["parent_name"]} for x in reference("categories")]
     customers = [customer_row(seed, cid) for cid in range(customers_through(i - 1) + 1,
                                                            customers_through(i) + 1)]
-    customers += [moved_customer(seed, cid, day) for cid in movers(seed, day)]
+    customers += [dict(moved_customer(seed, cid, day)) for cid in movers(seed, day)]
     r_case = rng(seed, "casing", day.isoformat())
     for idx in r_case.sample(range(len(customers)), exact_count(len(customers), c.CASING_RATE)):
         row = customers[idx]

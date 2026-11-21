@@ -35,7 +35,9 @@ has a file every day, empty when nothing happened.
 
 Money is in whole rupiah (`*_idr`, int64). Timestamps are naive UTC. `customers` and `products`
 carry `updated_at`: the moment the shop wrote that version. An order line is priced at the
-product's price on the order day.
+product's price on the order day. An order names a customer who already existed: one created
+before the order day, or on 2026-01-01 one of the 2,000 base customers (migrated at midnight).
+A customer who moves always leaves the city of their latest version.
 
 Each order has a timeline drawn from `(seed, order_id)`: created, then cancelled within 12
 hours, or paid within 6 hours, shipped 2 to 30 hours later, delivered 12 hours to 4 days

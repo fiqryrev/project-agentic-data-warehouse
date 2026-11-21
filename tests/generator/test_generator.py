@@ -304,3 +304,25 @@ def test_order_items_use_the_price_of_the_order_day(land):
         for x in read(out, "shop", "order_items", day):
             if x["product_id"] < c.ORPHAN_PRODUCT_BASE:
                 assert x["unit_price_idr"] == model.price_at(SEED, x["product_id"], i)
+
+
+
+def test_a_move_always_changes_the_current_city():
+    """Codex review on PR #11: a second move starts from the latest city, not the first."""
+    seen_repeat = 0
+    for i in range(1, 400):
+        day = model.day_of(i)
+        for cid in model.movers(SEED, day):
+            before = model.previous_move_day(SEED, cid, i)
+            current = (model.customer(SEED, cid) if before is None
+                       else model.moved_customer(SEED, cid, model.day_of(before)))
+            assert model.moved_customer(SEED, cid, day)["city"] != current["city"]
+            seen_repeat += before is not None
+    assert seen_repeat > 0, "the range should include customers who move twice"
+
+
+def test_orders_only_name_customers_that_already_exist(land):
+    out, _ = land
+    for day in DAYS:
+        for o in read(out, "shop", "orders", day):
+            assert model.customer(SEED, o["customer_id"])["created_at"] <= o["created_at"]
