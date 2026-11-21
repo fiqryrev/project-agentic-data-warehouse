@@ -361,11 +361,30 @@ coding agent through the gateway is a later option.
   - `render --body-file <pr-body>` reads the session logs (main agent and subagents, one count
     per message), prices each token class at its own rate, and replaces the `## AI usage`
     section at the end of the body.
-  - The footer names the harness, each model with what it was used for, requests, input tokens
-    across all classes (with cache reads and writes shown), output tokens, input, output and
-    total USD, the pricing source and date, and the line "list-price estimate, not money paid".
-  - It counts only tokens since the previous footer of the same session, recorded in a hidden
-    ledger line inside the footer, so totals across several PRs add up instead of repeating.
+  - The footer has one fixed shape: the `## AI usage` heading, then a fenced `text` block
+    with these six lines, in this order, and after the block only the hidden ledger line
+    (an HTML comment, see below):
+
+    ```text
+    Harness Tool: <name of harness>
+    Model Name: <model id> (effort <level>)[, <model id> (effort <level>) ...]
+    Input Token Usage: <tokens> ($<usd>) - Cache hit (<tokens>, $<usd>)
+    Output Token Usage: <tokens> ($<usd>) - Cache hit (<tokens>, $<usd>)
+    Total Token: <tokens> ($<usd>) - Cache hit (<tokens>, $<usd>)
+    Metadata: <free text>
+    ```
+
+    - Input tokens are all input classes: uncached input, cache writes (5m and 1h) and cache
+      reads, each priced at its own rate. Its cache hit is the cache-read tokens and their cost.
+    - Output tokens are never cached, so the output cache hit is always `(0, $0.00)`; the slot
+      stays so every footer has the same shape.
+    - Total is input plus output; its cache hit equals the input cache hit.
+    - Tokens are written with thousands separators, USD with two decimals.
+    - Metadata carries the rest in one line: requests, cache writes by class, subagents, what
+      each model was used for, the per-model split when there is more than one model, the
+      pricing source and date, and the words "list-price estimate, not money paid".
+  - It counts only tokens since the previous footer of the same session, recorded in the hidden
+    ledger line, so totals across several PRs add up instead of repeating.
   - A harness without a log reader passes its token counts as flags.
   - `check-prices` validates the pricing file (every class present, numbers positive, dates
     valid).
@@ -441,7 +460,7 @@ Blocking checks from the first merge:
 | `check_harness_parity` | every registered tool declares all six duties and reaches every skill |
 | `check_knowledge` | frontmatter, expiry, evidence resolves, generated docs current, recall floor |
 | `check_worknote` | PR touches a worknote for its issue |
-| `check_pr_body` | pre-merge and post-merge sections; every pre-merge item ends in `→ PASS`, `→ FAIL: reason` or `→ SKIP[rule]: reason`; ends with the `## AI usage` footer; no tool watermark |
+| `check_pr_body` | pre-merge and post-merge sections; every pre-merge item ends in `→ PASS`, `→ FAIL: reason` or `→ SKIP[rule]: reason`; ends with the `## AI usage` footer in the fixed six-line shape (section 8.7); no tool watermark |
 | `check_prices` | `model-pricing.yaml` is complete and valid; stale provider blocks warn, never block |
 | `check_gateway_only` | no provider URL or provider key name outside `infra/llm-gateway/` and `.env.example` |
 | `check_duckdb_compat` | loader, dbt driver and Auto Ontology pin open one file |
