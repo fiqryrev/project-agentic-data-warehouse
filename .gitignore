@@ -221,3 +221,19 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- project-agentic-data-warehouse ---
+# local data: landing files, build and serving DuckDB files, run artifacts
+data/
+*.duckdb
+*.duckdb.wal
+*.duckdb.tmp
+# dbt
+dbt/target/
+dbt/logs/
+# agent working state
+.worktrees/
+.agent-activity-logs/
+.claude/settings.local.json
+# macOS
+.DS_Store
