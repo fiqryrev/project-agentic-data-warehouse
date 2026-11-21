@@ -1,0 +1,27 @@
+version: 2
+models:
+- name: rpt__marketing__spend__daily
+  description: Spend per day and channel, with impressions, clicks and cost per click.
+  columns:
+  - name: spend_date
+    description: Day of the spend.
+  - name: channel
+    description: 'Marketing channel: google, meta, tiktok or email.'
+  - name: spend_idr
+    description: Spend that day in rupiah.
+  - name: impressions
+    description: Ad impressions that day.
+  - name: clicks
+    description: Ad clicks that day.
+  - name: cost_per_click_idr
+    description: Spend divided by clicks, in rupiah; null without clicks.
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).
+  data_tests:
+  - unique_combination:
+      arguments:
+        columns:
+        - spend_date
+        - channel

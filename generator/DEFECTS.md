@@ -18,9 +18,9 @@ has a file every day, empty when nothing happened.
 | Source | Table | One row per | Written on |
 |---|---|---|---|
 | `shop` | `categories` | category (20, from `reference/categories.csv`) | every day (full list) |
-| `shop` | `customers` | new customer: 2,000 on 2026-01-01, then 40 a day | creation day |
+| `shop` | `customers` | customer version: 2,000 on 2026-01-01, then 40 new a day; 0.2% of existing customers a day move to another city and are written again | creation day, move day |
 | `shop` | `sellers` | new seller: 120, then 1 a day | creation day |
-| `shop` | `products` | new product: 600, then 8 a day | creation day |
+| `shop` | `products` | product version: 600, then 8 new a day; each product is repriced every 30 to 120 days (factor 0.85 to 1.20) and written again | creation day, price-change day |
 | `shop` | `vouchers` | voucher code, 5 per month | the 1st (and 2026-01-01) |
 | `shop` | `orders` | order state: one row per order on each day it has an event (placed, paid, cancelled, shipped, delivered); about 500 new orders a day | each event day, or later (late rows) |
 | `shop` | `order_items` | order line, 1 to 4 per order | creation day |
@@ -33,7 +33,9 @@ has a file every day, empty when nothing happened.
 | `marketing` | `campaigns` | campaign, 3 per month, channel rotates | the 1st (and 2026-01-01) |
 | `marketing` | `daily_spend` | campaign and day | every day |
 
-Money is in whole rupiah (`*_idr`, int64). Timestamps are naive UTC.
+Money is in whole rupiah (`*_idr`, int64). Timestamps are naive UTC. `customers` and `products`
+carry `updated_at`: the moment the shop wrote that version. An order line is priced at the
+product's price on the order day.
 
 Each order has a timeline drawn from `(seed, order_id)`: created, then cancelled within 12
 hours, or paid within 6 hours, shipped 2 to 30 hours later, delivered 12 hours to 4 days
@@ -67,5 +69,14 @@ Counts are exact per partition, `round(n * rate)` chosen by a seeded draw, excep
 | Orphan keys | `shop.order_items.product_id` (and `ledger.invoice_lines.product_ref`) points at a product that never existed | about 0.2% of lines (a seeded draw per line) | ids from 9,000,000; no match in `products`; left out of settlements |
 | Renamed status | `shop.orders.order_status` and `shop.shipments.shipment_status`: `shipped` becomes `in_transit` | partitions from 2026-06-01, late rows included | both values exist across history, never in one partition |
 
-A staging model fixes each of these and says how; the knowledge base records them as `da-`
-entries (M6).
+How the dbt project handles each (M4):
+
+| Defect | Where it is fixed |
+|---|---|
+| Casing | `staging__shop__customers`: city in title case |
+| Duplicates | every staging model selects distinct rows |
+| Late rows | kept in staging; `fact__sales__orders` takes the latest `updated_at`, so a late row never wins |
+| Orphan keys | kept; `relationships` and `not_null` tests on them warn instead of failing |
+| Renamed status | staging maps `shipped` to `in_transit` across history |
+
+The knowledge base records them as `da-` entries (M6).

@@ -115,6 +115,31 @@ def customer(seed: int, cid: int) -> dict:
     }
 
 
+def customer_row(seed: int, cid: int) -> dict:
+    row = customer(seed, cid)
+    row["updated_at"] = row["created_at"]
+    return row
+
+
+def movers(seed: int, day: dt.date) -> list[int]:
+    """Existing customers who move to another city on this day."""
+    i = day_index(day)
+    existing = customers_through(i - 1)
+    r = rng(seed, "movers", day.isoformat())
+    return sorted(r.sample(range(1, existing + 1), exact_count(existing, c.MOVE_RATE)))
+
+
+def moved_customer(seed: int, cid: int, day: dt.date) -> dict:
+    """The customer's row as the shop writes it on the day they move."""
+    row = customer(seed, cid)
+    r = rng(seed, "move", cid, day.isoformat())
+    cities = [x for x in reference("cities") if x["city"] != row["city"]]
+    city = r.choices(cities, weights=[int(x["weight"]) for x in cities])[0]
+    row.update(city=city["city"], province=city["province"],
+               updated_at=at(day, r.randrange(86_400)))
+    return row
+
+
 def seller(seed: int, sid: int) -> dict:
     r = rng(seed, "seller", sid)
     city = _city(r)
@@ -147,6 +172,55 @@ def product(seed: int, pid: int) -> dict:
         "price_idr": max(price, 1000),
         "created_at": at(day_of(i), r.randrange(86_400)),
     }
+
+
+@lru_cache(maxsize=200_000)
+def reprice_schedule(seed: int, pid: int) -> tuple[int, int]:
+    """(first change day index, days between changes) for a product."""
+    r = rng(seed, "reprice", pid)
+    every = r.randint(*c.REPRICE_EVERY_DAYS)
+    born = created_day(c.BASE_PRODUCTS, c.NEW_PRODUCTS_PER_DAY, pid)
+    return born + r.randint(1, every), every
+
+
+def price_changes_by(seed: int, pid: int, i: int) -> int:
+    """How many price changes the product has had by the end of day index i."""
+    first, every = reprice_schedule(seed, pid)
+    return 0 if i < first else 1 + (i - first) // every
+
+
+def price_at(seed: int, pid: int, i: int) -> int:
+    """The product's list price on day index i."""
+    base = product(seed, pid)["price_idr"]
+    k = price_changes_by(seed, pid, i)
+    if k == 0:
+        return base
+    factor = rng(seed, "reprice", pid, k).uniform(*c.REPRICE_FACTOR)
+    return max(int(round(base * factor, -2)), 1000)
+
+
+def product_row(seed: int, pid: int, day: dt.date) -> dict:
+    """The product as the shop writes it on its creation day or on a price-change day."""
+    i = day_index(day)
+    row = dict(product(seed, pid))
+    row["price_idr"] = price_at(seed, pid, i)
+    if row["created_at"].date() == day:
+        row["updated_at"] = row["created_at"]
+    else:
+        k = price_changes_by(seed, pid, i)
+        row["updated_at"] = at(day, rng(seed, "reprice-at", pid, k).randrange(86_400))
+    return row
+
+
+def repriced(seed: int, day: dt.date) -> list[int]:
+    """Existing products whose price changes on this day."""
+    i = day_index(day)
+    out = []
+    for pid in range(1, products_through(i - 1) + 1):
+        first, every = reprice_schedule(seed, pid)
+        if i >= first and (i - first) % every == 0:
+            out.append(pid)
+    return out
 
 
 def voucher(seed: int, month: int, k: int, day: dt.date) -> dict:
@@ -214,7 +288,7 @@ def timeline(seed: int, order_id: int) -> dict:
     items = []
     for line in range(1, r.choices((1, 2, 3, 4), weights=(50, 30, 15, 5))[0] + 1):
         pid = r.randint(1, products_through(i))
-        price = product(seed, pid)["price_idr"]
+        price = price_at(seed, pid, i)
         if rng(seed, "orphan", order_id, line).random() < c.ORPHAN_RATE:
             pid = c.ORPHAN_PRODUCT_BASE + r.randrange(1_000_000)
         items.append({"order_item_id": order_id * 10 + line, "order_id": order_id,
@@ -341,12 +415,14 @@ def build_day(seed: int, day: dt.date) -> dict[tuple[str, str], Rows]:
     i = day_index(day)
     out: dict[tuple[str, str], Rows] = {}
 
-    # master data: categories every day, others on the day they are created
+    # master data: categories every day; customers and products when created or changed;
+    # sellers when created
     out["shop", "categories"] = [
         {"category_id": int(x["category_id"]), "category_name": x["category_name"],
          "parent_name": x["parent_name"]} for x in reference("categories")]
-    customers = [customer(seed, cid) for cid in range(customers_through(i - 1) + 1,
-                                                       customers_through(i) + 1)]
+    customers = [customer_row(seed, cid) for cid in range(customers_through(i - 1) + 1,
+                                                           customers_through(i) + 1)]
+    customers += [moved_customer(seed, cid, day) for cid in movers(seed, day)]
     r_case = rng(seed, "casing", day.isoformat())
     for idx in r_case.sample(range(len(customers)), exact_count(len(customers), c.CASING_RATE)):
         row = customers[idx]
@@ -354,8 +430,10 @@ def build_day(seed: int, day: dt.date) -> dict[tuple[str, str], Rows]:
     out["shop", "customers"] = customers
     out["shop", "sellers"] = [seller(seed, s) for s in range(sellers_through(i - 1) + 1,
                                                              sellers_through(i) + 1)]
-    out["shop", "products"] = [dict(product(seed, p)) for p in range(products_through(i - 1) + 1,
-                                                                     products_through(i) + 1)]
+    out["shop", "products"] = [product_row(seed, p, day)
+                               for p in [*repriced(seed, day),
+                                         *range(products_through(i - 1) + 1,
+                                                products_through(i) + 1)]]
     month = month_key(day)
     out["shop", "vouchers"] = ([voucher(seed, month, k, day)
                                 for k in range(1, c.VOUCHERS_PER_MONTH + 1)]

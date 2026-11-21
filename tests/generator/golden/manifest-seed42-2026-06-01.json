@@ -5,15 +5,15 @@
   "tables": {
     "ledger.invoice_lines": {
       "rows": 1063,
-      "sha256": "04500420ac4fc3261b48520b25bb0901aa565c6819da867aba044b7767abab8e"
+      "sha256": "cf307e1ea9c9534a2d5f5df1c5959abbbf338eec2c774b6e201b1f403712399e"
     },
     "ledger.invoices": {
       "rows": 590,
-      "sha256": "3659f7f32201298576d3a957d61d45f5c7387fcacc40a10addb76dd05912518d"
+      "sha256": "7c4cd3b910a4a97bede6880fcbb1414bd890e3efbe37071029293e4e6ca75560"
     },
     "ledger.settlements": {
       "rows": 213,
-      "sha256": "53c1f2ffcd21d6e510bfd3570503a1d07fd3a4be9f40a1205cd07949b840bbbf"
+      "sha256": "10e01a721140a449929559f16a4f01fda94ca7bce6c8de9e71c9bf4932a92776"
     },
     "marketing.campaigns": {
       "rows": 3,
@@ -28,12 +28,12 @@
       "sha256": "0603c7b33f6c11647fd1be9cd06ee7eb49050b81d122341ff8d108e6cfae3c72"
     },
     "shop.customers": {
-      "rows": 40,
-      "sha256": "951d5c05cb150e13c208e0d041bb541f5629a0a1384525758fe5c76785b3d364"
+      "rows": 56,
+      "sha256": "797d6ae37bdd876a2b958907f4aa99a8ef33ab5e4616acf000e5f660218d15d5"
     },
     "shop.order_items": {
       "rows": 1133,
-      "sha256": "c45c8bd72177c44b43b995a170ac776c87ab0cd3a45646fce616c957c132494f"
+      "sha256": "f20c8219e33a0d6827d3550979fd82673dab8e8c29c38554b2967f29515e86fc"
     },
     "shop.orders": {
       "rows": 1732,
@@ -41,15 +41,15 @@
     },
     "shop.payments": {
       "rows": 574,
-      "sha256": "335dfcff4a2d82c6c886613211e076d3fdd58af5d4dcbfe52c329177ea75d999"
+      "sha256": "cc6561f41603260c0422cfd33103a153e14a75dee808ae7c22731d5cbba8b2ad"
     },
     "shop.products": {
-      "rows": 8,
-      "sha256": "0fd713672e4bc826f4e815bd99f47f7d745ee7d01286655ccfd7bdf37ae5b4b7"
+      "rows": 36,
+      "sha256": "9eb6c03a17efab18499a138b2e1966c72c01c52c95eb503bec3c76a2f071f8c9"
     },
     "shop.refunds": {
       "rows": 16,
-      "sha256": "3089d6ada958a26af57fa40c1dbe23e9d32df40e344806c2240f1460a81c302c"
+      "sha256": "a9c3cc6bd17c94b44ec3657eb423c080b98990d0460f17df9ca670522ec03bb1"
     },
     "shop.sellers": {
       "rows": 1,

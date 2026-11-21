@@ -1,0 +1,23 @@
+# One DuckDB file per target. dev and ci are for people, agents and CI; only Airflow uses
+# prod, which writes the daily build file (AGENTS.md, Data access). Override a path with
+# DBT_DUCKDB_PATH. Paths are relative to this folder. The file is named dwh.duckdb, not
+# warehouse.duckdb: DuckDB names the catalog after the file, and a catalog called `warehouse`
+# would make `warehouse.<table>` ambiguous with the schema of the same name.
+warehouse:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('DBT_DUCKDB_PATH', '../data/dev/dwh.duckdb') }}"
+      database: dwh
+      schema: main
+    ci:
+      type: duckdb
+      path: "{{ env_var('DBT_DUCKDB_PATH', '../data/ci/dwh.duckdb') }}"
+      database: dwh
+      schema: main
+    prod:
+      type: duckdb
+      path: "{{ env_var('DBT_DUCKDB_PATH', '../data/build/dwh.duckdb') }}"
+      database: dwh
+      schema: main

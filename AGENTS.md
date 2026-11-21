@@ -16,8 +16,9 @@ design; `docs/m0-findings.md` holds the verified versions and commands.
 | `PLAN.md` | design and milestones (section 11) |
 | `generator/` | deterministic source data (`uv run python -m generator --date <d>`); see `generator/DEFECTS.md` |
 | `loader/` | landing -> `lake.<source>__<table>` with audit columns (`uv run python -m loader --date <d>`) |
+| `dbt/` | dbt v2 project: `models/{staging,warehouse,mart}/<domain>/`, targets dev, ci, prod (Airflow only) |
 | `infra/duckdb-pins.yaml` | DuckDB builds that must open one file (loader, dbt, Auto Ontology) |
-| `Makefile` | `make test`, `make checks`, `make generate`, `make load` |
+| `Makefile` | `make test`, `make checks`, `make generate`, `make load`, `make dbt-build`, `make dbt-ci` |
 | `.agents/rules/` | one line per rule; the story behind each in `.agents/rules/history/` |
 | `.agents/skills/` | working procedures, loaded on use (`.claude/skills` points here) |
 | `.agents/harnesses.yaml` | registry of wired agent tools and their six duties |
@@ -117,9 +118,10 @@ The PostToolUse hook logs every tool call the same way. Logs are gitignored.
 | DuckDB file compatibility | `uv run python -m helpers.check_duckdb_compat` |
 | worknote | `uv run python -m helpers.check_worknote --base origin/main` |
 | PR body | `uv run python -m helpers.check_pr_body --body-file pr-body.md` |
+| dbt (job `dbt`) | `make dbt-ci`: 3 generated days, loaded, then `dbt build --target ci` |
 
 Later milestones add `check_naming`, `check_bundle`, `check_layers`, `check_audit_columns`,
-`check_knowledge`, `check_gateway_only` and `dbt build --target ci`.
+`check_knowledge` and `check_gateway_only`.
 
 ## Data access
 

@@ -1,0 +1,242 @@
+version: 2
+models:
+- name: staging__shop__categories
+  description: Shop categories, latest copy of each.
+  columns:
+  - name: category_id
+    description: Shop category id.
+    data_tests:
+    - unique
+    - not_null
+  - name: category_name
+    description: Category name (Indonesian).
+  - name: parent_name
+    description: Top-level category group.
+  - name: _dt
+    description: Lake partition date the row arrived in.
+- name: staging__shop__customers
+  description: Shop customer versions (creation and moves), city casing fixed.
+  columns:
+  - name: customer_id
+    description: Shop customer id; the ledger writes it as cust_ref C-0001234.
+    data_tests:
+    - not_null
+  - name: full_name
+    description: Customer name (fictional).
+  - name: email
+    description: Customer email (fictional, example.com).
+  - name: city
+    description: City, in title case.
+    data_tests:
+    - not_null
+  - name: province
+    description: Province of the city.
+  - name: created_at
+    description: When the record was created in the source (UTC).
+  - name: updated_at
+    description: When the source wrote this version of the record (UTC).
+  - name: _dt
+    description: Lake partition date the row arrived in.
+  data_tests:
+  - unique_combination:
+      arguments:
+        columns:
+        - customer_id
+        - updated_at
+- name: staging__shop__sellers
+  description: Shop sellers.
+  columns:
+  - name: seller_id
+    description: Shop seller id; the ledger writes it as seller_ref S-00007.
+    data_tests:
+    - unique
+    - not_null
+  - name: seller_name
+    description: Seller shop name.
+  - name: city
+    description: City, in title case.
+  - name: province
+    description: Province of the city.
+  - name: created_at
+    description: When the record was created in the source (UTC).
+  - name: _dt
+    description: Lake partition date the row arrived in.
+- name: staging__shop__products
+  description: Shop product versions (creation and price changes).
+  columns:
+  - name: product_id
+    description: Shop product id; ids from 9,000,000 are orphan keys with no product.
+    data_tests:
+    - not_null
+  - name: seller_id
+    description: Shop seller id; the ledger writes it as seller_ref S-00007.
+  - name: category_id
+    description: Shop category id.
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('staging__shop__categories')
+          field: category_id
+  - name: product_name
+    description: Product name.
+  - name: price_idr
+    description: List price in rupiah, PPN included.
+  - name: created_at
+    description: When the record was created in the source (UTC).
+  - name: updated_at
+    description: When the source wrote this version of the record (UTC).
+  - name: _dt
+    description: Lake partition date the row arrived in.
+  data_tests:
+  - unique_combination:
+      arguments:
+        columns:
+        - product_id
+        - updated_at
+- name: staging__shop__vouchers
+  description: Monthly voucher catalog.
+  columns:
+  - name: voucher_code
+    description: Voucher code used on the order, if any.
+    data_tests:
+    - unique
+    - not_null
+  - name: discount_pct
+    description: Voucher discount in percent.
+  - name: max_discount_idr
+    description: Voucher discount cap in rupiah.
+  - name: min_spend_idr
+    description: Minimum order subtotal for the voucher, in rupiah.
+  - name: valid_from
+    description: Start of the period this row is valid for.
+  - name: valid_to
+    description: End of the period this row is valid for; null while it is current.
+  - name: _dt
+    description: Lake partition date the row arrived in.
+- name: staging__shop__orders
+  description: Order states without exact duplicates; shipped renamed in_transit.
+  columns:
+  - name: order_id
+    description: 'Shop order id: <day index of creation> * 100000 + n; the ledger writes ORD-<id>.'
+    data_tests:
+    - not_null
+  - name: customer_id
+    description: Shop customer id; the ledger writes it as cust_ref C-0001234.
+  - name: order_status
+    description: 'Order status: placed, paid, in_transit, delivered or cancelled (shipped before 2026-06-01
+      is renamed in_transit).'
+    data_tests:
+    - accepted_values:
+        arguments:
+          values:
+          - placed
+          - paid
+          - in_transit
+          - delivered
+          - cancelled
+  - name: voucher_code
+    description: Voucher code used on the order, if any.
+  - name: shipping_fee_idr
+    description: Shipping fee charged to the customer, in rupiah.
+  - name: created_at
+    description: When the record was created in the source (UTC).
+  - name: updated_at
+    description: When the source wrote this version of the record (UTC).
+  - name: _dt
+    description: Lake partition date the row arrived in.
+  data_tests:
+  - unique_combination:
+      arguments:
+        columns:
+        - order_id
+        - updated_at
+- name: staging__shop__order_items
+  description: Order lines; product_id from 9,000,000 is an orphan key.
+  columns:
+  - name: order_item_id
+    description: 'Order line id: order_id * 10 + line number.'
+    data_tests:
+    - unique
+    - not_null
+  - name: order_id
+    description: 'Shop order id: <day index of creation> * 100000 + n; the ledger writes ORD-<id>.'
+  - name: product_id
+    description: Shop product id; ids from 9,000,000 are orphan keys with no product.
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('staging__shop__products')
+          field: product_id
+        config:
+          severity: warn
+  - name: quantity
+    description: Units on the line.
+  - name: unit_price_idr
+    description: Price per unit on the order day, in rupiah.
+  - name: _dt
+    description: Lake partition date the row arrived in.
+- name: staging__shop__payments
+  description: Shop payments.
+  columns:
+  - name: payment_id
+    description: Payment id (equals the order id).
+    data_tests:
+    - unique
+    - not_null
+  - name: order_id
+    description: 'Shop order id: <day index of creation> * 100000 + n; the ledger writes ORD-<id>.'
+  - name: payment_method
+    description: Payment method.
+  - name: amount_idr
+    description: Amount in rupiah.
+  - name: paid_at
+    description: When the payment was received (UTC).
+  - name: _dt
+    description: Lake partition date the row arrived in.
+- name: staging__shop__shipments
+  description: Shipment states; shipped renamed in_transit.
+  columns:
+  - name: shipment_id
+    description: Shipment id (equals the order id).
+  - name: order_id
+    description: 'Shop order id: <day index of creation> * 100000 + n; the ledger writes ORD-<id>.'
+  - name: courier
+    description: Courier.
+  - name: shipment_status
+    description: 'Shipment status: in_transit or delivered.'
+    data_tests:
+    - accepted_values:
+        arguments:
+          values:
+          - in_transit
+          - delivered
+  - name: shipped_at
+    description: When the parcel was handed to the courier (UTC).
+  - name: delivered_at
+    description: When the parcel was delivered (UTC); null until then.
+  - name: _dt
+    description: Lake partition date the row arrived in.
+  data_tests:
+  - unique_combination:
+      arguments:
+        columns:
+        - shipment_id
+        - shipment_status
+- name: staging__shop__refunds
+  description: Shop refunds.
+  columns:
+  - name: refund_id
+    description: Refund id (equals the order id).
+    data_tests:
+    - unique
+    - not_null
+  - name: order_id
+    description: 'Shop order id: <day index of creation> * 100000 + n; the ledger writes ORD-<id>.'
+  - name: refund_reason
+    description: Reason given for the refund.
+  - name: amount_idr
+    description: Amount in rupiah.
+  - name: refunded_at
+    description: When the refund was made (UTC).
+  - name: _dt
+    description: Lake partition date the row arrived in.

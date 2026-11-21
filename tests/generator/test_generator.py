@@ -82,9 +82,12 @@ def test_master_data_grows_by_formula(land):
     first = read(out, "shop", "customers", DAYS[0])
     assert [r["customer_id"] for r in first] == list(range(1, c.BASE_CUSTOMERS + 1))
     second = read(out, "shop", "customers", DAYS[1])
-    assert [r["customer_id"] for r in second] == list(
-        range(c.BASE_CUSTOMERS + 1, c.BASE_CUSTOMERS + c.NEW_CUSTOMERS_PER_DAY + 1))
-    assert len(read(out, "shop", "products", DAYS[1])) == c.NEW_PRODUCTS_PER_DAY
+    new = [r["customer_id"] for r in second if r["created_at"].date() == DAYS[1]]
+    assert new == list(range(c.BASE_CUSTOMERS + 1,
+                             c.BASE_CUSTOMERS + c.NEW_CUSTOMERS_PER_DAY + 1))
+    new_products = [r for r in read(out, "shop", "products", DAYS[1])
+                    if r["created_at"].date() == DAYS[1]]
+    assert len(new_products) == c.NEW_PRODUCTS_PER_DAY
     assert len(read(out, "shop", "categories", DAYS[4])) == 20
 
 
@@ -259,3 +262,45 @@ def test_golden_manifest_matches_committed_checksums(tmp_path):
 
     golden = Path(__file__).parent / "golden" / "manifest-seed42-2026-06-01.json"
     assert write_day(42, dt.date(2026, 6, 1), tmp_path) == json.loads(golden.read_text())
+
+
+
+# --------------------------------------------------------------------------- history (M4)
+
+
+def test_customers_move(land):
+    """A share of existing customers is written again, with another city, on the day they move."""
+    out, _ = land
+    day = DAYS[4]
+    rows = read(out, "shop", "customers", day)
+    moved = [r for r in rows if r["created_at"].date() < day]
+    existing = model.customers_through(model.day_index(day) - 1)
+    assert len(moved) == round(existing * c.MOVE_RATE) > 0
+    for r in moved:
+        first = model.customer(SEED, r["customer_id"])
+        assert r["city"].lower() != first["city"].lower() or r["province"] != first["province"]
+        assert r["updated_at"].date() == day and r["full_name"] == first["full_name"]
+    assert all(r["updated_at"] == r["created_at"] for r in rows if r not in moved)
+
+
+def test_products_are_repriced(land):
+    out, _ = land
+    day = DAYS[4]
+    i = model.day_index(day)
+    rows = read(out, "shop", "products", day)
+    changed = [r for r in rows if r["created_at"].date() < day]
+    assert changed, "some products change price on any later day"
+    for r in changed:
+        assert r["price_idr"] == model.price_at(SEED, r["product_id"], i)
+        assert r["updated_at"].date() == day
+        assert model.price_changes_by(SEED, r["product_id"], i) > \
+            model.price_changes_by(SEED, r["product_id"], i - 1)
+
+
+def test_order_items_use_the_price_of_the_order_day(land):
+    out, _ = land
+    for day in DAYS:
+        i = model.day_index(day)
+        for x in read(out, "shop", "order_items", day):
+            if x["product_id"] < c.ORPHAN_PRODUCT_BASE:
+                assert x["unit_price_idr"] == model.price_at(SEED, x["product_id"], i)
