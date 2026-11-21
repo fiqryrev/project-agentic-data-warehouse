@@ -34,5 +34,8 @@ arrives in a later partition.
 
 ## Data quality
 
-Every staging model selects distinct rows, so `count(*)` on staging and warehouse is safe;
-`count(*)` on the lake over-counts orders. Count orders with `count(distinct order_id)`.
+Every staging model selects distinct rows, so the exact copies are gone from staging. That does
+not make `count(*)` an order count there: `staging__shop__orders` keeps one row per order
+*state*, so an order that was placed, paid and shipped has three rows. `count(*)` counts orders
+only on the current-state fact, `fact__sales__orders` (one row per order); on the lake or in
+staging use `count(distinct order_id)`.

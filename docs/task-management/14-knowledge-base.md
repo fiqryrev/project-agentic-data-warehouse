@@ -52,6 +52,9 @@ change AGENTS.md, the Makefile and `ci.yml`.
 - **One day of clock slack for future dates.** CI runs in UTC; an entry written in the evening
   in UTC+7 carries tomorrow's UTC date, and the first CI run failed every entry as "in the
   future". `last_verified` may be at most one day ahead of the checker's date.
+- **Codex review on PR #15:** da-0002 now says that `count(*)` counts orders only on
+  `fact__sales__orders`; staging keeps one row per order state. da-0001 describes the casing
+  population as every customer row written that day, with `generator/model.py` as evidence.
 - **No `cold/` folder yet.** PLAN lists `.agents/knowledge/cold/` for retired entries; with ten
   active entries a `status` field is enough.
 
@@ -72,8 +75,10 @@ change AGENTS.md, the Makefile and `ci.yml`.
 
 ## Open
 
-- Fix the `initcap` hint in `generator/DEFECTS.md` (DuckDB has no such function); da-0001 holds
-  the working query.
+- Fix two lines in `generator/DEFECTS.md`: the `initcap` hint (DuckDB has no such function) and
+  the casing population ("new customers"; the generator samples every customer row written that
+  day, movers included, Codex review on PR #15). da-0001 holds the working query and the
+  corrected population.
 - "Every finished issue adds an entry or says no new lesson" is in the `knowledge-add` skill but
   not checked; `check_worknote` could require one of the two in the Open section.
 - The analyst skills (explore, validate, sensemake) from the M6 row are not written yet.

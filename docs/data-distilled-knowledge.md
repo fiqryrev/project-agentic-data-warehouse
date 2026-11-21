@@ -18,9 +18,11 @@ Tags: shop, customers, city, casing, defect, data-quality. Source: `.agents/know
 
 ## Meaning
 
-`lake.shop__customers.city` is a city name. About 10% of a day's new customers arrive with
-the city written all upper case or all lower case (`JAKARTA`, `bandung`). It is the same city
-as its title-case spelling; nothing else differs.
+`lake.shop__customers.city` is a city name. 10% of the customer rows written each day (new
+customers and the versions of customers who moved) carry the city all upper case or all lower
+case (`JAKARTA`, `bandung`). It is the same city as its title-case spelling; nothing else
+differs. `generator/DEFECTS.md` says "new customers"; the generator samples over every row it
+writes that day.
 
 ### Counts
 
@@ -71,8 +73,11 @@ arrives in a later partition.
 
 ### Data quality
 
-Every staging model selects distinct rows, so `count(*)` on staging and warehouse is safe;
-`count(*)` on the lake over-counts orders. Count orders with `count(distinct order_id)`.
+Every staging model selects distinct rows, so the exact copies are gone from staging. That does
+not make `count(*)` an order count there: `staging__shop__orders` keeps one row per order
+*state*, so an order that was placed, paid and shipped has three rows. `count(*)` counts orders
+only on the current-state fact, `fact__sales__orders` (one row per order); on the lake or in
+staging use `count(distinct order_id)`.
 
 ## da-0003
 

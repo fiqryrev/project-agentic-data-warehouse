@@ -2,21 +2,24 @@
 id: da-0001
 title: Customer city casing in the shop source
 tags: [shop, customers, city, casing, defect, data-quality]
-paths: [generator/DEFECTS.md, dbt/models/staging/shop/staging__shop__customers.sql]
+paths: [generator/DEFECTS.md, generator/model.py, dbt/models/staging/shop/staging__shop__customers.sql]
 status: active
 created: 2026-11-22
 last_verified: 2026-11-22
 evidence:
   - generator/DEFECTS.md::| Casing |
   - dbt/models/staging/shop/staging__shop__customers.sql::title_case
+  - generator/model.py::customers += [dict(moved_customer(seed, cid, day))
 supersedes: []
 ---
 
 ## Meaning
 
-`lake.shop__customers.city` is a city name. About 10% of a day's new customers arrive with
-the city written all upper case or all lower case (`JAKARTA`, `bandung`). It is the same city
-as its title-case spelling; nothing else differs.
+`lake.shop__customers.city` is a city name. 10% of the customer rows written each day (new
+customers and the versions of customers who moved) carry the city all upper case or all lower
+case (`JAKARTA`, `bandung`). It is the same city as its title-case spelling; nothing else
+differs. `generator/DEFECTS.md` says "new customers"; the generator samples over every row it
+writes that day.
 
 ## Counts
 
