@@ -1,0 +1,10 @@
+system,entity,status,meaning
+shop,order,placed,created and not yet paid
+shop,order,paid,payment received
+shop,order,shipped,handed to the courier (renamed to in_transit from 2026-06-01)
+shop,order,in_transit,handed to the courier (replaces shipped from 2026-06-01)
+shop,order,delivered,received by the customer
+shop,order,cancelled,cancelled before shipping
+ledger,invoice,PAID,invoiced and paid in full
+ledger,invoice,PARTIAL_REFUND,part of the amount refunded
+ledger,invoice,REFUNDED,the whole amount refunded

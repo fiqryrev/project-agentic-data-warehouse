@@ -14,6 +14,7 @@ design; `docs/m0-findings.md` holds the verified versions and commands.
 | Path | What it holds |
 |---|---|
 | `PLAN.md` | design and milestones (section 11) |
+| `generator/` | deterministic source data (`uv run python -m generator --date <d>`); see `generator/DEFECTS.md` |
 | `.agents/rules/` | one line per rule; the story behind each in `.agents/rules/history/` |
 | `.agents/skills/` | working procedures, loaded on use (`.claude/skills` points here) |
 | `.agents/harnesses.yaml` | registry of wired agent tools and their six duties |

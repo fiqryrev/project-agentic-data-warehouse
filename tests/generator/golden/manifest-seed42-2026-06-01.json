@@ -1,0 +1,67 @@
+{
+  "date": "2026-06-01",
+  "generator_version": "1",
+  "seed": 42,
+  "tables": {
+    "ledger.invoice_lines": {
+      "rows": 1006,
+      "sha256": "1bb246d87373368fac14caa0316e43045594579a56064441e60556950c876c02"
+    },
+    "ledger.invoices": {
+      "rows": 577,
+      "sha256": "3dc379ba4f8e319fb7049b42e43e0b7d0064266f4e65502f232178aa9ce292a7"
+    },
+    "ledger.settlements": {
+      "rows": 203,
+      "sha256": "8ec43d98cbcbd64c8f56c2872ca67f860d9a2ff52b2800c91ed2525eaa983d43"
+    },
+    "marketing.campaigns": {
+      "rows": 3,
+      "sha256": "9af96d180bcbf5741096b945b5fadafb4350f5ea4f16c180117ddf66a790a46e"
+    },
+    "marketing.daily_spend": {
+      "rows": 3,
+      "sha256": "5af2a170eaf263d3f63856d740f019356c68b2a271a739c8338cc286a22e333f"
+    },
+    "shop.categories": {
+      "rows": 20,
+      "sha256": "0603c7b33f6c11647fd1be9cd06ee7eb49050b81d122341ff8d108e6cfae3c72"
+    },
+    "shop.customers": {
+      "rows": 40,
+      "sha256": "951d5c05cb150e13c208e0d041bb541f5629a0a1384525758fe5c76785b3d364"
+    },
+    "shop.order_items": {
+      "rows": 1115,
+      "sha256": "b439e646e64eaaacb448d306736d6e7dccc2087a9ec5685072bb0d884c3c28b9"
+    },
+    "shop.orders": {
+      "rows": 645,
+      "sha256": "905a0015b5f58d61727e920e67aa7df2e6a421f98b2ffbc0de0ddca323fad41f"
+    },
+    "shop.payments": {
+      "rows": 577,
+      "sha256": "058e95264b5af96298470ce426aa609d0f8671a82d1339d0684884236ac6617f"
+    },
+    "shop.products": {
+      "rows": 8,
+      "sha256": "0fd713672e4bc826f4e815bd99f47f7d745ee7d01286655ccfd7bdf37ae5b4b7"
+    },
+    "shop.refunds": {
+      "rows": 10,
+      "sha256": "1a977b7dd576c3a0c844ff23d3ea11a9fa9259cdefb8a094c31936a2f1d03217"
+    },
+    "shop.sellers": {
+      "rows": 1,
+      "sha256": "65244e115bb3a31bc176275f4fe4b05bea76282fd41a9d108912a8708e3d3f69"
+    },
+    "shop.shipments": {
+      "rows": 492,
+      "sha256": "853802c81496e8ac1d1a2c35f714572bd4fb77bf35114f394c23b142d5d57419"
+    },
+    "shop.vouchers": {
+      "rows": 5,
+      "sha256": "96846004377cb10681affb79470603d7f1ba08b467d323955fdcaf007e5f41f2"
+    }
+  }
+}
