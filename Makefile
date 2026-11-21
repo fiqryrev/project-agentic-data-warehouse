@@ -3,7 +3,8 @@ START ?= 2026-01-01
 END   ?= 2026-01-07
 SEED  ?= 42
 LANDING ?= data/landing
-DB    ?= data/build/warehouse.duckdb
+# Manual loads go to a development file; only Airflow writes data/build/ (AGENTS.md, Data access).
+DB    ?= data/dev/warehouse.duckdb
 
 .PHONY: test checks generate load
 

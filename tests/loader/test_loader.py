@@ -139,3 +139,14 @@ def test_cli(landing, tmp_path, capsys):
                 "--db", str(db)]) == 0
     assert "2026-01-02: 15 lake tables" in capsys.readouterr().out
     assert cli(["--date", "2026-01-05", "--landing", str(landing), "--db", str(db)]) == 1
+
+
+def test_default_database_is_the_development_file():
+    """Codex review on PR #9: manual loads never write the daily build file."""
+    from pathlib import Path
+
+    from loader.__main__ import DEV_DB
+    assert DEV_DB == Path("data/dev/warehouse.duckdb")
+    makefile = (Path(__file__).resolve().parents[2] / "Makefile").read_text()
+    assert "DB    ?= data/dev/warehouse.duckdb" in makefile
+    assert "data/build" not in DEV_DB.as_posix()

@@ -2,7 +2,10 @@
 
     uv run python -m loader --date 2026-11-01
     uv run python -m loader --start 2026-01-01 --end 2026-01-07 \
-        --landing data/landing --db data/build/warehouse.duckdb
+        --landing data/landing --db data/dev/warehouse.duckdb
+
+The default database is the development file data/dev/warehouse.duckdb. Only Airflow writes
+the daily build file under data/build/, passing --db explicitly (M7).
 """
 from __future__ import annotations
 
@@ -15,6 +18,8 @@ import duckdb
 
 from loader.load import LoadError, load_day
 
+DEV_DB = Path("data/dev/warehouse.duckdb")
+
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="loader", description=__doc__,
@@ -23,7 +28,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--start", type=dt.date.fromisoformat)
     ap.add_argument("--end", type=dt.date.fromisoformat)
     ap.add_argument("--landing", type=Path, default=Path("data/landing"))
-    ap.add_argument("--db", type=Path, default=Path("data/build/warehouse.duckdb"))
+    ap.add_argument("--db", type=Path, default=DEV_DB,
+                    help="DuckDB file to write (default: the development file)")
     args = ap.parse_args(argv)
     if args.date and (args.start or args.end):
         ap.error("use --date or --start/--end, not both")

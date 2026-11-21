@@ -35,6 +35,9 @@ drift. `infra/duckdb-pins.yaml` and `check_duckdb_compat` (loader writes, DuckDB
   use (1.5.4 read-write, 1.5.5 read-only), installed by `uv run --isolated --with`. The real
   dbt binary joins in M4 with `dbt build --target ci`. Pins live in `infra/duckdb-pins.yaml`
   and must match `pyproject.toml` (checked).
+- **Manual loads write `data/dev/warehouse.duckdb`** (CLI and `make load` default), not the daily
+  build file (Codex review on PR #9): only Airflow writes `data/build/`, and it will pass `--db`
+  explicitly in M7. `data/` stays gitignored.
 - **Branch in the session's own worktree**, as in M2.
 
 ## Done
