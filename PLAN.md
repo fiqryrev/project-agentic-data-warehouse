@@ -323,9 +323,30 @@ latency, and the questions whose verdict changed.
 
 ### 8.7 Coding-agent usage
 
-The coding agent's own token use is separate from the application's. v1 records it in each
-pull request body (model, tokens, estimated cost) from the agent's local logs. Routing the coding
-agent through the gateway is a later option.
+The coding agent's own token use is separate from the application's. Every pull request body
+ends with an `## AI usage` section, rendered from the agent's local session logs. Routing the
+coding agent through the gateway is a later option.
+
+- **`.agents/ai-usage/model-pricing.yaml`**: list prices in USD per million tokens, per provider
+  and model, keyed by the provider's API model id. Five rates per model (`input`,
+  `cache_write_5m`, `cache_write_1h`, `cache_read`, `output`), plus optional `fast_multiplier`
+  and `long_context` (threshold and a second rate set). Each provider block carries
+  `source_url` (the official pricing page only) and `verified_on`; a block older than
+  `stale_after_days` prints a warning.
+- **`helpers/ai_usage_footer.py`**:
+  - `render --body-file <pr-body>` reads the session logs (main agent and subagents, one count
+    per message), prices each token class at its own rate, and replaces the `## AI usage`
+    section at the end of the body.
+  - The footer names the harness, each model with what it was used for, requests, input tokens
+    across all classes (with cache reads and writes shown), output tokens, input, output and
+    total USD, the pricing source and date, and the line "list-price estimate, not money paid".
+  - It counts only tokens since the previous footer of the same session, recorded in a hidden
+    ledger line inside the footer, so totals across several PRs add up instead of repeating.
+  - A harness without a log reader passes its token counts as flags.
+  - `check-prices` validates the pricing file (every class present, numbers positive, dates
+    valid).
+- **No tool watermark.** The footer replaces lines such as "Generated with ..."; `check_pr_body`
+  fails a PR body that has a watermark or lacks the footer.
 
 ## 9. Agent harness
 
@@ -341,6 +362,7 @@ CLAUDE.md                 one line: @AGENTS.md
                           label-review, provider-compare
   knowledge/              entries/{de,da}/, cold/, index/, evals/
   toolbelt.md             every CLI and server: owner, access, reason, review date
+  ai-usage/model-pricing.yaml   list prices per token class, read by the PR footer
 .agent-activity-logs/     gitignored; one JSONL file per session
 .claude/                  settings (deny > ask > allow), three hooks
 helpers/                  check_*.py, kb CLI, log_agent_action.py, closeout script
@@ -395,7 +417,8 @@ Blocking checks from the first merge:
 | `check_harness_parity` | every registered tool declares all six duties and reaches every skill |
 | `check_knowledge` | frontmatter, expiry, evidence resolves, generated docs current, recall floor |
 | `check_worknote` | PR touches a worknote for its issue |
-| `check_pr_body` | pre-merge and post-merge sections; every pre-merge item ends in `→ PASS`, `→ FAIL: reason` or `→ SKIP[rule]: reason` |
+| `check_pr_body` | pre-merge and post-merge sections; every pre-merge item ends in `→ PASS`, `→ FAIL: reason` or `→ SKIP[rule]: reason`; ends with the `## AI usage` footer; no tool watermark |
+| `check_prices` | `model-pricing.yaml` is complete and valid; stale provider blocks warn, never block |
 | `check_gateway_only` | no provider URL or provider key name outside `infra/llm-gateway/` and `.env.example` |
 | `check_duckdb_compat` | loader, dbt driver and Auto Ontology pin open one file |
 | `dbt build --target ci` | models and tests pass on a 3-day dataset |
@@ -431,7 +454,7 @@ project-agentic-data-warehouse/
 | # | Milestone | Done when |
 |---|---|---|
 | M0 | **Spike, throwaway.** dbt v2 on macOS arm64: bundled DuckDB version; seeds, incremental, snapshots, `persist_docs`, double-underscore names. File compatibility across loader, dbt, Auto Ontology. Auto Ontology ingests a DuckDB file, reads comments, picks up a replaced file after restart. Auto Ontology through LiteLLM with `openai/` aliases for chat, embed and `/rerank`. One OpenRouter chat model through the gateway. Request id or header passthrough. Langfuse and Phoenix memory on the laptop | A findings note answers each item with its command; D1, D2, D5 and D6 confirmed or changed |
-| M1 | Repo skeleton and harness: `AGENTS.md` with the loop, registry, hooks, activity log, CI with entry-size, parity, secrets, worknote and PR-body checks, branch protection | A PR without a worknote or with an untokened pre-merge item fails CI |
+| M1 | Repo skeleton and harness: `AGENTS.md` with the loop, registry, hooks, activity log, CI with entry-size, parity, secrets, worknote, PR-body and pricing checks, branch protection requiring green CI; `model-pricing.yaml` and `ai_usage_footer.py` with tests | A PR without a worknote, with an untokened pre-merge item, or without the AI usage footer fails CI; the footer on M1's own PR is rendered by the helper |
 | M2 | Generator: seed, daily partitions, documented defects, unit tests | Same seed and date give identical files |
 | M3 | Loader into `lake` with audit columns; `check_duckdb_compat` | Loading a day twice leaves counts unchanged |
 | M4 | dbt project: staging, warehouse, mart, tests, docs, history on two dims | `dbt build --target ci` green in CI |
