@@ -1,0 +1,205 @@
+{
+  "entries": [
+    {
+      "id": "da-0001",
+      "kind": "data",
+      "title": "Customer city casing in the shop source",
+      "tags": [
+        "shop",
+        "customers",
+        "city",
+        "casing",
+        "defect",
+        "data-quality"
+      ],
+      "paths": [
+        "generator/DEFECTS.md",
+        "dbt/models/staging/shop/staging__shop__customers.sql"
+      ],
+      "status": "active",
+      "last_verified": "2026-11-22",
+      "file": ".agents/knowledge/entries/da/da-0001-customer-city-casing.md"
+    },
+    {
+      "id": "da-0002",
+      "kind": "data",
+      "title": "Exact duplicate order rows in the shop source",
+      "tags": [
+        "shop",
+        "orders",
+        "duplicates",
+        "defect",
+        "data-quality"
+      ],
+      "paths": [
+        "generator/DEFECTS.md",
+        "dbt/models/staging/shop/staging__shop__orders.sql"
+      ],
+      "status": "active",
+      "last_verified": "2026-11-22",
+      "file": ".agents/knowledge/entries/da/da-0002-duplicate-order-rows.md"
+    },
+    {
+      "id": "da-0003",
+      "kind": "data",
+      "title": "Late order rows land in a later partition",
+      "tags": [
+        "shop",
+        "orders",
+        "late-rows",
+        "partition",
+        "defect",
+        "data-quality"
+      ],
+      "paths": [
+        "generator/DEFECTS.md",
+        "dbt/models/warehouse/sales/fact__sales__orders.sql"
+      ],
+      "status": "active",
+      "last_verified": "2026-11-22",
+      "file": ".agents/knowledge/entries/da/da-0003-late-order-rows.md"
+    },
+    {
+      "id": "da-0004",
+      "kind": "data",
+      "title": "Orphan product keys on order lines",
+      "tags": [
+        "shop",
+        "ledger",
+        "order_items",
+        "products",
+        "orphan-keys",
+        "defect",
+        "data-quality"
+      ],
+      "paths": [
+        "generator/DEFECTS.md",
+        "dbt/models/staging/shop/_staging__shop.yml"
+      ],
+      "status": "active",
+      "last_verified": "2026-11-22",
+      "file": ".agents/knowledge/entries/da/da-0004-orphan-product-keys.md"
+    },
+    {
+      "id": "da-0005",
+      "kind": "data",
+      "title": "Status shipped renamed in_transit from 2026-06-01",
+      "tags": [
+        "shop",
+        "orders",
+        "shipments",
+        "status",
+        "rename",
+        "defect",
+        "data-quality"
+      ],
+      "paths": [
+        "generator/DEFECTS.md",
+        "dbt/models/staging/shop/staging__shop__orders.sql",
+        "dbt/models/staging/shop/staging__shop__shipments.sql"
+      ],
+      "status": "active",
+      "last_verified": "2026-11-22",
+      "file": ".agents/knowledge/entries/da/da-0005-shipped-renamed-in-transit.md"
+    },
+    {
+      "id": "de-0001",
+      "kind": "engineering",
+      "title": "Build dimension history from the lake, not from dbt snapshots",
+      "tags": [
+        "dbt",
+        "scd2",
+        "history",
+        "dimensions",
+        "backfill",
+        "snapshots"
+      ],
+      "paths": [
+        "dbt/models/warehouse/sales/dim__sales__customers.sql",
+        "dbt/models/warehouse/sales/dim__sales__products.sql"
+      ],
+      "status": "active",
+      "last_verified": "2026-11-22",
+      "file": ".agents/knowledge/entries/de/de-0001-history-from-the-lake.md"
+    },
+    {
+      "id": "de-0002",
+      "kind": "engineering",
+      "title": "Name the DuckDB file dwh.duckdb, never after a schema",
+      "tags": [
+        "duckdb",
+        "catalog",
+        "schema",
+        "build-file",
+        "naming"
+      ],
+      "paths": [
+        "Makefile",
+        "dbt/profiles.yml"
+      ],
+      "status": "active",
+      "last_verified": "2026-11-22",
+      "file": ".agents/knowledge/entries/de/de-0002-build-file-name.md"
+    },
+    {
+      "id": "de-0003",
+      "kind": "engineering",
+      "title": "Load a lake day in one transaction with a deterministic batch id",
+      "tags": [
+        "loader",
+        "lake",
+        "transaction",
+        "idempotent",
+        "batch",
+        "audit-columns"
+      ],
+      "paths": [
+        "loader/load.py",
+        "docs/task-management/8-lake-loader.md"
+      ],
+      "status": "active",
+      "last_verified": "2026-11-22",
+      "file": ".agents/knowledge/entries/de/de-0003-one-transaction-per-day.md"
+    },
+    {
+      "id": "de-0004",
+      "kind": "engineering",
+      "title": "Governance checkers read dbt models statically with DuckDB's parser",
+      "tags": [
+        "governance",
+        "checkers",
+        "dbt",
+        "parser",
+        "ci",
+        "select-star"
+      ],
+      "paths": [
+        "helpers/dbtlib.py",
+        ".agents/rules/dbt.md"
+      ],
+      "status": "active",
+      "last_verified": "2026-11-22",
+      "file": ".agents/knowledge/entries/de/de-0004-read-dbt-statically.md"
+    },
+    {
+      "id": "de-0005",
+      "kind": "engineering",
+      "title": "The warehouse assumes the lake was loaded from the epoch",
+      "tags": [
+        "dbt",
+        "lake",
+        "backfill",
+        "epoch",
+        "airflow",
+        "catchup"
+      ],
+      "paths": [
+        "docs/task-management/10-dbt-project.md",
+        "Makefile"
+      ],
+      "status": "active",
+      "last_verified": "2026-11-22",
+      "file": ".agents/knowledge/entries/de/de-0005-load-from-the-epoch.md"
+    }
+  ]
+}

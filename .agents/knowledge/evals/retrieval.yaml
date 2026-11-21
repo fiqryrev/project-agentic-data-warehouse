@@ -1,0 +1,24 @@
+# Retrieval eval for `kb search` (checked by check_knowledge): each question must find its
+# entry in the top k results, for at least `floor` of the questions. Phrase questions the way
+# a person would ask, not with the entry's title.
+k: 3
+floor: 0.9
+cases:
+  - {query: "why are some city names in capital letters", expect: da-0001}
+  - {query: "lowercase city values in customers", expect: da-0001}
+  - {query: "the same order row appears twice in the lake", expect: da-0002}
+  - {query: "order count is too high when counting lake rows", expect: da-0002}
+  - {query: "an old order status shows up in a newer partition", expect: da-0003}
+  - {query: "which row is the current state of an order", expect: da-0003}
+  - {query: "order items with a product that does not exist", expect: da-0004}
+  - {query: "product id above 9000000", expect: da-0004}
+  - {query: "in_transit or shipped status filter", expect: da-0005}
+  - {query: "shipment status changed name in june", expect: da-0005}
+  - {query: "why not dbt snapshots for customer history", expect: de-0001}
+  - {query: "valid_from valid_to scd2 dimension", expect: de-0001}
+  - {query: "catalog name clashes with the warehouse schema", expect: de-0002}
+  - {query: "what happens if loading a day fails halfway", expect: de-0003}
+  - {query: "reloading a day gives the same batch id", expect: de-0003}
+  - {query: "select star fails check_bundle", expect: de-0004}
+  - {query: "relationship tests fail when the backfill starts in may", expect: de-0005}
+  - {query: "missing sellers when starting the load later", expect: de-0005}

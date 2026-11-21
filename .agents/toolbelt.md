@@ -12,6 +12,7 @@ Every CLI and server an agent may use. Review each line by its date; remove what
 | GitHub Actions | owner | CI only | blocking checks in `.github/workflows/ci.yml` | 2027-02-21 |
 | `duckdb` (Python) | owner | run; agents read the serving snapshot read-only (M9) | loader writes `lake`; pins in `infra/duckdb-pins.yaml` | 2027-02-22 |
 | `dbt` 2.0.12 | owner | run `dev` and `ci` targets; `prod` is Airflow's | builds staging, warehouse, mart (`dbt/`) | 2027-02-22 |
+| `kb` (`helpers/kb.py`) | owner | run; writes only `.agents/knowledge/` and the generated docs | search, add and render knowledge entries | 2027-02-22 |
 | `make` | owner | run | shortcuts in `Makefile` | 2027-02-22 |
 | gitleaks | owner | CI only | secret scan beside `check_secrets` | 2027-02-21 |
 
