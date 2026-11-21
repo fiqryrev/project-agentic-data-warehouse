@@ -1,0 +1,22 @@
+name: warehouse
+version: "1.0.0"
+profile: warehouse
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+models:
+  warehouse:
+    +persist_docs:
+      relation: true
+      columns: true
+    staging:
+      +schema: staging
+      +materialized: view
+    warehouse:
+      +schema: warehouse
+      +materialized: table
+    mart:
+      +schema: mart
+      +materialized: table

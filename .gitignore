@@ -231,6 +231,7 @@ data/
 # dbt
 dbt/target/
 dbt/logs/
+dbt/.user.yml
 # agent working state
 .worktrees/
 .agent-activity-logs/

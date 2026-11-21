@@ -146,7 +146,7 @@ def test_default_database_is_the_development_file():
     from pathlib import Path
 
     from loader.__main__ import DEV_DB
-    assert DEV_DB == Path("data/dev/warehouse.duckdb")
+    assert DEV_DB == Path("data/dev/dwh.duckdb")
     makefile = (Path(__file__).resolve().parents[2] / "Makefile").read_text()
-    assert "DB    ?= data/dev/warehouse.duckdb" in makefile
+    assert "DB    ?= data/dev/dwh.duckdb" in makefile
     assert "data/build" not in DEV_DB.as_posix()

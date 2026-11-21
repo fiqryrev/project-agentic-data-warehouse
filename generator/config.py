@@ -16,6 +16,13 @@ BASE_CUSTOMERS, NEW_CUSTOMERS_PER_DAY = 2000, 40
 BASE_SELLERS, NEW_SELLERS_PER_DAY = 120, 1
 BASE_PRODUCTS, NEW_PRODUCTS_PER_DAY = 600, 8
 
+# Master data that changes, so the warehouse has history to keep (M4):
+# each day this share of existing customers moves to another city, and every product is
+# repriced every N days (N drawn per product) by a factor drawn per change.
+MOVE_RATE = 0.002
+REPRICE_EVERY_DAYS = (30, 120)
+REPRICE_FACTOR = (0.85, 1.20)
+
 ORDERS_PER_DAY = 500
 WEEKDAY_FACTOR = (1.0, 0.95, 0.95, 1.0, 1.1, 1.25, 1.2)  # Monday .. Sunday
 DAILY_GROWTH = 0.0015

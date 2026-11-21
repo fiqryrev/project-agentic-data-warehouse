@@ -78,3 +78,30 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  dbt:
+    name: dbt
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: install
+        run: uv sync --locked --group dbt
+
+      - name: generate and load a 3-day dataset
+        run: |
+          uv run python -m generator --start 2026-01-01 --end 2026-01-03 --out data/ci/landing
+          uv run python -m loader --start 2026-01-01 --end 2026-01-03 \
+            --landing data/ci/landing --db data/ci/dwh.duckdb
+
+      - name: dbt drivers
+        working-directory: dbt
+        run: uv run --group dbt dbt system install-drivers
+
+      - name: dbt build --target ci
+        working-directory: dbt
+        run: uv run --group dbt dbt build --target ci --profiles-dir .

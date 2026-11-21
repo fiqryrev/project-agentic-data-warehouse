@@ -9,6 +9,9 @@ dependencies = [
 ]
 
 [dependency-groups]
+dbt = [
+    "dbt==2.0.12",
+]
 dev = [
     "pytest>=8",
     "pyyaml>=6",

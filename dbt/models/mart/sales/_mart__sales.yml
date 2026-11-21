@@ -1,0 +1,24 @@
+version: 2
+models:
+- name: rpt__sales__orders__daily
+  description: 'Orders created per day: count, current status mix, units and merchandise value.'
+  columns:
+  - name: order_date
+    description: Day the order was created.
+    data_tests:
+    - unique
+    - not_null
+  - name: orders
+    description: Orders created that day.
+  - name: cancelled_orders
+    description: Of those, orders now cancelled.
+  - name: delivered_orders
+    description: Of those, orders now delivered.
+  - name: units
+    description: Units ordered.
+  - name: merchandise_idr
+    description: Value of the lines ordered, before voucher and shipping, in rupiah.
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).

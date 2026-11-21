@@ -4,16 +4,16 @@
   "seed": 42,
   "tables": {
     "ledger.invoice_lines": {
-      "rows": 1063,
-      "sha256": "04500420ac4fc3261b48520b25bb0901aa565c6819da867aba044b7767abab8e"
+      "rows": 1062,
+      "sha256": "bacb84bda9ed3d52fbeb5d0cbd154a5bc815099ada131a34bf8c45fc43ea1a90"
     },
     "ledger.invoices": {
-      "rows": 590,
-      "sha256": "3659f7f32201298576d3a957d61d45f5c7387fcacc40a10addb76dd05912518d"
+      "rows": 589,
+      "sha256": "02b08c406d80b848cefad4b4a1c20e53cd13242666fed9ec39b7f7f7e3d708ef"
     },
     "ledger.settlements": {
       "rows": 213,
-      "sha256": "53c1f2ffcd21d6e510bfd3570503a1d07fd3a4be9f40a1205cd07949b840bbbf"
+      "sha256": "fcb39bc5782ee3499e7235724edc3f94d56ca17266071b0f170b07a8d38f9248"
     },
     "marketing.campaigns": {
       "rows": 3,
@@ -28,36 +28,36 @@
       "sha256": "0603c7b33f6c11647fd1be9cd06ee7eb49050b81d122341ff8d108e6cfae3c72"
     },
     "shop.customers": {
-      "rows": 40,
-      "sha256": "951d5c05cb150e13c208e0d041bb541f5629a0a1384525758fe5c76785b3d364"
+      "rows": 56,
+      "sha256": "39fd25e706a91b5e2bd76c85c80ab00e51c568272a22f772ff3321adae4145a6"
     },
     "shop.order_items": {
       "rows": 1133,
-      "sha256": "c45c8bd72177c44b43b995a170ac776c87ab0cd3a45646fce616c957c132494f"
+      "sha256": "f20c8219e33a0d6827d3550979fd82673dab8e8c29c38554b2967f29515e86fc"
     },
     "shop.orders": {
-      "rows": 1732,
-      "sha256": "ea33662d8dbddf93d3da7d2abeace7211aac833f436c97a33f82351440b46c7e"
+      "rows": 1733,
+      "sha256": "ebc4330964e096b051702caec6627760f3d33db48e16caffc1b7465dbd4cce99"
     },
     "shop.payments": {
-      "rows": 574,
-      "sha256": "335dfcff4a2d82c6c886613211e076d3fdd58af5d4dcbfe52c329177ea75d999"
+      "rows": 573,
+      "sha256": "31c96fff87bd6adb2f366f262ae22361fd7cd87bcc361df743883f2a5847f7ac"
     },
     "shop.products": {
-      "rows": 8,
-      "sha256": "0fd713672e4bc826f4e815bd99f47f7d745ee7d01286655ccfd7bdf37ae5b4b7"
+      "rows": 36,
+      "sha256": "9eb6c03a17efab18499a138b2e1966c72c01c52c95eb503bec3c76a2f071f8c9"
     },
     "shop.refunds": {
       "rows": 16,
-      "sha256": "3089d6ada958a26af57fa40c1dbe23e9d32df40e344806c2240f1460a81c302c"
+      "sha256": "a9c3cc6bd17c94b44ec3657eb423c080b98990d0460f17df9ca670522ec03bb1"
     },
     "shop.sellers": {
       "rows": 1,
       "sha256": "65244e115bb3a31bc176275f4fe4b05bea76282fd41a9d108912a8708e3d3f69"
     },
     "shop.shipments": {
-      "rows": 1212,
-      "sha256": "8bd9cc69820b556db458111d8568d153c520cfc4eca4a473d1edabd1c8ce5bfe"
+      "rows": 1213,
+      "sha256": "50fdf40b1a6d9f18f690c990c3e75a6da4f84f8916aa36281a75cc143acfcebc"
     },
     "shop.vouchers": {
       "rows": 5,

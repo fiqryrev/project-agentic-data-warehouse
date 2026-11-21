@@ -1,0 +1,69 @@
+version: 2
+models:
+- name: fact__finance__invoices
+  description: Ledger invoices, current state (latest posting).
+  columns:
+  - name: invoice_id
+    description: Ledger invoice id, INV-<order id>.
+    data_tests:
+    - unique
+    - not_null
+  - name: order_id
+    description: 'Shop order id: <day index of creation> * 100000 + n; the ledger writes ORD-<id>.'
+    data_tests:
+    - unique
+    - not_null
+  - name: customer_id
+    description: Shop customer id; the ledger writes it as cust_ref C-0001234.
+  - name: invoice_date
+    description: Date the invoice was raised (payment date).
+  - name: invoice_status
+    description: 'Ledger status: PAID, PARTIAL_REFUND or REFUNDED.'
+    data_tests:
+    - accepted_values:
+        arguments:
+          values:
+          - PAID
+          - PARTIAL_REFUND
+          - REFUNDED
+  - name: gross_idr
+    description: 'Invoice total in rupiah: items minus voucher plus shipping, PPN included.'
+  - name: tax_idr
+    description: PPN (11%) inside the gross amount, in rupiah.
+  - name: refund_idr
+    description: Refunded amount in rupiah.
+  - name: net_revenue_idr
+    description: 'Revenue net of refunds and PPN: (gross - refund) / 1.11, in rupiah.'
+  - name: posted_at
+    description: When the ledger posted this version of the invoice (UTC).
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).
+- name: fact__finance__settlements
+  description: Daily seller settlements.
+  columns:
+  - name: settlement_id
+    description: Ledger settlement id, STL-<yyyymmdd>-<seller id>.
+    data_tests:
+    - unique
+    - not_null
+  - name: seller_id
+    description: Shop seller id; the ledger writes it as seller_ref S-00007.
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('dim__sales__sellers')
+          field: seller_id
+  - name: settlement_date
+    description: Settlement day.
+  - name: gross_sales_idr
+    description: Seller sales settled that day, in rupiah.
+  - name: commission_idr
+    description: Marketplace commission (5%), in rupiah.
+  - name: payout_idr
+    description: Amount paid out to the seller, in rupiah.
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).

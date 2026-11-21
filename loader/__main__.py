@@ -2,9 +2,9 @@
 
     uv run python -m loader --date 2026-11-01
     uv run python -m loader --start 2026-01-01 --end 2026-01-07 \
-        --landing data/landing --db data/dev/warehouse.duckdb
+        --landing data/landing --db data/dev/dwh.duckdb
 
-The default database is the development file data/dev/warehouse.duckdb. Only Airflow writes
+The default database is the development file data/dev/dwh.duckdb. Only Airflow writes
 the daily build file under data/build/, passing --db explicitly (M7).
 """
 from __future__ import annotations
@@ -18,7 +18,7 @@ import duckdb
 
 from loader.load import LoadError, load_day
 
-DEV_DB = Path("data/dev/warehouse.duckdb")
+DEV_DB = Path("data/dev/dwh.duckdb")
 
 
 def main(argv: list[str] | None = None) -> int:
