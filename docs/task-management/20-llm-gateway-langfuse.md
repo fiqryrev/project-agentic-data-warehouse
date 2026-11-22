@@ -30,7 +30,7 @@ Approved in chat on 2026-11-22, including a few cheap real model calls on the ow
   are added in compose (`sk-` for the LiteLLM master key, `pk-lf-`/`sk-lf-` for Langfuse). The
   UI login is `admin@example.com` with `LANGFUSE_ADMIN_SECRET`.
 - **Provider keys are optional in compose, required by `make up-obs`.** Compose interpolates every
-  variable of every profile, so `${NVIDIA_API_KEY:?}` would stop `make up-core` for someone with
+  variable of every profile, so a required provider key (`:?`) would stop `make up-core` for someone with
   no provider key; `bootstrap.py check-keys` stops `make up-obs` instead.
 - **The gateway's environment lives in `infra/llm-gateway/service.yml`**, merged with `extends`.
   `check_gateway_only` flagged the provider key names in `infra/compose.yml`; exempting the whole

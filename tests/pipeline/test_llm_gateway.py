@@ -64,9 +64,10 @@ def test_set_env_replaces_or_appends(tmp_path):
 
 def test_check_keys_names_missing_provider_keys(tmp_path, capsys):
     env = tmp_path / ".env"
-    env.write_text("NVIDIA_API_KEY=x\nOPENROUTER_API_KEY=\n")
+    present, missing = bootstrap.PROVIDER_KEYS     # names stay in infra/llm-gateway/ (check_gateway_only)
+    env.write_text(f"{present}=x\n{missing}=\n")
     assert bootstrap.check_keys(env) == 1
-    assert "OPENROUTER_API_KEY" in capsys.readouterr().out
+    assert missing in capsys.readouterr().out
 
 
 def test_obs_services_are_pinned_by_digest_and_local():
