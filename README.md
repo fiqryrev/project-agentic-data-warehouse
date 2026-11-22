@@ -19,7 +19,7 @@ Agents work at three levels here, and each is checked:
 
 | Command | What happens |
 |---|---|
-| `make backfill FROM=2026-01-01 TO=2026-01-08` | One Airflow run per day: generate the day's source files, load the lake, build dbt, gate quality, publish the snapshot, refresh Auto Ontology, ask the golden questions, land the LLM telemetry, record the run |
+| `make backfill FROM=2026-01-01 TO=2026-01-08` | One Airflow run per day: generate the day's source files, load the lake, build dbt, gate quality, publish the snapshot, record the run. Refreshing Auto Ontology and asking the golden questions need the `ontology` profile, landing the LLM telemetry needs `obs`; without them those tasks are skipped, which is fine (the quickstart below starts them after the backfill). Golden questions are asked on the last day (`TO`) only |
 | `make ask Q="What was the net revenue on 2026-01-05?"` | One question to the chat, with a full answer trace in Langfuse: answer, SQL, rows, step trace, snapshot hash, and the exact model calls and cost behind it |
 | `make golden DS=<day>` | Every golden question scored `exact_match`, `within_tolerance`, `wrong` or `refused`; a wrong answer fails the DAG task and lands in the review queue |
 | `make label-prs OPEN=1` | Labels a person gave in the Langfuse queue become a pull request: a `correct` answer becomes a golden question, a `wrong_definition` becomes a `da-` knowledge entry, a `wrong_grain` becomes a dbt issue |

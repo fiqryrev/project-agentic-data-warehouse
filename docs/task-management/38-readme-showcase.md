@@ -29,6 +29,9 @@ the runbook; status (M0 to M12 with PRs); honest limits.
   order with its reasons (design and spike first, pins where tools meet, the agent harness before
   the warehouse, trusted data before the chat, the gateway before the first model call, measure
   before improving, consume upstream at a pinned commit, local first).
+- **Review on #39 (Codex):** the backfill row now says which tasks need the `ontology` and `obs`
+  profiles (skipped without them, as in the quickstart order) and that golden questions run on
+  the last day only (`airflow/backfill.sh`).
 - **PR references are full links**: a bare `#3` is not linked in a rendered README.
 - **No upstream material**: the overlay patches are described as part of this project only.
 
