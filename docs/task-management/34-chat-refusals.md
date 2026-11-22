@@ -48,8 +48,8 @@ configuration could not fix it.
 - `make up-ontology` -> `applied 0001-...`, `applied 0002-chat-api-calculation-only.patch`;
   images rebuilt, no re-ingest.
 - With the patch: `compare-20261122T1147` 7 correct / 0 refused ($0.0099),
-  `compare-20261122T1204` 7 / 0 ($0.0110) -> 0 of 14 refused, 0 wrong. **Done-when met.**
-  A third run was still going when the PR opened.
+  `compare-20261122T1204` 7 / 0 ($0.0110), `compare-20261122T1216` 7 / 0 ($0.0089) -> 0 of 21
+  refused, 21 correct, 0 wrong. **Done-when met.**
 - `uv run pytest -q` -> PASS; `make checks` -> OK.
 
 ## Open
