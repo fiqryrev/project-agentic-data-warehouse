@@ -16,6 +16,11 @@ select
     linked_cost_usd,
     linked_call_count,
     link_method as link_method_type,
+    finished_at as answer_finished_at,
+    comparison_run as comparison_run_code,
+    candidate as candidate_name,
+    reasoning_model as reasoning_model_name,
+    non_reasoning_model as non_reasoning_model_name,
     _dt
 from {{ source('lake', 'langfuse__answers') }}
 qualify row_number() over (partition by trace_id order by _dt desc, _loaded_at desc) = 1

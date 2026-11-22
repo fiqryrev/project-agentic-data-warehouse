@@ -40,6 +40,16 @@ models:
     description: Linked model calls.
   - name: link_method_type
     description: How the calls were linked.
+  - name: answer_finished_at
+    description: 'When the answer finished (UTC); for traces before M12, the end of the linking window (10 s late).'
+  - name: comparison_run_code
+    description: 'Provider comparison run (`make compare-providers`); null for other answers.'
+  - name: candidate_name
+    description: 'Candidate of a comparison run (nvidia, openrouter); null for other answers.'
+  - name: reasoning_model_name
+    description: "Gateway alias Auto Ontology's reasoning role used in a comparison run."
+  - name: non_reasoning_model_name
+    description: "Gateway alias Auto Ontology's non-reasoning role used in a comparison run."
   - name: _dbt_invocation_id
     description: dbt invocation that built this row.
   - name: _dbt_updated_at

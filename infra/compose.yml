@@ -292,14 +292,16 @@ services:
         # The published snapshot (publish_snapshot, DAG task 5), opened read-only.
         CONNECTION_STRINGS: duckdb:///data/serve/analytics.duckdb
         # Every model role goes to the gateway with the auto-ontology key (PLAN section 8.1).
+        # The chat roles take AO_REASONING_MODEL / AO_NON_REASONING_MODEL when set, so
+        # `make compare-providers` can restart only the backend on a candidate pair (M12).
         DEFAULT_MODELS_ENDPOINT: http://llm-gateway:4000/v1
-        DEFAULT_MODELS_MODEL: openai/adw-non-reasoning
+        DEFAULT_MODELS_MODEL: ${AO_NON_REASONING_MODEL:-openai/adw-non-reasoning}
         DEFAULT_MODELS_API_KEY: ${GATEWAY_KEY_AUTO_ONTOLOGY:-}
         REASONING_ENDPOINT: http://llm-gateway:4000/v1
-        REASONING_MODEL: openai/adw-reasoning
+        REASONING_MODEL: ${AO_REASONING_MODEL:-openai/adw-reasoning}
         REASONING_API_KEY: ${GATEWAY_KEY_AUTO_ONTOLOGY:-}
         NON_REASONING_ENDPOINT: http://llm-gateway:4000/v1
-        NON_REASONING_MODEL: openai/adw-non-reasoning
+        NON_REASONING_MODEL: ${AO_NON_REASONING_MODEL:-openai/adw-non-reasoning}
         NON_REASONING_API_KEY: ${GATEWAY_KEY_AUTO_ONTOLOGY:-}
         EMBED_ENDPOINT: http://llm-gateway:4000/v1
         EMBED_MODEL: adw-embed

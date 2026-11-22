@@ -393,6 +393,14 @@ alias, stores each run as a Langfuse experiment, and writes the comparison mart.
 proposed only with that table in the pull request: accuracy, cost per correct answer, p95
 latency, and the questions whose verdict changed.
 
+As built in M12: a candidate is a pair of gateway aliases for Auto Ontology's reasoning and
+non-reasoning roles (`CANDIDATES` in `llm/compare.py`); only the backend is restarted on the pair,
+embeddings stay fixed, and the default pair is restored afterwards. Each candidate's run is a
+Langfuse experiment on dataset `golden` (OTLP `langfuse.experiment.*` attributes); the report goes
+to `docs/runs/`, the mart is `rpt__ops__provider_comparison__snapshot`. The first two runs
+disagreed (the chat's refusals vary more than the providers), so no swap was proposed. The local
+runbook is `docs/runbook.md`.
+
 ### 8.7 Coding-agent usage
 
 The coding agent's own token use is separate from the application's. Every pull request body

@@ -6,11 +6,12 @@ callers:
   - name: auto-ontology
     env: GATEWAY_KEY_AUTO_ONTOLOGY
     max_budget_usd: 2.00
-    models: [openai/adw-reasoning, openai/adw-non-reasoning, adw-embed]
+    # The OpenRouter pair too: `make compare-providers` points Auto Ontology at it (M12).
+    models: [openai/adw-reasoning, openai/adw-non-reasoning, openai/adw-or-chat, openai/adw-or-non-reasoning, adw-embed]
   - name: golden-runner
     env: GATEWAY_KEY_GOLDEN_RUNNER
     max_budget_usd: 1.00
-    models: [openai/adw-reasoning, openai/adw-non-reasoning, openai/adw-or-chat, adw-embed]
+    models: [openai/adw-reasoning, openai/adw-non-reasoning, openai/adw-or-chat, openai/adw-or-non-reasoning, adw-embed]
   - name: agent-dev
     env: GATEWAY_KEY_AGENT_DEV
     max_budget_usd: 0.50

@@ -134,3 +134,15 @@ def test_daily_sample_is_seeded_and_skips_queued_answers():
     assert len(first) == 5 and not {"t0", "t1"} & set(first)
     assert g.pick_sample(ids, {"t0", "t1"}, "2026-01-10") == first      # same day, same draw
     assert g.pick_sample(ids[:3], set(), "d") == sorted(ids[:3]) or len(g.pick_sample(ids[:3], set(), "d")) == 3
+
+
+def test_a_call_in_two_padded_windows_counts_for_one_answer():
+    t = dtm.datetime(2026, 11, 22, 10, tzinfo=dtm.UTC)
+    a1 = ak.Answer("q1", t, t + dtm.timedelta(seconds=30))
+    a2 = ak.Answer("q2", t + dtm.timedelta(seconds=31), t + dtm.timedelta(seconds=60))
+    s = dtm.timedelta(seconds=1)
+    assert ak.owner_of(t + 10 * s, [a1, a2]) is a1
+    assert ak.owner_of(t + 35 * s, [a1, a2]) is a2           # also inside a1's +10 s padding
+    assert ak.owner_of(t + 30 * s - s, [a1, a2]) is a1
+    assert ak.owner_of(t - s, [a1, a2]) is a1                # a1's -2 s padding, before any start
+    assert ak.owner_of(t + 75 * s, [a1, a2]) is None

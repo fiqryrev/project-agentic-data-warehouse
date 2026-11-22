@@ -6,7 +6,7 @@ LANDING ?= data/landing
 # Manual loads and dbt-build use the development file; only Airflow writes data/build/ (AGENTS.md, Data access).
 DB    ?= data/dev/dwh.duckdb
 
-.PHONY: test checks generate load dbt-build dbt-ci env-secrets up-core down-core backfill run-log up-obs down-obs llm-smoke down up-ontology down-ontology ontology-check ask golden label-prs
+.PHONY: test checks generate load dbt-build dbt-ci env-secrets up-core down-core backfill run-log up-obs down-obs llm-smoke down up-ontology down-ontology ontology-check ask golden label-prs compare-providers
 
 test:
 	uv run pytest -q
@@ -117,6 +117,11 @@ golden:
 # (llm/labels.py; skill label-review). Dry run unless OPEN=1.
 label-prs:
 	uv run python -m llm.labels $(if $(OPEN),--open,) $(if $(BASE),--base $(BASE),)
+
+# The golden set once per candidate provider; report in docs/runs/ (llm/compare.py, PLAN 8.6).
+ALIASES ?= nvidia,openrouter
+compare-providers:
+	uv run python -m llm.compare --aliases $(ALIASES)
 
 # The run log of the daily build file, read-only.
 run-log:

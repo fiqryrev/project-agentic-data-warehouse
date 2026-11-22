@@ -225,6 +225,27 @@
       "status": "active",
       "last_verified": "2026-11-22",
       "file": ".agents/knowledge/entries/de/de-0006-langfuse-traces-over-otlp.md"
+    },
+    {
+      "id": "de-0007",
+      "kind": "engineering",
+      "title": "OpenRouter turns reasoning off with reasoning.enabled, not chat_template_kwargs",
+      "tags": [
+        "openrouter",
+        "nvidia",
+        "reasoning",
+        "thinking",
+        "gateway",
+        "litellm",
+        "alias",
+        "non-reasoning"
+      ],
+      "paths": [
+        "infra/llm-gateway/config.yaml"
+      ],
+      "status": "active",
+      "last_verified": "2026-11-22",
+      "file": ".agents/knowledge/entries/de/de-0007-openrouter-reasoning-off.md"
     }
   ]
 }

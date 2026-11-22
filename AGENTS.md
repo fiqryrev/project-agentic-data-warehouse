@@ -13,7 +13,7 @@ design; `docs/m0-findings.md` holds the verified versions and commands.
 
 | Path | What it holds |
 |---|---|
-| `PLAN.md` | design and milestones (section 11) |
+| `PLAN.md` | design and milestones (section 11); `docs/runbook.md` runs it from a fresh clone |
 | `generator/` | deterministic source data (`uv run python -m generator --date <d>`); see `generator/DEFECTS.md` |
 | `loader/` | landing -> `data_lake_layer.<source>__<table>` with audit columns (`uv run python -m loader --date <d>`) |
 | `dbt/` | dbt v2 project: `models/data_<layer>_layer/<table>/<table>.{sql,yml,md}`, targets dev, ci, prod (Airflow only) |
@@ -23,9 +23,9 @@ design; `docs/m0-findings.md` holds the verified versions and commands.
 | `infra/llm-gateway/` | LiteLLM config (aliases), `budgets.yaml` (virtual key per caller), bootstrap |
 | `infra/langfuse/` | `scores.yaml` (automatic scores, label form, queue `answer-review`), bootstrap |
 | `infra/auto-ontology/` | `UPSTREAM_SHA`, overlay `patches/`, bootstrap (clone into gitignored `upstream/`), edge proxy |
-| `llm/` | `ask` client, golden runner (task 7), `telemetry` (task 8), `labels` (`make label-prs`), `observe`, checks |
+| `llm/` | `ask` client, golden runner (task 7), `telemetry` (task 8), `labels`, `compare` (providers), `observe`, checks |
 | `evals/golden/`, `evals/labels/` | golden questions with reference SQL (`README.md`); labels already turned into PRs |
-| `Makefile` | `make test`, `make checks`, `make generate`, `make load`, `make dbt-build`, `make dbt-ci`, `make up-core`, `make backfill`, `make run-log`, `make up-obs`, `make llm-smoke`, `make up-ontology`, `make ontology-check`, `make ask`, `make golden`, `make label-prs` |
+| `Makefile` | `make test`, `make checks`, `make generate`, `make load`, `make dbt-build`, `make dbt-ci`, `make up-core`, `make backfill`, `make run-log`, `make up-obs`, `make llm-smoke`, `make up-ontology`, `make ontology-check`, `make ask`, `make golden`, `make label-prs`, `make compare-providers` |
 | `.agents/rules/` | one line per rule; the story behind each in `.agents/rules/history/` |
 | `.agents/skills/` | working procedures, loaded on use (`.claude/skills` points here) |
 | `.agents/knowledge/` | distilled knowledge: `entries/{de,da}/`, `evals/`, generated `index/` (`helpers/kb.py`) |
