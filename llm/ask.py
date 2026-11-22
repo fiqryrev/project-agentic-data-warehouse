@@ -248,10 +248,15 @@ def link_calls(answers: list[Answer], env: dict[str, str], lf: Langfuse) -> None
     for r in logs:
         if id(r) not in claimed and (a := owner_of(parse_time(r.get("startTime")), answers)) and not tagged[id(a)]:
             rows[id(a)].append(r)
+    # Langfuse generations carry the provider's response id, which is the spend log's request id,
+    # but not the gateway tag (and embeddings have no response id): a generation goes to the
+    # answer whose tagged call has its response id, else to its window (review on #37).
+    by_response = {r.get("request_id"): a for a in answers for r in tagged[id(a)] if r.get("request_id")}
     for g in gens:
-        a = next((a for a in answers if tagged_with(g, request_tag(a))), None)
-        if a is None and (a := owner_of(parse_time(g.get("startTime")), answers)) and tagged[id(a)]:
-            a = None                              # a tagged answer takes tagged generations only
+        rid = (g.get("metadata") or {}).get("attributes.llm.response.id")
+        a = by_response.get(rid) if rid else None
+        if a is None:
+            a = owner_of(parse_time(g.get("startTime")), answers)
         if a is not None:
             ids[id(a)].append(g["id"])
     for a in answers:

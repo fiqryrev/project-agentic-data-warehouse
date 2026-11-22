@@ -176,10 +176,18 @@ def test_tagged_calls_link_exactly_and_untagged_answers_fall_back_to_the_window(
     ]
     monkeypatch.setattr(ak, "spend_logs", lambda *a, **k: logs)
 
+    logs[1]["request_id"] = "chatcmpl-late"
+    ao_gen = {"attributes.litellm.key_alias": "auto-ontology"}
+    gens = [  # a1's late call, by response id though in a2's window; an embedding (no id), by window
+        {"id": "g1", "startTime": "2026-11-22T10:00:40Z", "metadata": {**ao_gen, "attributes.llm.response.id": "chatcmpl-late"}},
+        {"id": "g2", "startTime": "2026-11-22T10:00:06Z", "metadata": ao_gen},
+    ]
+
     class FakeLf:
         def generations(self, since, until):
-            return []
+            return gens
 
     ak.link_calls([a1, a2], {"LITELLM_MASTER_SECRET": "x"}, FakeLf())
+    assert sorted(a1.generation_ids) == ["g1", "g2"] and a2.generation_ids == []
     assert (a1.link_method, a1.calls["call_count"], a1.calls["cost_usd"]) == ("request_id", 2, 0.03)
     assert (a2.link_method, a2.calls["call_count"], a2.calls["cost_usd"]) == ("caller_key+time_window", 1, 0.04)

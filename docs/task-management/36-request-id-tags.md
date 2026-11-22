@@ -34,6 +34,12 @@ Approved in chat on 2026-11-22.
 - **Linking:** an answer with any tagged call takes exactly its tagged calls (`link_method`
   `request_id`); an answer with none (an unpatched Auto Ontology, a web UI question) falls back to
   the window, and untagged calls go only to such answers.
+- **Review on #37 (Codex): generation ids of tagged answers.** Langfuse generations do not carry
+  the gateway tag in the fields we read, so tagged answers lost their generation ids. A
+  generation now goes to the answer whose tagged call has its response id
+  (`attributes.llm.response.id` = the spend log's `request_id`, as matched since M8), else to its
+  window; embeddings have no response id and go by window. Re-linking the tagged run: 8 to 24
+  generation ids per answer (none before).
 - **Patch extraction:** 0003 is the diff against the pinned SHA with 0001 and 0002 applied, so
   `bootstrap.sh` applies the three in order (checked from a clean reset).
 
