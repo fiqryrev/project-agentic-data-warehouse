@@ -18,7 +18,9 @@ design; `docs/m0-findings.md` holds the verified versions and commands.
 | `loader/` | landing -> `lake.<source>__<table>` with audit columns (`uv run python -m loader --date <d>`) |
 | `dbt/` | dbt v2 project: `models/data_<layer>_layer/<table>/<table>.{sql,yml,md}`, targets dev, ci, prod (Airflow only) |
 | `infra/duckdb-pins.yaml` | DuckDB builds that must open one file (loader, dbt, Auto Ontology) |
-| `Makefile` | `make test`, `make checks`, `make generate`, `make load`, `make dbt-build`, `make dbt-ci` |
+| `infra/compose.yml`, `airflow/` | local stack (profile core): Airflow image, DAG `warehouse_daily`, backfill script |
+| `publish/` | DAG steps after dbt: `quality_gate`, `run_recorder` (`ops.run_log`) |
+| `Makefile` | `make test`, `make checks`, `make generate`, `make load`, `make dbt-build`, `make dbt-ci`, `make up-core`, `make backfill`, `make run-log` |
 | `.agents/rules/` | one line per rule; the story behind each in `.agents/rules/history/` |
 | `.agents/skills/` | working procedures, loaded on use (`.claude/skills` points here) |
 | `.agents/knowledge/` | distilled knowledge: `entries/{de,da}/`, `evals/`, generated `index/` (`helpers/kb.py`) |
