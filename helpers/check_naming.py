@@ -22,7 +22,7 @@ Column names of staging, warehouse and mart models (rules in .agents/rules/dbt.m
 - at least two words, the last one a class word (`order_id`, `paid_at`, `amount_idr`,
   `order_count`), or a flag that starts with `is_` or `has_`; a bare class word (`id`, `name`)
   says nothing about whose it is;
-- a money column (a MONEY_WORDS word in the name) ends in its unit (`_idr`, `_pct`) unless its
+- a money column (a MONEY_WORDS word in the name) ends in its unit (`_idr`, `_usd`, `_pct`) unless its
   class word says it is not a measure (`refund_reason_code`, `spend_date`).
 Lake columns keep the source system's names; staging renames them.
 """
@@ -56,7 +56,7 @@ AUDIT_COLUMNS = ("_dt", "_source_file", "_loaded_at", "_batch_id",
                  "_dbt_invocation_id", "_dbt_updated_at")
 MONEY_WORDS = ("amount", "price", "fee", "cost", "spend", "budget", "payout", "commission",
                "revenue", "gross", "net", "tax", "discount")
-UNIT_SUFFIXES = ("idr", "pct")
+UNIT_SUFFIXES = ("idr", "usd", "pct")
 SNAKE = re.compile(r"^[a-z][a-z0-9]*(_[a-z0-9]+)*$")
 
 

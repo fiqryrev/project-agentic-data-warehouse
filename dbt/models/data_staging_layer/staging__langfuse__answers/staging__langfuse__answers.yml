@@ -1,0 +1,44 @@
+version: 2
+models:
+- name: staging__langfuse__answers
+  description: '{{ doc("staging__langfuse__answers") }}'
+  columns:
+  - name: trace_id
+    description: Langfuse trace id of the answer.
+    data_tests:
+    - unique
+    - not_null
+  - name: session_id
+    description: 'Langfuse session: `golden:<ds>:<run id>` for golden runs.'
+  - name: answer_tags_description
+    description: Trace tags as JSON (job, caller, golden id, verdict).
+  - name: answer_started_at
+    description: When the question was asked (UTC).
+  - name: question_description
+    description: The question as asked.
+  - name: answer_description
+    description: Auto Ontology's answer text.
+  - name: answer_sql_description
+    description: The SQL Auto Ontology ran; null when it wrote none.
+  - name: answer_row_count
+    description: Rows the answer returned; null without rows.
+  - name: answer_error_description
+    description: Chat error, when the stream failed.
+  - name: snapshot_hash_code
+    description: SHA-256 of the snapshot file the answer was asked against.
+  - name: golden_id
+    description: Golden question id (evals/golden/); null for other questions.
+  - name: golden_verdict_status
+    description: exact_match, within_tolerance, wrong or refused; null for other questions.
+  - name: is_sql_consistent
+    description: The answer's SQL, re-run on the snapshot, reproduced its rows; null without SQL.
+  - name: is_golden
+    description: The answer is to a golden question.
+  - name: linked_cost_usd
+    description: Cost of the model calls linked to the answer, US dollars.
+  - name: linked_call_count
+    description: Model calls linked to the answer.
+  - name: link_method_type
+    description: 'How the calls were linked: caller_key+time_window.'
+  - name: _dt
+    description: 'Lake partition date the row arrived in: the real UTC day of the event (llm/telemetry.py).'

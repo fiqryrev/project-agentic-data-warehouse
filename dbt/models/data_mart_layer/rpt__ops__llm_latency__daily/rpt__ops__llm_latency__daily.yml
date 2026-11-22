@@ -1,0 +1,29 @@
+version: 2
+models:
+- name: rpt__ops__llm_latency__daily
+  description: '{{ doc("rpt__ops__llm_latency__daily") }}'
+  columns:
+  - name: call_date
+    description: UTC day of the calls.
+  - name: model_alias_name
+    description: Gateway alias.
+  - name: call_count
+    description: Calls.
+  - name: p50_latency_ms
+    description: Median request duration, milliseconds.
+  - name: p95_latency_ms
+    description: 95th percentile request duration, milliseconds.
+  - name: error_count
+    description: Calls that did not succeed.
+  - name: error_rate_pct
+    description: Share of calls that did not succeed, percent.
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).
+  data_tests:
+  - unique_combination:
+      arguments:
+        columns:
+        - call_date
+        - model_alias_name

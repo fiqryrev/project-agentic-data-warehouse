@@ -1,0 +1,50 @@
+version: 2
+models:
+- name: staging__airflow__run_log
+  description: '{{ doc("staging__airflow__run_log") }}'
+  columns:
+  - name: run_date
+    description: The DAG's date for the run (synthetic world day).
+    data_tests:
+    - unique
+    - not_null
+  - name: dag_run_id
+    description: Airflow run id of the latest recorded run of that day.
+  - name: git_commit_id
+    description: Commit the run used.
+  - name: run_status
+    description: passed or failed.
+  - name: run_problem_description
+    description: Why the run failed, when it did.
+  - name: lake_day_row_count
+    description: Lake rows of the day's partition.
+  - name: lake_row_count
+    description: Lake rows in all.
+  - name: warehouse_row_count
+    description: Warehouse rows in all.
+  - name: mart_row_count
+    description: Mart rows in all.
+  - name: test_pass_count
+    description: dbt tests passed.
+  - name: test_warn_count
+    description: dbt tests that warned (known defects).
+  - name: test_fail_count
+    description: dbt tests failed, errored or skipped.
+  - name: snapshot_hash_code
+    description: SHA-256 of the published snapshot.
+  - name: ontology_refresh_status
+    description: passed, failed, skipped or not run.
+  - name: golden_status
+    description: passed, failed, skipped, error, missing or not run (task 7).
+  - name: golden_question_count
+    description: Golden questions asked.
+  - name: golden_wrong_count
+    description: Golden answers scored wrong.
+  - name: golden_refused_count
+    description: Golden answers scored refused.
+  - name: telemetry_status
+    description: 'Task 8 outcome: passed, failed, skipped or missing; null before M11.'
+  - name: recorded_at
+    description: When record_run wrote the row (UTC).
+  - name: _dt
+    description: 'Lake partition date the row arrived in: the real UTC day of the event (llm/telemetry.py).'

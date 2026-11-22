@@ -1,0 +1,39 @@
+version: 2
+models:
+- name: staging__langfuse__scores
+  description: '{{ doc("staging__langfuse__scores") }}'
+  columns:
+  - name: score_id
+    description: Langfuse score id.
+    data_tests:
+    - unique
+    - not_null
+  - name: trace_id
+    description: Trace the score belongs to (an answer trace `ask`).
+  - name: observation_id
+    description: Observation the score belongs to, when not the whole trace.
+  - name: score_name
+    description: 'Score config name: golden_verdict, sql_consistent, verdict, reasoning_ok, correct_answer,
+      correct_sql or note.'
+  - name: score_data_type
+    description: CATEGORICAL, BOOLEAN, NUMERIC or TEXT.
+  - name: score_value_quantity
+    description: Numeric value; for categorical scores the category index.
+  - name: score_text_description
+    description: The category label, or the text of a TEXT score.
+  - name: score_comment_description
+    description: Comment written with the score (the golden runner's reason).
+  - name: score_source_type
+    description: ANNOTATION (a person in the queue), API or EVAL.
+  - name: author_user_id
+    description: Langfuse user who gave an annotation; `api` for API scores.
+  - name: score_config_id
+    description: Score config id (infra/langfuse/scores.yaml).
+  - name: annotation_queue_id
+    description: Queue the label was given in, when any.
+  - name: scored_at
+    description: Score timestamp (UTC).
+  - name: score_updated_at
+    description: Last update of the score (UTC).
+  - name: _dt
+    description: 'Lake partition date the row arrived in: the real UTC day of the event (llm/telemetry.py).'

@@ -24,3 +24,4 @@ cases:
   - {query: "missing sellers when starting the load later", expect: de-0005}
   - {query: "langfuse ingestion rejects trace-create event type not accepted", expect: de-0006}
   - {query: "how do I write a trace to langfuse from our code", expect: de-0006}
+  - {query: "langfuse scores endpoint answers 404", expect: de-0006}

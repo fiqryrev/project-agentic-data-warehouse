@@ -367,6 +367,13 @@ label ──┬─► correct + reference SQL ─────► promoted into t
 - Promotion to the golden set and new knowledge entries arrive as pull requests, so they pass the
   same checks as code.
 
+As built in M11: task 8 lands the gateway's spend log, Langfuse scores and answer traces, and the
+day's `ops.run_log` rows into `data_lake_layer.{gateway,langfuse,airflow}__*`, partitioned by the
+real UTC day (the DAG's dates are synthetic), then rebuilds the ops models. Langfuse runs in write
+mode `dual`, since score reads answer 404 in `events_only`. `make label-prs` (skill
+`label-review`) turns new labels into one issue and one PR per batch; handled labels are kept in
+`evals/labels/processed.yaml`. Money from model calls is `_usd` (a new unit class word).
+
 ### 8.5 The numbers that come out
 
 Marts in the `ops` domain, queryable in SQL and in the Auto Ontology chat:

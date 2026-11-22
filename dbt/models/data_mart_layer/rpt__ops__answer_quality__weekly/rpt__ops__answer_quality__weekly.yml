@@ -1,0 +1,46 @@
+version: 2
+models:
+- name: rpt__ops__answer_quality__weekly
+  description: '{{ doc("rpt__ops__answer_quality__weekly") }}'
+  columns:
+  - name: week_start_date
+    description: Monday of the ISO week (UTC).
+    data_tests:
+    - unique
+    - not_null
+  - name: golden_answer_count
+    description: Golden answers that week.
+  - name: exact_match_count
+    description: Golden answers scored exact_match.
+  - name: within_tolerance_count
+    description: Golden answers scored within_tolerance.
+  - name: wrong_count
+    description: Golden answers scored wrong.
+  - name: refused_count
+    description: Golden answers scored refused.
+  - name: golden_accuracy_pct
+    description: Exact or within tolerance over golden answers, percent; null without golden answers.
+  - name: inconsistent_sql_count
+    description: Answers whose own SQL did not reproduce their rows.
+  - name: label_count
+    description: Human labels given that week.
+  - name: label_correct_count
+    description: Labels with verdict correct.
+  - name: label_wrong_number_count
+    description: Labels with verdict wrong_number.
+  - name: label_wrong_definition_count
+    description: Labels with verdict wrong_definition.
+  - name: label_wrong_grain_count
+    description: Labels with verdict wrong_grain.
+  - name: label_wrong_filter_count
+    description: Labels with verdict wrong_filter.
+  - name: label_should_have_refused_count
+    description: Labels with verdict should_have_refused.
+  - name: label_refused_wrongly_count
+    description: Labels with verdict refused_wrongly.
+  - name: reasoning_ok_share_pct
+    description: Labels with reasoning_ok = yes over labels that rated it, percent.
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).

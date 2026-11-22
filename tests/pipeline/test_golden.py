@@ -126,3 +126,11 @@ def test_disabled_run_is_skipped(tmp_path, monkeypatch):
     monkeypatch.setattr(g, "ARTIFACTS", tmp_path)
     assert g.main(["--ds", "2026-01-08", "--enabled", "false"]) == g.SKIP
     assert '"skipped"' in (tmp_path / "2026-01-08" / "golden.json").read_text()
+
+
+def test_daily_sample_is_seeded_and_skips_queued_answers():
+    ids = [f"t{i}" for i in range(10)]
+    first = g.pick_sample(ids, {"t0", "t1"}, "2026-01-10")
+    assert len(first) == 5 and not {"t0", "t1"} & set(first)
+    assert g.pick_sample(ids, {"t0", "t1"}, "2026-01-10") == first      # same day, same draw
+    assert g.pick_sample(ids[:3], set(), "d") == sorted(ids[:3]) or len(g.pick_sample(ids[:3], set(), "d")) == 3

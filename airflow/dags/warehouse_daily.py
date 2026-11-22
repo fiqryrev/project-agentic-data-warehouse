@@ -1,6 +1,6 @@
 """warehouse_daily: one day of the warehouse, from source files to ops.run_log (PLAN section 6).
 
-Tasks 1 to 7 and 9 of the plan; 8 (LLM telemetry) arrives with M11.
+Tasks 1 to 9 of the plan.
 
     1 generate_source  generator writes the day's landing files (deterministic per date)
     2 load_lake        loader replaces the day's partition in data_lake_layer.* of the build file
@@ -12,6 +12,9 @@ Tasks 1 to 7 and 9 of the plan; 8 (LLM telemetry) arrives with M11.
     7 golden_questions every golden question through the ask client, scored against reference SQL
                        on the snapshot; a wrong answer fails it and lands in the Langfuse queue
                        answer-review (skipped with the refresh, or by conf {"golden": false})
+    8 land_llm_telemetry gateway calls, Langfuse scores (labels) and answers, ops.run_log rows into
+                       the lake by real event date, then dbt builds the ops models (skipped when
+                       the obs profile is down; runs after a failed task 7 too)
     9 record_run       one row in ops.run_log, whatever happened (runs after a failure too)
 
 One run at a time, oldest day first: every run writes the same DuckDB file, and a day's build
@@ -32,6 +35,10 @@ REPO = "/opt/wh"
 BUILD_DB = "data/build/dwh.duckdb"
 ARTIFACTS = "data/artifacts/{{ ds }}"
 PY = "uv run --no-sync python -m"
+# Task 8 rebuilds the ops models after landing (the staging models of the four telemetry tables and
+# everything downstream of them).
+OPS_MODELS = ("staging__gateway__spend_logs+ staging__langfuse__scores+ staging__langfuse__answers+ "
+              "staging__airflow__run_log+")
 START = pendulum.parse(os.environ.get("WAREHOUSE_START_DATE", "2026-01-01"), tz="UTC")
 
 with DAG(
@@ -51,7 +58,8 @@ with DAG(
     )
     load_lake = BashOperator(
         task_id="load_lake",
-        bash_command=f"{PY} loader --date {{{{ ds }}}} --landing data/landing --db {BUILD_DB}",
+        bash_command=(f"{PY} loader --date {{{{ ds }}}} --landing data/landing --db {BUILD_DB} && "
+                      f"{PY} llm.telemetry --db {BUILD_DB} --init-only"),   # ops models build on day 1
     )
     dbt_build = BashOperator(
         task_id="dbt_build",
@@ -83,6 +91,16 @@ with DAG(
         skip_on_exit_code=99,            # Auto Ontology not reachable, or disabled for this run
         depends_on_past=False,
     )
+    land_llm_telemetry = BashOperator(
+        task_id="land_llm_telemetry",
+        bash_command=(
+            f"{PY} llm.telemetry --db {BUILD_DB} --ds {{{{ ds }}}} --run-id '{{{{ run_id }}}}' "
+            f"--dbt 'uv run --no-sync dbt build --profiles-dir . --target prod --select {OPS_MODELS}'"
+        ),
+        trigger_rule=TriggerRule.ALL_DONE,   # a wrong golden answer is telemetry too
+        skip_on_exit_code=99,                # gateway or Langfuse not reachable
+        depends_on_past=False,
+    )
     record_run = BashOperator(
         task_id="record_run",
         bash_command=f"{PY} publish.run_recorder --ds {{{{ ds }}}} --db {BUILD_DB} --run-id '{{{{ run_id }}}}'",
@@ -91,4 +109,4 @@ with DAG(
     )
 
     (generate_source >> load_lake >> dbt_build >> quality_gate >> publish_snapshot
-     >> refresh_ontology >> golden_questions >> record_run)
+     >> refresh_ontology >> golden_questions >> land_llm_telemetry >> record_run)

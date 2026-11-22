@@ -154,6 +154,9 @@ services:
         condition: service_healthy
     environment: &langfuse-env
       NEXTAUTH_URL: http://localhost:3001
+      # dual (default events_only): also write the legacy tables, so scores (human labels) can be
+      # read back over the public API; in events_only every score read answers 404 (M11).
+      LANGFUSE_MIGRATION_V4_WRITE_MODE: dual
       DATABASE_URL: postgresql://obs:${OBS_DB_SECRET}@obs-db:5432/langfuse
       SALT: ${LANGFUSE_SALT_SECRET:?run make up-obs, which writes it to .env}
       ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_SECRET:?run make up-obs, which writes it to .env}

@@ -1,0 +1,36 @@
+version: 2
+models:
+- name: fact__ops__answer_label
+  description: '{{ doc("fact__ops__answer_label") }}'
+  columns:
+  - name: trace_id
+    description: Answer trace the label is for.
+  - name: labeler_user_id
+    description: Langfuse user who labelled; `api` for a label written over the API.
+  - name: label_verdict_status
+    description: correct, wrong_number, wrong_definition, wrong_grain, wrong_filter, should_have_refused
+      or refused_wrongly.
+  - name: reasoning_ok_status
+    description: 'yes, partly or no: did the step trace pick the right terms and joins.'
+  - name: correct_answer_description
+    description: The right number or text, when the labeller knew it.
+  - name: correct_sql_description
+    description: The right SQL, when the labeller knew it.
+  - name: label_note_description
+    description: 'Free text: which term was misread, which column was missed.'
+  - name: label_source_type
+    description: ANNOTATION (queue) or API.
+  - name: labeled_at
+    description: Latest score of the label (UTC).
+  - name: labeled_date
+    description: UTC day of the label.
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).
+  data_tests:
+  - unique_combination:
+      arguments:
+        columns:
+        - trace_id
+        - labeler_user_id

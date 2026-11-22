@@ -5,7 +5,7 @@
 3. Cadence is one of `daily`, `weekly`, `monthly`, `quarterly`, `yearly`, `snapshot` (`check_naming`).
 4. Columns are snake_case with one `_` between words; a leading `_` is only for audit columns (`check_naming`).
 5. Model columns have two or more words and end in a class word from `dbt-naming.yaml`, or start `is_`/`has_`; staging renames lake columns (`check_naming`).
-6. A money column ends in its unit, `_idr` or `_pct`; timestamps end in `_at`, dates in `_date` (unit checked by `check_naming`, types not yet).
+6. A money column ends in its unit, `_idr`, `_usd` (model prices) or `_pct`; timestamps end in `_at`, dates in `_date` (unit checked by `check_naming`, types not yet).
 7. Every model's YAML is `<table>.yml` beside it, its description is `{{ doc("<table>") }}`, every output column is described, and nothing listed that it does not output (`check_bundle`).
 8. One SELECT that lists its columns (no `*`), aliases every expression, and keeps them the same in every `{% if %}` branch; no `{% for %}` (`check_bundle`).
 9. Every model has a key test on its grain: a column with `unique` and `not_null`, or a model-level `unique_combination` (`check_bundle`).

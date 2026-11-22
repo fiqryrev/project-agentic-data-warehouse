@@ -1,0 +1,39 @@
+version: 2
+models:
+- name: rpt__ops__llm_spend__daily
+  description: '{{ doc("rpt__ops__llm_spend__daily") }}'
+  columns:
+  - name: call_date
+    description: UTC day of the calls.
+  - name: caller_name
+    description: Virtual key alias of the caller.
+  - name: job_name
+    description: Job tag; `none` without one.
+  - name: model_alias_name
+    description: Gateway alias.
+  - name: provider_name
+    description: Provider.
+  - name: model_name
+    description: Provider model.
+  - name: call_count
+    description: Calls.
+  - name: prompt_token_count
+    description: Prompt tokens.
+  - name: completion_token_count
+    description: Completion tokens.
+  - name: spend_usd
+    description: Cost in US dollars at list price.
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).
+  data_tests:
+  - unique_combination:
+      arguments:
+        columns:
+        - call_date
+        - caller_name
+        - job_name
+        - model_alias_name
+        - provider_name
+        - model_name

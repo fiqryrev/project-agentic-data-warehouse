@@ -1,0 +1,46 @@
+version: 2
+models:
+- name: fact__ops__answer
+  description: '{{ doc("fact__ops__answer") }}'
+  columns:
+  - name: trace_id
+    description: Langfuse trace id of the answer.
+    data_tests:
+    - unique
+    - not_null
+  - name: session_id
+    description: Langfuse session.
+  - name: answer_started_at
+    description: When the question was asked (UTC).
+  - name: answer_date
+    description: UTC day the question was asked.
+  - name: question_description
+    description: The question.
+  - name: answer_description
+    description: The answer text.
+  - name: answer_sql_description
+    description: The SQL Auto Ontology ran.
+  - name: answer_row_count
+    description: Rows returned.
+  - name: answer_error_description
+    description: Chat error, if any.
+  - name: snapshot_hash_code
+    description: Snapshot the answer was asked against.
+  - name: golden_id
+    description: Golden question id; null for other questions.
+  - name: golden_verdict_status
+    description: exact_match, within_tolerance, wrong or refused.
+  - name: is_sql_consistent
+    description: The answer's SQL reproduced its rows.
+  - name: is_golden
+    description: The answer is to a golden question.
+  - name: linked_cost_usd
+    description: Cost of the linked model calls, US dollars.
+  - name: linked_call_count
+    description: Linked model calls.
+  - name: link_method_type
+    description: How the calls were linked.
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).

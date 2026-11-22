@@ -205,7 +205,7 @@
     {
       "id": "de-0006",
       "kind": "engineering",
-      "title": "Write Langfuse traces over OTLP, read them from observations v2",
+      "title": "Write Langfuse traces over OTLP; read scores only in write mode dual",
       "tags": [
         "langfuse",
         "trace",
@@ -218,7 +218,9 @@
       ],
       "paths": [
         "llm/observe.py",
-        "llm/ask.py"
+        "llm/ask.py",
+        "llm/telemetry.py",
+        "infra/compose.yml"
       ],
       "status": "active",
       "last_verified": "2026-11-22",

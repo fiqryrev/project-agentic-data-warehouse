@@ -125,6 +125,7 @@ jobs:
           uv run python -m generator --start 2026-01-01 --end 2026-01-03 --out data/ci/landing
           uv run python -m loader --start 2026-01-01 --end 2026-01-03 \
             --landing data/ci/landing --db data/ci/dwh.duckdb
+          uv run python -m llm.telemetry --db data/ci/dwh.duckdb --init-only
 
       - name: dbt drivers
         working-directory: dbt

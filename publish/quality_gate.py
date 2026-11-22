@@ -4,7 +4,8 @@ Fails (exit 1) when:
 - dbt's run_results for the day is missing, or any node errored, failed or was skipped
   (warnings pass: they are known defects the tests are told to tolerate);
 - the lake holds no row for the day (`_dt = ds`) in any table;
-- a mart table is empty (marts aggregate every day there is data).
+- a business mart table is empty (marts aggregate every day there is data). `rpt__ops__*` marts
+  are not gated: they hold telemetry, which a fresh file or CI does not have (M11).
 An empty warehouse table is reported but passes: early days have no refunds yet.
 Writes data/artifacts/<ds>/quality_gate.json with the run id, so the run recorder never reads a
 verdict left by an earlier run of the same day.
@@ -50,7 +51,8 @@ def evaluate(db: Path, ds: str, run_results: dict | None) -> tuple[list[str], di
         if day == 0:
             problems.append(f"the lake has no row for {ds}")
         mart, warehouse = LAYER_SCHEMAS["mart"], LAYER_SCHEMAS["warehouse"]
-        empty_marts = [f"{mart}.{t}" for t, n in table_rows(con, mart).items() if n == 0]
+        empty_marts = [f"{mart}.{t}" for t, n in table_rows(con, mart).items()
+                       if n == 0 and not t.startswith("rpt__ops__")]
         if empty_marts:
             problems.append("empty mart tables: " + ", ".join(empty_marts))
         empty_warehouse = [f"{warehouse}.{t}" for t, n in table_rows(con, warehouse).items() if n == 0]

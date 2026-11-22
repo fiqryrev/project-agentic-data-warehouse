@@ -1,0 +1,52 @@
+version: 2
+models:
+- name: fact__ops__pipeline_run
+  description: '{{ doc("fact__ops__pipeline_run") }}'
+  columns:
+  - name: run_date
+    description: The DAG's date for the run.
+    data_tests:
+    - unique
+    - not_null
+  - name: dag_run_id
+    description: Airflow run id.
+  - name: git_commit_id
+    description: Commit the run used.
+  - name: run_status
+    description: passed or failed.
+  - name: run_problem_description
+    description: Why the run failed.
+  - name: lake_day_row_count
+    description: Lake rows of the day's partition.
+  - name: lake_row_count
+    description: Lake rows in all.
+  - name: warehouse_row_count
+    description: Warehouse rows in all.
+  - name: mart_row_count
+    description: Mart rows in all.
+  - name: test_pass_count
+    description: dbt tests passed.
+  - name: test_warn_count
+    description: dbt tests that warned.
+  - name: test_fail_count
+    description: dbt tests failed.
+  - name: snapshot_hash_code
+    description: Published snapshot hash.
+  - name: ontology_refresh_status
+    description: Task 6 outcome.
+  - name: golden_status
+    description: Task 7 outcome.
+  - name: golden_question_count
+    description: Golden questions asked.
+  - name: golden_wrong_count
+    description: Golden answers scored wrong.
+  - name: golden_refused_count
+    description: Golden answers scored refused.
+  - name: telemetry_status
+    description: 'Task 8 outcome: passed, failed, skipped or missing; null before M11.'
+  - name: recorded_at
+    description: When record_run wrote the row (UTC).
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).

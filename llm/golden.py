@@ -11,7 +11,8 @@
    file access, and score `golden_verdict` (exact_match, within_tolerance, wrong, refused) and
    `sql_consistent`.
 4. Write one answer trace per question with both scores, one `golden_run` trace, and put every
-   `wrong`, `refused` or inconsistent answer in the annotation queue `answer-review`.
+   `wrong`, `refused` or inconsistent answer in the annotation queue `answer-review`, plus a
+   daily random sample of five other `ask` answers (M11).
 5. Write data/artifacts/<ds>/golden.json for record_run.
 
 Exit 0 when no answer is wrong, 1 when one is (or the run could not be scored), 99 (Airflow marks
@@ -24,6 +25,7 @@ import dataclasses
 import datetime as dtm
 import json
 import os
+import random
 import sys
 import threading
 import time
@@ -41,6 +43,7 @@ GOLDEN_DIR = Path("evals/golden")
 SKIP = 99
 VERDICTS = ("exact_match", "within_tolerance", "wrong", "refused")
 QUEUE_VERDICTS = ("wrong", "refused")
+SAMPLE_SIZE = 5               # other ask answers a person sees each day (PLAN 8.3)
 MAX_ANSWER_ROWS = 20          # a scalar answered with a whole table is not an answer
 SQL_TIMEOUT_S = 60
 
@@ -231,6 +234,26 @@ def score_events(r: Result, configs: dict[str, dict]) -> list[dict]:
     return ev
 
 
+def pick_sample(candidates: list[str], queued: set[str], seed: str, n: int = SAMPLE_SIZE) -> list[str]:
+    """n answers not yet in the queue, drawn with a seed (the run's date), so a rerun of the same
+    day draws the same ones."""
+    pool = sorted(set(candidates) - queued)
+    return random.Random(seed).sample(pool, min(n, len(pool)))
+
+
+def sample_answers(lf: Langfuse, queue_id: str, ds: str, now: dtm.datetime) -> list[str]:
+    """Queue a daily random sample of the last 24 hours' `ask` answers that are not golden
+    (tag `job:chat`, written by `make ask`)."""
+    since = now - dtm.timedelta(days=1)
+    traces = lf.pages(f"/api/public/traces?name=ask&tags=job:chat&fromTimestamp={ak.iso(since)}"
+                      f"&toTimestamp={ak.iso(now)}")
+    queued = {i.get("objectId") for i in lf.queue_items(queue_id)}
+    picked = pick_sample([t["id"] for t in traces if "job:golden" not in (t.get("tags") or [])], queued, ds)
+    for tid in picked:
+        lf.enqueue(queue_id, tid)
+    return picked
+
+
 def summarise(results: list[Result]) -> dict:
     counts = {v: sum(1 for r in results if r.verdict == v) for v in VERDICTS}
     return {"counts": counts, "asked": len(results),
@@ -311,6 +334,8 @@ def run(ds: str, run_id: str, dirs: list[Path], snapshot: Path, artifacts: Path)
     for r in results:
         if r.queued:
             lf.enqueue(queue_id, r.answer.trace_id)
+    sampled = sample_answers(lf, queue_id, ds, dtm.datetime.now(dtm.UTC))
+    summary["sampled"] = len(sampled)
 
     status = "failed" if summary["counts"]["wrong"] else "passed"
     write_json(out, report_doc(ds, run_id, status, snapshot_day=day, snapshot_hash=snap,
@@ -328,7 +353,8 @@ def run(ds: str, run_id: str, dirs: list[Path], snapshot: Path, artifacts: Path)
               f"${r.answer.calls.get('cost_usd') or 0:.6f}; trace {r.answer.trace_id}")
     c = summary["counts"]
     print(f"[golden] {status}: {c['exact_match']} exact, {c['within_tolerance']} within tolerance, "
-          f"{c['wrong']} wrong, {c['refused']} refused; {summary['queued']} queued in answer-review; "
+          f"{c['wrong']} wrong, {c['refused']} refused; {summary['queued']} queued in answer-review "
+          f"(+{summary['sampled']} sampled ask answers); "
           f"{summary['call_count']} linked call(s), ${summary['cost_usd']:.6f}; session {session_id}")
     return 1 if status == "failed" else 0
 
