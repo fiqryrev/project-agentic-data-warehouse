@@ -3,14 +3,25 @@
 # provider is an edit here plus `make up-obs`. The embedding alias stays fixed: changing it
 # forces a full re-ingest in Auto Ontology.
 model_list:
+  # LiteLLM has no price for this model on NVIDIA, so it would log $0 and budgets would never
+  # trip. The price is the OpenRouter list price of the same model (M8 smoke: $0.07 per million
+  # input tokens, $0.20 per million output), an estimate until NVIDIA bills differently (M9).
   - model_name: openai/adw-reasoning
     litellm_params:
       model: nvidia_nim/nvidia/nemotron-3.5-lightning-30b-a3b
       api_key: os.environ/NVIDIA_API_KEY
+      input_cost_per_token: 0.00000007
+      output_cost_per_token: 0.0000002
   - model_name: openai/adw-non-reasoning
     litellm_params:
       model: nvidia_nim/nvidia/nemotron-3.5-lightning-30b-a3b
       api_key: os.environ/NVIDIA_API_KEY
+      input_cost_per_token: 0.00000007
+      output_cost_per_token: 0.0000002
+      # The model reasons by default; this alias turns it off (937 -> 0 reasoning tokens, M9).
+      extra_body:
+        chat_template_kwargs:
+          enable_thinking: false
   - model_name: openai/adw-or-chat          # the same model on OpenRouter, for the M12 comparison
     litellm_params:
       model: openrouter/nvidia/nemotron-3.5-lightning
@@ -30,11 +41,12 @@ general_settings:
   store_prompts_in_spend_logs: false        # prompts live in Langfuse only
   pass_through_endpoints:
     # Rerank: LiteLLM's /rerank sends top_k, which NVIDIA rejects (M0, item 4). The pass-through
-    # keeps Auto Ontology's native payload; no tokens or cost logged. In LiteLLM OSS only the master
-    # key may call it: a virtual key gets 403 and `allowed_passthrough_routes` is Enterprise-only
-    # (M8). How Auto Ontology reaches rerank without the master key is decided in M9.
+    # keeps Auto Ontology's native payload; no tokens or cost logged. In LiteLLM OSS a virtual key
+    # gets 403 here and `allowed_passthrough_routes` is Enterprise-only (M8), so the route takes no
+    # key (M9, approved): it is reachable only on the private networks and 127.0.0.1, and the
+    # gateway still logs and traces each call, without a caller.
     - path: /nvidia/rerank-8b/reranking
       target: https://ai.api.nvidia.com/v1/retrieval/nvidia/nemotron-3.5-rerank-8b/reranking
       headers:
         Authorization: bearer os.environ/NVIDIA_API_KEY
-      auth: true
+      auth: false

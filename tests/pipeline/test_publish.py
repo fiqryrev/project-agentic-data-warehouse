@@ -4,7 +4,9 @@ import json
 import duckdb
 import pytest
 
-from publish import quality_gate, run_recorder
+import datetime as dtm
+
+from publish import quality_gate, refresh_ontology, run_recorder, snapshot
 from publish.artifacts import failed_nodes, dbt_test_counts
 
 DS = "2026-01-02"
@@ -100,11 +102,16 @@ def run_log(db):
         con.close()
 
 
+def publish(db, art, run_id="run-1"):
+    return snapshot.publish(db, DS, run_id, serve=art.parent / "serve", artifacts=art)
+
+
 def test_record_writes_one_row_per_day_and_replaces_it(build, monkeypatch):
     db, art = build
     monkeypatch.setenv("GIT_SHA", "abc123")
     write_results(art, results("pass", "warn"))
     gate(db, art, "run-1")
+    publish(db, art)
     assert run_recorder.main(["--ds", DS, "--db", str(db), "--run-id", "run-1", "--artifacts", str(art)]) == 0
     assert run_recorder.main(["--ds", DS, "--db", str(db), "--run-id", "run-1", "--artifacts", str(art)]) == 0
     assert run_log(db) == [(DS, "passed", "inv-1", 1, 1, 1, 1, "abc123")]
@@ -125,3 +132,91 @@ def test_record_ignores_a_verdict_from_another_run(build):
     row = run_recorder.record(db, DS, "run-new", art)
     assert row["run_status"] == "failed"
     assert row["run_problem_description"] == "the quality gate did not run in this run"
+
+
+def test_record_fails_a_day_whose_snapshot_was_not_published(build):
+    db, art = build
+    write_results(art, results("pass"))
+    gate(db, art, "run-1")
+    row = run_recorder.record(db, DS, "run-1", art)
+    assert row["run_status"] == "failed"
+    assert "snapshot was not published" in row["run_problem_description"]
+
+
+def test_record_keeps_snapshot_hash_and_refresh_status(build):
+    db, art = build
+    write_results(art, results("pass"))
+    gate(db, art, "run-1")
+    doc = publish(db, art)
+    row = run_recorder.record(db, DS, "run-1", art)
+    assert row["run_status"] == "passed" and row["ontology_refresh_status"] == "skipped"
+    assert row["snapshot_hash_code"] == doc["snapshot_hash"]
+    (art / DS / "refresh.json").write_text(json.dumps({"run_id": "run-1", "status": "failed", "error": "boom"}))
+    row = run_recorder.record(db, DS, "run-1", art)
+    assert row["run_status"] == "failed" and "ontology refresh failed: boom" in row["run_problem_description"]
+
+
+def test_snapshot_keeps_warehouse_and_mart_with_comments(build):
+    db, art = build
+    con = duckdb.connect(str(db))
+    con.execute("comment on table mart.rpt__sales__orders__daily is 'Orders per day.'")
+    con.execute("comment on column mart.rpt__sales__orders__daily.order_count is 'Orders that day.'")
+    con.close()
+    doc = publish(db, art)
+    served = art.parent / "serve" / "analytics.duckdb"
+    assert served.exists() and (art.parent / "serve" / f"analytics-{DS}.duckdb").exists()
+    con = duckdb.connect(str(served), read_only=True)
+    try:
+        schemas = {r[0] for r in con.execute("select schema_name from duckdb_tables()").fetchall()}
+        tcomment = con.execute("select comment from duckdb_tables() where table_name = 'rpt__sales__orders__daily'").fetchone()[0]
+        ccomment = con.execute("select comment from duckdb_columns() where column_name = 'order_count'").fetchone()[0]
+        catalog = con.execute("select current_database()").fetchone()[0]
+    finally:
+        con.close()
+    assert schemas == {"warehouse", "mart"} and catalog == "analytics"
+    assert (tcomment, ccomment) == ("Orders per day.", "Orders that day.")
+    assert doc["tables"] == {"mart.rpt__sales__orders__daily": 1, "warehouse.fact__sales__orders": 1,
+                             "warehouse.fact__sales__refunds": 0}
+    saved = json.loads((art / DS / "snapshot.json").read_text())
+    assert saved["run_id"] == "run-1" and len(saved["snapshot_hash"]) == 64 and len(saved["schema_hash"]) == 64
+
+
+def test_snapshot_keeps_the_last_seven_days(build):
+    db, art = build
+    serve = art.parent / "serve"
+    for day in range(1, 10):
+        snapshot.publish(db, f"2026-01-{day:02d}", "r", serve=serve, artifacts=art)
+    dated = sorted(p.name for p in serve.glob("analytics-*.duckdb"))
+    assert dated == [f"analytics-2026-01-{d:02d}.duckdb" for d in range(3, 10)]
+    assert not list(serve.glob(".*"))
+
+
+def test_schema_hash_changes_with_a_column_only(build):
+    db, art = build
+    first = publish(db, art)["schema_hash"]
+    con = duckdb.connect(str(db))
+    con.execute("insert into mart.rpt__sales__orders__daily values (2)")
+    con.close()
+    assert publish(db, art)["schema_hash"] == first
+    con = duckdb.connect(str(db))
+    con.execute("alter table mart.rpt__sales__orders__daily add column unit_count integer")
+    con.close()
+    assert publish(db, art)["schema_hash"] != first
+
+
+T0 = dtm.datetime(2026, 1, 2, 3, 0, tzinfo=dtm.UTC)
+
+
+def test_compile_done_waits_for_a_pass_after_the_restart():
+    done = refresh_ontology.compile_done
+    assert done({"running": True}, T0) == (False, None)
+    assert done({"running": False, "last_success_at": "2026-01-02T02:00:00+00:00"}, T0) == (False, None)
+    assert done({"running": False, "last_success_at": "2026-01-02T03:05:00+00:00"}, T0) == (True, None)
+    finished, err = done({"running": False, "last_success_at": "2026-01-02T02:00:00Z",
+                          "last_failure_at": "2026-01-02T03:01:00Z"}, T0)
+    assert finished and "failed" in err
+
+
+def test_refresh_skips_when_the_profile_is_down(tmp_path, monkeypatch):
+    monkeypatch.setattr(refresh_ontology, "PROXY", "http://127.0.0.1:9")
+    assert refresh_ontology.refresh(DS, "run-1", tmp_path) == refresh_ontology.SKIP

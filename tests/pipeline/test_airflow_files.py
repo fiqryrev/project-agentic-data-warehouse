@@ -31,9 +31,10 @@ def test_dag_runs_one_day_at_a_time_in_order():
     assert ast.literal_eval(defaults["depends_on_past"]) is True
 
 
-def test_dag_has_tasks_1_to_4_and_9_in_order():
+def test_dag_has_tasks_1_to_6_and_9_in_order():
     tasks = [ast.literal_eval(kw["task_id"]) for kw in call_kwargs(dag_tree(), "BashOperator")]
-    assert tasks == ["generate_source", "load_lake", "dbt_build", "quality_gate", "record_run"]
+    assert tasks == ["generate_source", "load_lake", "dbt_build", "quality_gate", "publish_snapshot",
+                     "refresh_ontology", "record_run"]
     chain = [n for n in ast.walk(dag_tree()) if isinstance(n, ast.Expr) and isinstance(n.value, ast.BinOp)]
     names = []
     node = chain[0].value
@@ -42,6 +43,12 @@ def test_dag_has_tasks_1_to_4_and_9_in_order():
         node = node.left
     names.insert(0, node.id)
     assert names == tasks
+
+
+def test_refresh_is_skipped_when_the_ontology_profile_is_down():
+    refresh = [kw for kw in call_kwargs(dag_tree(), "BashOperator")
+               if ast.literal_eval(kw["task_id"]) == "refresh_ontology"][0]
+    assert ast.literal_eval(refresh["skip_on_exit_code"]) == 99
 
 
 def test_record_run_runs_after_a_failure():

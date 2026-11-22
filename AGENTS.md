@@ -19,10 +19,11 @@ design; `docs/m0-findings.md` holds the verified versions and commands.
 | `dbt/` | dbt v2 project: `models/data_<layer>_layer/<table>/<table>.{sql,yml,md}`, targets dev, ci, prod (Airflow only) |
 | `infra/duckdb-pins.yaml` | DuckDB builds that must open one file (loader, dbt, Auto Ontology) |
 | `infra/compose.yml`, `airflow/` | local stack (profile core): Airflow image, DAG `warehouse_daily`, backfill script |
-| `publish/` | DAG steps after dbt: `quality_gate`, `run_recorder` (`ops.run_log`) |
+| `publish/` | DAG steps after dbt: `quality_gate`, `snapshot`, `refresh_ontology`, `run_recorder` (`ops.run_log`) |
 | `infra/llm-gateway/` | LiteLLM config (aliases), `budgets.yaml` (virtual key per caller), bootstrap |
-| `llm/` | gateway clients: `gateway_smoke` (`make llm-smoke`); later the ask client and golden runner |
-| `Makefile` | `make test`, `make checks`, `make generate`, `make load`, `make dbt-build`, `make dbt-ci`, `make up-core`, `make backfill`, `make run-log`, `make up-obs`, `make llm-smoke` |
+| `infra/auto-ontology/` | `UPSTREAM_SHA`, overlay `patches/`, bootstrap (clone into gitignored `upstream/`), edge proxy |
+| `llm/` | gateway clients: `gateway_smoke`, `ontology_check`; later the ask client and golden runner |
+| `Makefile` | `make test`, `make checks`, `make generate`, `make load`, `make dbt-build`, `make dbt-ci`, `make up-core`, `make backfill`, `make run-log`, `make up-obs`, `make llm-smoke`, `make up-ontology`, `make ontology-check` |
 | `.agents/rules/` | one line per rule; the story behind each in `.agents/rules/history/` |
 | `.agents/skills/` | working procedures, loaded on use (`.claude/skills` points here) |
 | `.agents/knowledge/` | distilled knowledge: `entries/{de,da}/`, `evals/`, generated `index/` (`helpers/kb.py`) |

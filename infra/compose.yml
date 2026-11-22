@@ -30,9 +30,13 @@ x-airflow: &airflow
     DBT_DUCKDB_PATH: /opt/wh/data/build/dwh.duckdb
     DBT_TARGET_PATH: /tmp/dbt-target
     DBT_LOG_PATH: /tmp/dbt-logs
+    # refresh_ontology (task 6): restart through the socket proxy, compile on the ingestion service.
+    DOCKER_PROXY_URL: http://docker-proxy:2375
+    INGESTION_SERVICE_URL: http://ingestion-service:3002
   volumes:
     - ..:/opt/wh
     - airflow-logs:/opt/airflow/logs
+  networks: [default, ontology]
 
 services:
   airflow-db:
@@ -115,6 +119,7 @@ services:
     profiles: [obs]
     restart: unless-stopped
     command: ["--config", "/app/config.yaml", "--port", "4000"]
+    networks: [default, ontology]
     depends_on:
       obs-db:
         condition: service_healthy
@@ -205,6 +210,7 @@ services:
     volumes:
       - langfuse-clickhouse-data:/var/lib/clickhouse
       - langfuse-clickhouse-logs:/var/log/clickhouse-server
+      - ./langfuse/clickhouse-memory.xml:/etc/clickhouse-server/config.d/memory.xml:ro
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
       interval: 5s
@@ -242,6 +248,178 @@ services:
       timeout: 10s
       retries: 10
 
+  # --- ontology profile (M9): NVIDIA Auto Ontology at infra/auto-ontology/UPSTREAM_SHA ---
+  # Every Auto Ontology container is only on the internal network "ontology": no route out, so
+  # the gateway is its one way to a model. ao-edge publishes the web UI (and its authenticated
+# /api routes) to 127.0.0.1:3000; the backend's own port is never published.
+  ao-db:
+    image: pgvector/pgvector:pg17@sha256:b513c48566e4777cd3370451400000c78eda6a08131d68f4c31d4a76f27bd8fd
+    profiles: [ontology]
+    restart: unless-stopped
+    networks: [ontology]
+    environment:
+      POSTGRES_USER: ao
+      POSTGRES_PASSWORD: ${AO_DB_SECRET:?run make up-ontology, which writes it to .env}
+      POSTGRES_DB: auto_ontology
+    volumes:
+      - ao-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ao -d auto_ontology"]
+      interval: 5s
+      retries: 20
+
+  auto-ontology-migrate:
+    <<: &ao
+      image: adw-auto-ontology:f3c310c7a279
+      build:
+        context: auto-ontology/upstream
+      profiles: [ontology]
+      networks: [ontology]
+      environment: &ao-env
+        POSTGRES_HOST: ao-db
+        POSTGRES_PORT: "5432"
+        POSTGRES_USER: ao
+        POSTGRES_PASSWORD: ${AO_DB_SECRET}
+        POSTGRES_DATABASE: auto_ontology
+        # The published snapshot (publish_snapshot, DAG task 5), opened read-only.
+        CONNECTION_STRINGS: duckdb:///data/serve/analytics.duckdb
+        # Every model role goes to the gateway with the auto-ontology key (PLAN section 8.1).
+        DEFAULT_MODELS_ENDPOINT: http://llm-gateway:4000/v1
+        DEFAULT_MODELS_MODEL: openai/adw-non-reasoning
+        DEFAULT_MODELS_API_KEY: ${GATEWAY_KEY_AUTO_ONTOLOGY:-}
+        REASONING_ENDPOINT: http://llm-gateway:4000/v1
+        REASONING_MODEL: openai/adw-reasoning
+        REASONING_API_KEY: ${GATEWAY_KEY_AUTO_ONTOLOGY:-}
+        NON_REASONING_ENDPOINT: http://llm-gateway:4000/v1
+        NON_REASONING_MODEL: openai/adw-non-reasoning
+        NON_REASONING_API_KEY: ${GATEWAY_KEY_AUTO_ONTOLOGY:-}
+        EMBED_ENDPOINT: http://llm-gateway:4000/v1
+        EMBED_MODEL: adw-embed
+        EMBED_API_KEY: ${GATEWAY_KEY_AUTO_ONTOLOGY:-}
+        # Rerank: native NVIDIA payload through the gateway's pass-through (URL ends in
+        # /reranking). The route takes no key in LiteLLM OSS (M8); the key here is ignored.
+        RERANK_ENDPOINT: http://llm-gateway:4000/nvidia/rerank-8b/reranking
+        RERANK_MODEL: nvidia/nemotron-3.5-rerank-8b
+        RERANK_API_KEY: ${GATEWAY_KEY_AUTO_ONTOLOGY:-}
+        APP_URL: http://localhost:3000
+        AUTO_ONTOLOGY_MCP_PUBLIC_URL: http://localhost:3003
+        INGESTION_SERVICE_URL: http://ingestion-service:3002
+        AUTO_ONTOLOGY_ADMIN_EMAIL: admin@example.com
+        AUTO_ONTOLOGY_ADMIN_PASSWORD: ${AO_ADMIN_SECRET:?run make up-ontology, which writes it to .env}
+        AUTH_SECRET: ${AO_AUTH_SECRET:?run make up-ontology, which writes it to .env}
+    command: ["migrate"]
+    restart: "no"
+    depends_on:
+      ao-db:
+        condition: service_healthy
+
+  frontend-migrate:
+    <<: &ao-frontend
+      image: adw-auto-ontology-frontend:f3c310c7a279
+      build:
+        context: auto-ontology/upstream/frontend
+        args:
+          PYTHON_API_URL: http://auto-ontology:3001
+      profiles: [ontology]
+      networks: [ontology]
+      environment:
+        <<: *ao-env
+        PYTHON_API_URL: http://auto-ontology:3001
+    # Creates frontend.configurations, which semantic compile reads (M0, item 3).
+    working_dir: /app/migrate
+    command: ["sh", "prisma/migrate.sh"]
+    restart: "no"
+    depends_on:
+      ao-db:
+        condition: service_healthy
+
+  # Turns semantic compile on (opt-in upstream: a missing row means off). Runs once, after the
+  # frontend migration has created frontend.configurations; leaves an existing value alone.
+  ao-seed:
+    image: pgvector/pgvector:pg17@sha256:b513c48566e4777cd3370451400000c78eda6a08131d68f4c31d4a76f27bd8fd
+    profiles: [ontology]
+    networks: [ontology]
+    restart: "no"
+    environment:
+      PGPASSWORD: ${AO_DB_SECRET}
+    command:
+      - psql
+      - "--host=ao-db"
+      - "--username=ao"
+      - "--dbname=auto_ontology"
+      - "--set=ON_ERROR_STOP=1"
+      - "--command=insert into frontend.configurations (key, value, updated_at) values ('semantic_compilation_enabled', 'true', now()) on conflict (key) do nothing"
+    depends_on:
+      frontend-migrate:
+        condition: service_completed_successfully
+
+  ingestion-service:
+    <<: *ao
+    command: ["ingestion_service"]
+    restart: unless-stopped
+    volumes:
+      - ../data/serve:/data/serve:ro      # the directory, not the file: a rename must be seen
+    depends_on:
+      auto-ontology-migrate:
+        condition: service_completed_successfully
+      ao-seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:3002/health/live', timeout=3).status == 200 else 1)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+
+  auto-ontology:
+    <<: *ao
+    restart: unless-stopped
+    volumes:
+      - ../data/serve:/data/serve:ro
+    depends_on:
+      auto-ontology-migrate:
+        condition: service_completed_successfully
+      ingestion-service:
+        condition: service_started
+
+  auto-ontology-frontend:
+    <<: *ao-frontend
+    restart: unless-stopped
+    depends_on:
+      auto-ontology:
+        condition: service_started
+      frontend-migrate:
+        condition: service_completed_successfully
+
+  ao-edge:
+    image: nginx:1.28-alpine@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236
+    profiles: [ontology]
+    restart: unless-stopped
+    networks: [default, ontology]
+    volumes:
+      - ./auto-ontology/edge.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      auto-ontology-frontend:
+        condition: service_started
+
+  # Airflow's refresh_ontology may restart exactly two containers and nothing else (PLAN 6).
+  docker-proxy:
+    image: wollomatic/socket-proxy:1.13.1@sha256:3935b709275e4ec35d6ed5a5c4a1f0d01ed31eec5e7234efc3357ecd47689002
+    profiles: [ontology]
+    restart: unless-stopped
+    networks: [default]
+    user: "0:0"
+    command:
+      - "-loglevel=info"
+      - "-listenip=0.0.0.0"
+      - "-allowfrom=airflow-scheduler"
+      - "-allowPOST=^/v[0-9.]+/containers/wh-(auto-ontology|ingestion-service)-1/restart$"
+      - "-allowGET=^/_ping$"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
 volumes:
   airflow-db:
   airflow-logs:
@@ -250,7 +428,11 @@ volumes:
   langfuse-clickhouse-logs:
   langfuse-minio-data:
   langfuse-redis-data:
+  ao-db:
 
 networks:
   default:
     name: wh
+  ontology:
+    name: wh-ontology
+    internal: true                # no route out; the gateway is the only way to a model

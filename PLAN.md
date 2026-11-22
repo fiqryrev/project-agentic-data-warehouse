@@ -208,12 +208,18 @@ Platform sources, landed daily by the same loader:
   The synthetic world must be contiguous from 2026-01-01 (orders refer to earlier customers).
 - **load_lake:** `DELETE WHERE dt = ds` then `INSERT ... FROM read_parquet`. Idempotent.
 - **dbt build:** `BashOperator` calling the dbt v2 binary.
-- **publish_snapshot:** temp file, row counts verified, atomic rename, last 7 kept.
-- **refresh_ontology:** restart `auto-ontology` and `ingestion-service` through a
-  docker-socket-proxy limited to container restart (both hold the old file open until then);
-  semantic compile only when the schema hash changed. The compile flag
-  `semantic_compilation_enabled` lives in `frontend.configurations`, created by the frontend
-  migration.
+- **publish_snapshot:** temp file, row counts verified, atomic rename, last 7 kept; only
+  `warehouse` and `mart` reach `data/serve/analytics.duckdb`, comments included (M9).
+- **refresh_ontology:** restart `auto-ontology` and `ingestion-service` through a socket proxy
+  that allows exactly those two restarts (both hold the old file open until then). On start the
+  ingestion service ingests the new file and runs one semantic compile pass, which compiles only
+  what is new (M0), so the task waits for that pass instead of triggering another. The compile
+  flag `semantic_compilation_enabled` lives in `frontend.configurations`; the `ao-seed` service
+  sets it after the frontend migration. Skipped when the ontology profile is down (M9).
+- **Auto Ontology's way out (M9):** its containers are only on an internal Docker network with
+  no route to the internet; the gateway is on that network too, so it is the one way to a
+  model. An nginx on both networks publishes the web UI on 127.0.0.1:3000. The backend port is
+  never published: it answers without authentication because it trusts the frontend.
 - **Resources:** about 8 GB for core plus ontology; the obs profile adds about 3.2 GiB
   (Langfuse 2.5, LiteLLM 0.65; measured in M0). Auto Ontology's backend, ingestion service and
   Postgres took 0.8 GiB. `make up-core`, `make up-ontology`, `make up-obs`.
@@ -284,10 +290,14 @@ RERANK_ENDPOINT=http://llm-gateway:4000/nvidia/rerank/reranking   # ends in /rer
   splits by purpose.
 - **Recorded per call:** alias, provider, model, input tokens, output tokens, reasoning tokens
   when the provider reports them, cached tokens, cost in USD, latency, status, error.
-  **Rerank and virtual keys (M8):** in LiteLLM OSS only the master key may call a pass-through
-  route; a virtual key gets 403, and the per-key `allowed_passthrough_routes` is Enterprise-only.
-  M9 decides how Auto Ontology reaches rerank (an unauthenticated route on the private network,
-  or a small adapter on `/rerank`) without handing it the master key.
+  **Rerank and virtual keys (M8, decided in M9):** in LiteLLM OSS only the master key may call a
+  pass-through route; a virtual key gets 403, and the per-key `allowed_passthrough_routes` is
+  Enterprise-only. The rerank route therefore takes no key; it is reachable only on the private
+  networks and 127.0.0.1, and the gateway still logs and traces each call, without a caller.
+  **NVIDIA prices (M9):** LiteLLM has no price for the Nemotron model on NVIDIA and would log $0,
+  so budgets would never trip; the NVIDIA aliases carry the OpenRouter list price of the same
+  model as an estimate. **`openai/adw-non-reasoning`** turns the model's reasoning off
+  (`chat_template_kwargs.enable_thinking: false`); before M9 both aliases reasoned.
   Exception: calls on a pass-through route (today only rerank) are logged and traced with model,
   latency, status and call id, but LiteLLM records no tokens and no cost for them (measured in
   M0). The telemetry mart reports them as a call count with an estimated cost (calls times the
@@ -553,7 +563,7 @@ M11 needs M10. M12 last.
 | Auto Ontology on DuckDB is less exercised than on Postgres | M0 ingests a real file; fallback is publishing to Postgres |
 | Auto Ontology's NVIDIA-specific client paths break through the gateway | `openai/` alias names; M0 tests all four roles. A role that still fails is routed through a gateway pass-through route that forwards the provider's native API unchanged, so its calls are still counted and traced; they are not costed by the gateway and get the estimated cost described in section 8.1. Never a direct provider URL: that would break the gateway-only invariant and `check_gateway_only` |
 | Model calls cannot be linked to their answer | Confirmed in M0. Time-window linking, stated in the UI; overlay patch or upstream request for a header hook |
-| Auto Ontology ignores DuckDB column comments, so dbt docs never reach it | Confirmed in M0: the DuckDB connector reads `information_schema` without comments. Small connector patch (overlay or upstream) reading `duckdb_columns().comment` into the existing `description` field |
+| Auto Ontology ignores DuckDB column comments, so dbt docs never reach it | Confirmed in M0. **Mitigated in M9** by the overlay patch `infra/auto-ontology/patches/0001-duckdb-connector-reads-comments.patch` (table and column comments into the catalog's `description`); worth offering upstream |
 | Rerank through LiteLLM's `/rerank` fails for NVIDIA (`top_k` rejected) | Pass-through route (section 8.1); rerank calls are then counted and traced but not costed by the gateway, so their cost is an estimate (section 8.1). A small share, since rerank runs only for bridge tables at compile. If it grows, a LiteLLM custom handler that reads `usage.prompt_tokens` from NVIDIA's response gives an exact cost |
 | An NVIDIA model is overloaded (M0: `nemotron-3.5-embed-1b` returned 503 all day) | Embedding alias on `nemotron-3-embed-1b`, served by NVIDIA and OpenRouter with identical vectors, so a fallback needs no re-ingest |
 | Laptop memory with all profiles up | Compose profiles; M0 measured about 4 GiB for ontology plus obs, so Langfuse stays; Phoenix if Airflow pushes the VM over |

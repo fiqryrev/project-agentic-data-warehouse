@@ -1,0 +1,10 @@
+<!-- Cap ClickHouse (Langfuse's event store) so core, obs and ontology fit one 7.75 GiB Docker VM.
+     M8 measured 2.09 GiB idle with the defaults. A 1 GiB cap failed every query (ClickHouse holds
+     about 1.14 GiB after start, so queries hit "memory limit exceeded"); 1.5 GiB leaves room (M9). -->
+<clickhouse>
+    <max_server_memory_usage>1610612736</max_server_memory_usage>
+    <mark_cache_size>134217728</mark_cache_size>
+    <uncompressed_cache_size>67108864</uncompressed_cache_size>
+    <index_mark_cache_size>67108864</index_mark_cache_size>
+    <mmap_cache_size>256</mmap_cache_size>
+</clickhouse>

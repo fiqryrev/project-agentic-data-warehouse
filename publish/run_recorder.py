@@ -1,9 +1,10 @@
 """record_run (DAG task 9): one row per day in ops.run_log, whatever happened (PLAN section 7).
 
-Runs even when an earlier task failed. Reads the day's artifacts (dbt run_results, the quality
-gate verdict of this run) and the build file, replaces the day's row in ops.run_log, and exits
-1 unless the quality gate of this same run passed, so a failed day stays visible in Airflow.
-Snapshot hash and model spend join the row with their tasks (M8, M9).
+Runs even when an earlier task failed. Reads the day's artifacts (dbt run_results, and this run's
+quality gate, snapshot and ontology refresh) and the build file, replaces the day's row in
+ops.run_log, and exits 1 unless this run's gate passed, its snapshot was published, and the
+ontology refresh passed or was skipped (profile down), so a failed day stays visible in Airflow.
+Model spend joins the row with the telemetry task (M11).
 
     uv run python -m publish.run_recorder --ds 2026-01-01 --db data/build/dwh.duckdb --run-id manual
 """
@@ -39,6 +40,8 @@ create table if not exists ops.run_log (
     run_problem_description varchar,
     recorded_at timestamp
 );
+alter table ops.run_log add column if not exists snapshot_hash_code varchar;
+alter table ops.run_log add column if not exists ontology_refresh_status varchar;
 """
 
 
@@ -62,14 +65,27 @@ def layer_rows(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
     return out
 
 
+def this_run(doc: dict | None, run_id: str) -> dict | None:
+    """The artifact if this run wrote it; a file left by an earlier run of the day counts as missing."""
+    return doc if doc is not None and doc.get("run_id") == run_id else None
+
+
 def record(db: Path, ds: str, run_id: str, artifacts: Path = ARTIFACTS) -> dict:
     folder = day_dir(ds, artifacts)
     run_results = read_json(folder / "run_results.json")
-    gate = read_json(folder / "quality_gate.json")
-    if gate is None or gate.get("run_id") != run_id:
+    gate = this_run(read_json(folder / "quality_gate.json"), run_id)
+    snapshot = this_run(read_json(folder / "snapshot.json"), run_id)
+    refresh = this_run(read_json(folder / "refresh.json"), run_id)
+    if gate is None:
         status, problems = "failed", ["the quality gate did not run in this run"]
     else:
-        status, problems = gate["status"], gate.get("problems") or []
+        status, problems = gate["status"], list(gate.get("problems") or [])
+    if status == "passed" and snapshot is None:
+        status, problems = "failed", problems + ["the snapshot was not published in this run"]
+    refresh_status = (refresh or {}).get("status", "skipped")
+    if refresh_status == "failed":
+        status = "failed"
+        problems.append(f"ontology refresh failed: {refresh.get('error')}")
     tests = dbt_test_counts(run_results)
     db.parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(str(db))
@@ -85,6 +101,8 @@ def record(db: Path, ds: str, run_id: str, artifacts: Path = ARTIFACTS) -> dict:
             "test_pass_count": tests["pass"], "test_warn_count": tests["warn"],
             "test_fail_count": tests["fail"], "run_status": status,
             "run_problem_description": "; ".join(problems) or None,
+            "snapshot_hash_code": (snapshot or {}).get("snapshot_hash"),
+            "ontology_refresh_status": refresh_status,
             "recorded_at": dtm.datetime.now(dtm.UTC).replace(tzinfo=None),
         }
         con.execute("begin")
