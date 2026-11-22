@@ -21,10 +21,10 @@ One row per `revenue_date`.
 
 ```
 rpt__finance__revenue__daily
-├── fact__sales__payments              (warehouse)
-│   └── staging__shop__payments        (staging)
-└── fact__finance__invoices            (warehouse)
-    └── staging__ledger__invoices      (staging)
+├── fact__sales__payments              (data_warehouse_layer)
+│   └── staging__shop__payments        (data_staging_layer)
+└── fact__finance__invoices            (data_warehouse_layer)
+    └── staging__ledger__invoices      (data_staging_layer)
 ```
 
 ## Units and Conventions

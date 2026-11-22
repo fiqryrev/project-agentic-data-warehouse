@@ -18,7 +18,7 @@ One row per `shipment_id` and `shipment_status`.
 
 ```
 staging__shop__shipments
-└── source('lake', 'shop__shipments')   (lake)
+└── source('lake', 'shop__shipments')   (data_lake_layer)
     └── data/landing/shop/shipments/dt=YYYY-MM-DD/part-0.parquet   (landing)
 ```
 

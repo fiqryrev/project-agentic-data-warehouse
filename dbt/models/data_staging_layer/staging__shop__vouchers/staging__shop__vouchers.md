@@ -18,7 +18,7 @@ One row per `voucher_code`.
 
 ```
 staging__shop__vouchers
-└── source('lake', 'shop__vouchers')   (lake)
+└── source('lake', 'shop__vouchers')   (data_lake_layer)
     └── data/landing/shop/vouchers/dt=YYYY-MM-DD/part-0.parquet   (landing)
 ```
 

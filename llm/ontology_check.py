@@ -33,7 +33,7 @@ import duckdb
 
 from llm.gateway_smoke import GATEWAY, LANGFUSE, read_env
 
-AO = "http://127.0.0.1:3000"
+AO = "http://localhost:3000"     # APP_URL: the only origin Auto Ontology trusts (edge redirects 127.0.0.1)
 SNAPSHOT = Path("data/serve/analytics.duckdb")
 CALLER = "auto-ontology"
 CONTAINERS = ("wh-auto-ontology-1", "wh-ingestion-service-1")
@@ -98,7 +98,7 @@ def ask(session: Session, question: str) -> dict:
 def expected_net_revenue(day: str, snapshot: Path = SNAPSHOT) -> int:
     con = duckdb.connect(str(snapshot), read_only=True)
     try:
-        row = con.execute("select net_revenue_idr from mart.rpt__finance__revenue__daily "
+        row = con.execute("select net_revenue_idr from data_mart_layer.rpt__finance__revenue__daily "
                           "where revenue_date = ?::date", [day]).fetchone()
     finally:
         con.close()

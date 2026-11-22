@@ -26,7 +26,7 @@ cannot receive late rows, so the share is below 2%).
 ```sql
 select count(*) filter (where updated_at::date < _dt) as late_rows,
        count(*) as order_rows
-from lake.shop__orders;
+from data_lake_layer.shop__orders;
 ```
 
 ## Terms

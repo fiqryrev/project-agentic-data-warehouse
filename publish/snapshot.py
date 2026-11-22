@@ -1,7 +1,7 @@
 """publish_snapshot (DAG task 5): the serving file Auto Ontology reads (PLAN D2 and section 6).
 
 1. Copy the build file into a temporary file next to the serving file with `COPY FROM DATABASE`
-   (keeps table and column comments, M0), then drop every schema but `warehouse` and `mart`:
+   (keeps table and column comments, M0), then drop every schema but `data_warehouse_layer` and `data_mart_layer`:
    Auto Ontology sees those two only (PLAN section 4).
 2. Check every table's row count against the build file.
 3. Keep it as data/serve/analytics-<ds>.duckdb and replace data/serve/analytics.duckdb with an
@@ -26,7 +26,7 @@ from publish.artifacts import ARTIFACTS, day_dir, write_json
 
 SERVE = Path("data/serve")
 SERVE_NAME = "analytics"          # the catalog name readers see is the file name
-SERVED_SCHEMAS = ("warehouse", "mart")
+SERVED_SCHEMAS = ("data_warehouse_layer", "data_mart_layer")
 KEEP = 7
 
 

@@ -22,8 +22,8 @@ One row per `order_id`.
 
 ```
 fact__sales__orders
-└── staging__shop__orders          (staging)
-    └── lake.shop__orders          (lake)
+└── staging__shop__orders          (data_staging_layer)
+    └── data_lake_layer.shop__orders          (data_lake_layer)
 ```
 
 ## Units and Conventions

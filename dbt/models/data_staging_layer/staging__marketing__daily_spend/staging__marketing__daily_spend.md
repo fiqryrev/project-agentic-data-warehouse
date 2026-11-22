@@ -17,7 +17,7 @@ One row per `spend_date` and `campaign_id`.
 
 ```
 staging__marketing__daily_spend
-└── source('lake', 'marketing__daily_spend')   (lake)
+└── source('lake', 'marketing__daily_spend')   (data_lake_layer)
     └── data/landing/marketing/daily_spend/dt=YYYY-MM-DD/part-0.parquet   (landing)
 ```
 

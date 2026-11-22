@@ -17,7 +17,7 @@ One row per `campaign_id`.
 
 ```
 staging__marketing__campaigns
-└── source('lake', 'marketing__campaigns')   (lake)
+└── source('lake', 'marketing__campaigns')   (data_lake_layer)
     └── data/landing/marketing/campaigns/dt=YYYY-MM-DD/part-0.parquet   (landing)
 ```
 

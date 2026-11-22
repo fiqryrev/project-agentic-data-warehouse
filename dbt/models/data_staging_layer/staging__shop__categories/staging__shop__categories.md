@@ -18,7 +18,7 @@ One row per `category_id`.
 
 ```
 staging__shop__categories
-└── source('lake', 'shop__categories')   (lake)
+└── source('lake', 'shop__categories')   (data_lake_layer)
     └── data/landing/shop/categories/dt=YYYY-MM-DD/part-0.parquet   (landing)
 ```
 

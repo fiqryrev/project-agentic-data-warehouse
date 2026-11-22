@@ -21,8 +21,8 @@ One row per `refund_id` (equal to `order_id`, at most one refund per order).
 
 ```
 fact__sales__refunds
-└── staging__shop__refunds          (staging)
-    └── lake.shop__refunds          (lake)
+└── staging__shop__refunds          (data_staging_layer)
+    └── data_lake_layer.shop__refunds          (data_lake_layer)
 ```
 
 ## Units and Conventions

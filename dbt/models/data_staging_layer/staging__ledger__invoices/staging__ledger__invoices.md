@@ -18,7 +18,7 @@ One row per `invoice_id` and `posted_at`.
 
 ```
 staging__ledger__invoices
-└── source('lake', 'ledger__invoices')   (lake)
+└── source('lake', 'ledger__invoices')   (data_lake_layer)
     └── data/landing/ledger/invoices/dt=YYYY-MM-DD/part-0.parquet   (landing)
 ```
 

@@ -17,7 +17,7 @@ One row per `invoice_id` and `line_number`.
 
 ```
 staging__ledger__invoice_lines
-└── source('lake', 'ledger__invoice_lines')   (lake)
+└── source('lake', 'ledger__invoice_lines')   (data_lake_layer)
     └── data/landing/ledger/invoice_lines/dt=YYYY-MM-DD/part-0.parquet   (landing)
 ```
 

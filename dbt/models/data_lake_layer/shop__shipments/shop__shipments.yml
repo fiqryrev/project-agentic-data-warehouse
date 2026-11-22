@@ -2,7 +2,7 @@ version: 2
 sources:
 - name: lake
   description: Landing partitions loaded by loader/ (append-only by _dt, audit columns).
-  schema: lake
+  schema: data_lake_layer
   tables:
   - name: shop__shipments
     description: '{{ doc("shop__shipments") }}'

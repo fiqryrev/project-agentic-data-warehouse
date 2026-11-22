@@ -4,10 +4,10 @@ Tasks 1 to 6 and 9 of the plan; 7 and 8 (golden questions, LLM telemetry) arrive
 M11.
 
     1 generate_source  generator writes the day's landing files (deterministic per date)
-    2 load_lake        loader replaces the day's partition in lake.* of the build file
+    2 load_lake        loader replaces the day's partition in data_lake_layer.* of the build file
     3 dbt_build        dbt build --target prod over the whole lake; run_results kept per day
     4 quality_gate     dbt passed, the day landed, no empty mart table
-    5 publish_snapshot warehouse and mart into data/serve/analytics.duckdb (comments kept)
+    5 publish_snapshot data_warehouse_layer and data_mart_layer into data/serve/analytics.duckdb
     6 refresh_ontology Auto Ontology restarts on the new file and compiles (skipped when the
                        ontology profile is down)
     9 record_run       one row in ops.run_log, whatever happened (runs after a failure too)

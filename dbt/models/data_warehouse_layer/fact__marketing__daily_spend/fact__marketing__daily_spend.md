@@ -19,10 +19,10 @@ One row per `spend_date` and `campaign_id` (test `unique_combination`).
 
 ```
 fact__marketing__daily_spend
-├── staging__marketing__daily_spend          (staging)
-│   └── lake.marketing__daily_spend          (lake)
-└── staging__marketing__campaigns            (staging)
-    └── lake.marketing__campaigns            (lake)
+├── staging__marketing__daily_spend          (data_staging_layer)
+│   └── data_lake_layer.marketing__daily_spend          (data_lake_layer)
+└── staging__marketing__campaigns            (data_staging_layer)
+    └── data_lake_layer.marketing__campaigns            (data_lake_layer)
 ```
 
 ## Units and Conventions

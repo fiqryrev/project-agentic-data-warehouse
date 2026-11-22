@@ -22,14 +22,14 @@ One row per `order_item_id`.
 
 ```
 fact__sales__order_items
-├── staging__shop__order_items          (staging)
-│   └── lake.shop__order_items          (lake)
-├── staging__shop__orders               (staging)
-│   └── lake.shop__orders               (lake)
-├── dim__sales__products                (warehouse)
-│   └── staging__shop__products         (staging)
-└── dim__sales__customers               (warehouse)
-    └── staging__shop__customers        (staging)
+├── staging__shop__order_items          (data_staging_layer)
+│   └── data_lake_layer.shop__order_items          (data_lake_layer)
+├── staging__shop__orders               (data_staging_layer)
+│   └── data_lake_layer.shop__orders               (data_lake_layer)
+├── dim__sales__products                (data_warehouse_layer)
+│   └── staging__shop__products         (data_staging_layer)
+└── dim__sales__customers               (data_warehouse_layer)
+    └── staging__shop__customers        (data_staging_layer)
 ```
 
 ## Units and Conventions

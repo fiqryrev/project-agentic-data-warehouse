@@ -22,10 +22,10 @@ One row per `product_version_key` (equivalently, per `product_id` and `valid_fro
 
 ```
 dim__sales__products
-├── staging__shop__products            (staging)
-│   └── lake.shop__products            (lake)
-└── staging__shop__categories          (staging)
-    └── lake.shop__categories          (lake)
+├── staging__shop__products            (data_staging_layer)
+│   └── data_lake_layer.shop__products            (data_lake_layer)
+└── staging__shop__categories          (data_staging_layer)
+    └── data_lake_layer.shop__categories          (data_lake_layer)
 ```
 
 ## Units and Conventions

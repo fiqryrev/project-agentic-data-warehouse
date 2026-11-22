@@ -17,7 +17,7 @@ One row per `seller_id`.
 
 ```
 staging__shop__sellers
-└── source('lake', 'shop__sellers')   (lake)
+└── source('lake', 'shop__sellers')   (data_lake_layer)
     └── data/landing/shop/sellers/dt=YYYY-MM-DD/part-0.parquet   (landing)
 ```
 

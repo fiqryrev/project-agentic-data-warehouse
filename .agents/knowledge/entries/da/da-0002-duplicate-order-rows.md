@@ -14,7 +14,7 @@ supersedes: []
 
 ## Meaning
 
-0.5% of a day's `lake.shop__orders` rows appear twice, identical in every column including
+0.5% of a day's `data_lake_layer.shop__orders` rows appear twice, identical in every column including
 `_dt`. They are one order state written twice, not two events.
 
 ## Counts
@@ -24,7 +24,7 @@ On the 3-day CI dataset (`make dbt-ci`): 12 duplicated rows.
 ```sql
 select count(*) as duplicated_rows
 from (select order_id, updated_at, order_status, _dt
-      from lake.shop__orders group by all having count(*) > 1);
+      from data_lake_layer.shop__orders group by all having count(*) > 1);
 ```
 
 ## Terms

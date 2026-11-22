@@ -22,8 +22,8 @@ One row per `invoice_id` (also unique per `order_id`).
 
 ```
 fact__finance__invoices
-└── staging__ledger__invoices          (staging)
-    └── lake.ledger__invoices          (lake)
+└── staging__ledger__invoices          (data_staging_layer)
+    └── data_lake_layer.ledger__invoices          (data_lake_layer)
 ```
 
 ## Units and Conventions

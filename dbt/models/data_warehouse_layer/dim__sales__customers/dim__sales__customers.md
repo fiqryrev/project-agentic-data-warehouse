@@ -23,8 +23,8 @@ One row per `customer_version_key` (equivalently, per `customer_id` and `valid_f
 
 ```
 dim__sales__customers
-└── staging__shop__customers          (staging)
-    └── lake.shop__customers          (lake)
+└── staging__shop__customers          (data_staging_layer)
+    └── data_lake_layer.shop__customers          (data_lake_layer)
 ```
 
 ## Units and Conventions

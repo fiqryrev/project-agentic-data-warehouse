@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """check_audit_columns: every lake and warehouse row can say where it came from (PLAN section 7).
 
-- Lake: every table in schema `lake` carries `_dt`, `_source_file`, `_loaded_at`, `_batch_id`,
+- Lake: every table in schema `data_lake_layer` carries `_dt`, `_source_file`, `_loaded_at`, `_batch_id`,
   and every table declared in source `lake` exists. Read from a DuckDB file: by default a
   fresh one, built from one generated day with the project's own generator and loader (as
   check_duckdb_compat does); `--db <file>` reads an existing build instead.
@@ -35,7 +35,7 @@ PROBE_DATE = "2026-01-01"   # the epoch: every source writes on its first day
 
 def lake_columns(con: duckdb.DuckDBPyConnection) -> dict[str, set[str]]:
     rows = con.execute("select table_name, column_name from information_schema.columns "
-                       "where table_schema = 'lake'").fetchall()
+                       "where table_schema = 'data_lake_layer'").fetchall()
     out: dict[str, set[str]] = {}
     for table, column in rows:
         out.setdefault(table, set()).add(column)
@@ -49,9 +49,9 @@ def lake_errors(tables: dict[str, set[str]], declared: set[str]) -> list[str]:
     for table, cols in sorted(tables.items()):
         missing = [c for c in LAKE_AUDIT if c not in cols]
         if missing:
-            errors.append(f"lake.{table}: missing audit columns {', '.join(missing)}")
+            errors.append(f"data_lake_layer.{table}: missing audit columns {', '.join(missing)}")
     for table in sorted(declared - set(tables)):
-        errors.append(f"source('lake', '{table}') is declared but lake.{table} does not exist")
+        errors.append(f"source('lake', '{table}') is declared but data_lake_layer.{table} does not exist")
     return errors
 
 

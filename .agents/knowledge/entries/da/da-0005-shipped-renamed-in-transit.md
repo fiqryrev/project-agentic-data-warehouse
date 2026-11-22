@@ -27,7 +27,7 @@ Generated and loaded 2026-05-31 and 06-01 into a scratch file (`uv run python -m
 
 ```sql
 select _dt, order_status, count(*)
-from lake.shop__orders
+from data_lake_layer.shop__orders
 where order_status in ('shipped', 'in_transit')
 group by all order by all;
 ```

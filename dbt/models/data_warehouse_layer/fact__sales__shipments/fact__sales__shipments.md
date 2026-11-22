@@ -19,8 +19,8 @@ One row per `shipment_id` (equal to `order_id`, one shipment per paid order).
 
 ```
 fact__sales__shipments
-└── staging__shop__shipments          (staging)
-    └── lake.shop__shipments          (lake)
+└── staging__shop__shipments          (data_staging_layer)
+    └── data_lake_layer.shop__shipments          (data_lake_layer)
 ```
 
 ## Units and Conventions

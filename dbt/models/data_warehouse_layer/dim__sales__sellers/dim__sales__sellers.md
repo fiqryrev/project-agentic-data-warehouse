@@ -20,8 +20,8 @@ One row per `seller_id`.
 
 ```
 dim__sales__sellers
-└── staging__shop__sellers          (staging)
-    └── lake.shop__sellers          (lake)
+└── staging__shop__sellers          (data_staging_layer)
+    └── data_lake_layer.shop__sellers          (data_lake_layer)
 ```
 
 ## Units and Conventions

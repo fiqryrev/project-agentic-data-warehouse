@@ -13,3 +13,4 @@
 11. Lake tables carry `_dt`, `_source_file`, `_loaded_at`, `_batch_id`; staging passes `_dt` through; warehouse adds `{{ dbt_audit_columns() }}` (`check_audit_columns`).
 12. Only `infra/llm-gateway/` and `.env.example` name a model provider's host or key variable; code calls the gateway (`check_gateway_only`).
 13. Every table, lake included, has `<table>.md`: one docs block, an opening paragraph, then the `doc_sections` of `dbt-naming.yaml` in order (`check_bundle`).
+14. A layer's DuckDB schema has its folder's name (`+schema` in dbt_project.yml, `schema:` of lake sources); `ops` keeps its own (`check_naming`).

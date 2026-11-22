@@ -32,8 +32,8 @@ def con(tmp_path):
 
 def counts(con):
     tables = con.execute("SELECT table_name FROM information_schema.tables "
-                         "WHERE table_schema = 'lake' ORDER BY 1").fetchall()
-    return {t: con.execute(f"SELECT _dt, count(*) FROM lake.{t} GROUP BY 1 ORDER BY 1").fetchall()
+                         "WHERE table_schema = 'data_lake_layer' ORDER BY 1").fetchall()
+    return {t: con.execute(f"SELECT _dt, count(*) FROM data_lake_layer.{t} GROUP BY 1 ORDER BY 1").fetchall()
             for (t,) in tables}
 
 
@@ -51,16 +51,16 @@ def test_loading_a_day_twice_leaves_counts_unchanged(landing, con):
 def test_counts_match_manifest(landing, con):
     got = load_day(con, landing, D2)
     manifest = json.loads(manifest_file(landing, D2).read_text())
-    assert got == {f"lake.{k.replace('.', '__')}": v["rows"] for k, v in manifest["tables"].items()}
+    assert got == {f"data_lake_layer.{k.replace('.', '__')}": v["rows"] for k, v in manifest["tables"].items()}
 
 
 def test_audit_columns(landing, con):
     t0 = dt.datetime(2026, 1, 2, 3, 4, 5)
     load_day(con, landing, D2, loaded_at=t0)
-    cols = [r[0] for r in con.execute("DESCRIBE lake.shop__orders").fetchall()]
+    cols = [r[0] for r in con.execute("DESCRIBE data_lake_layer.shop__orders").fetchall()]
     assert cols[-4:] == list(AUDIT_COLUMNS)
     row = con.execute("SELECT DISTINCT _dt, _source_file, _loaded_at, _batch_id "
-                      "FROM lake.shop__orders").fetchall()
+                      "FROM data_lake_layer.shop__orders").fetchall()
     assert len(row) == 1
     d, src, loaded, batch = row[0]
     assert d == D2 and src == "shop/orders/dt=2026-01-02/part-0.parquet" and loaded == t0
@@ -72,22 +72,22 @@ def test_audit_columns(landing, con):
 
 def test_same_input_same_batch_id(landing, con):
     load_day(con, landing, D2)
-    first = con.execute("SELECT DISTINCT _batch_id FROM lake.shop__orders").fetchall()
+    first = con.execute("SELECT DISTINCT _batch_id FROM data_lake_layer.shop__orders").fetchall()
     load_day(con, landing, D2)
-    assert con.execute("SELECT DISTINCT _batch_id FROM lake.shop__orders").fetchall() == first
+    assert con.execute("SELECT DISTINCT _batch_id FROM data_lake_layer.shop__orders").fetchall() == first
 
 
 def test_reload_touches_only_its_date(landing, con):
     load_day(con, landing, D1, loaded_at=dt.datetime(2026, 1, 1, 1))
     load_day(con, landing, D2, loaded_at=dt.datetime(2026, 1, 2, 1))
     load_day(con, landing, D2, loaded_at=dt.datetime(2026, 1, 9, 9))
-    stamps = dict(con.execute("SELECT _dt, max(_loaded_at) FROM lake.shop__orders GROUP BY 1").fetchall())
+    stamps = dict(con.execute("SELECT _dt, max(_loaded_at) FROM data_lake_layer.shop__orders GROUP BY 1").fetchall())
     assert stamps[D1] == dt.datetime(2026, 1, 1, 1) and stamps[D2] == dt.datetime(2026, 1, 9, 9)
 
 
 def test_late_rows_keep_the_partition_date(landing, con):
     load_day(con, landing, D3)
-    late = con.execute("SELECT count(*) FROM lake.shop__orders "
+    late = con.execute("SELECT count(*) FROM data_lake_layer.shop__orders "
                        "WHERE CAST(updated_at AS DATE) < _dt").fetchone()[0]
     assert late > 0
 

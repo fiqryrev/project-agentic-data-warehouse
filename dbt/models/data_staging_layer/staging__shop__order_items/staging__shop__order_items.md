@@ -17,7 +17,7 @@ One row per `order_item_id`.
 
 ```
 staging__shop__order_items
-└── source('lake', 'shop__order_items')   (lake)
+└── source('lake', 'shop__order_items')   (data_lake_layer)
     └── data/landing/shop/order_items/dt=YYYY-MM-DD/part-0.parquet   (landing)
 ```
 
