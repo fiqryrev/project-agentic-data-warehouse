@@ -24,6 +24,11 @@ the runbook; status (M0 to M12 with PRs); honest limits.
 - **Architecture diagram top to bottom, DAG tasks as a list:** checked on GitHub's rendered
   file view: the first version laid the nine DAG tasks out in one row, which GitHub shrank to
   unreadable text; top to bottom with the tasks listed below it reads at normal width.
+- **Tech stack and Strategy added** (owner's request on the PR): a table of every tool with its
+  pinned version, its role and the file that pins it, a table of the model aliases, and the build
+  order with its reasons (design and spike first, pins where tools meet, the agent harness before
+  the warehouse, trusted data before the chat, the gateway before the first model call, measure
+  before improving, consume upstream at a pinned commit, local first).
 - **PR references are full links**: a bare `#3` is not linked in a rendered README.
 - **No upstream material**: the overlay patches are described as part of this project only.
 
@@ -31,7 +36,7 @@ the runbook; status (M0 to M12 with PRs); honest limits.
 
 - Both Mermaid diagrams render on GitHub (`blob/38-readme-showcase/README.md`, checked in a
   browser).
-- `README.md` rewritten (204 lines); `check_secrets`, `check_gateway_only`, `check_entry_size` OK;
+- `README.md` rewritten (259 lines with Tech stack and Strategy); `check_secrets`, `check_gateway_only`, `check_entry_size` OK;
   `uv run pytest -q` and `make checks` PASS.
 
 ## Open

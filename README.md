@@ -98,6 +98,35 @@ flowchart LR
 Labels also land in the warehouse (task 8), so `rpt__ops__answer_quality__weekly` shows accuracy
 and the verdict mix week by week.
 
+## Tech stack
+
+Every version is pinned in the repository; the source of each pin is in the last column.
+
+| Layer | Tool | Version | Role | Pinned in |
+|---|---|---|---|---|
+| Language and packages | Python, uv | 3.12+ | every job, one locked environment | `pyproject.toml`, `uv.lock` |
+| Storage | DuckDB | 1.5.x (1.5.5 loader, 1.5.4 inside dbt) | the build file and the served snapshot; one file format for every reader | [infra/duckdb-pins.yaml](infra/duckdb-pins.yaml), `check_duckdb_compat` |
+| Transformation | dbt | 2.0.12 | staging, warehouse, mart, tests, docs persisted as comments | `pyproject.toml` |
+| Orchestration | Apache Airflow | 3.3.2, LocalExecutor, Postgres 17.6 | DAG `warehouse_daily`, backfill | [airflow/Dockerfile](airflow/Dockerfile), [infra/compose.yml](infra/compose.yml) |
+| Semantic layer and chat | NVIDIA Auto Ontology | upstream `f3c310c7a279` + 3 overlay patches | catalog, semantic compile, text-to-SQL agent, web UI | [infra/auto-ontology/UPSTREAM_SHA](infra/auto-ontology/UPSTREAM_SHA), [patches/](infra/auto-ontology/patches/) |
+| Auto Ontology store | Postgres with pgvector | pg17 | catalog, embeddings | [infra/compose.yml](infra/compose.yml) |
+| Model gateway | LiteLLM proxy | v1.110.2 | aliases, virtual keys, daily budgets, spend log | [infra/llm-gateway/](infra/llm-gateway/) |
+| Tracing, scores, review | Langfuse (self-hosted) | 4.83.0, with ClickHouse 26.3, Redis 7.4.7, MinIO | traces, scores, annotation queue, datasets, experiments | [infra/compose.yml](infra/compose.yml), [infra/langfuse/](infra/langfuse/) |
+| Edge and isolation | nginx, socket proxy | 1.28, 1.13.1 | the only published door to Auto Ontology; restarts allowed for exactly two containers | [infra/compose.yml](infra/compose.yml) |
+| Containers | Docker Compose | profiles `core`, `obs`, `ontology` | start only what the day needs | [infra/compose.yml](infra/compose.yml) |
+| CI | GitHub Actions, gitleaks | | tests, governance checkers, the 3-day dbt build | [.github/workflows/ci.yml](.github/workflows/ci.yml) |
+| Coding agent | Claude Code, with Codex reviewing PRs | | builds the project under [AGENTS.md](AGENTS.md); harness registry in [.agents/harnesses.yaml](.agents/harnesses.yaml) | [.claude/settings.json](.claude/settings.json) |
+
+Models, all reached through gateway aliases ([infra/llm-gateway/config.yaml](infra/llm-gateway/config.yaml)):
+
+| Alias | Model | Used for |
+|---|---|---|
+| `openai/adw-reasoning` | NVIDIA Nemotron 3.5 Lightning 30B A3B (NVIDIA NIM) | Auto Ontology's reasoning role: the text-to-SQL agent, the semantic compile |
+| `openai/adw-non-reasoning` | the same model, thinking off | quick classification and rewriting steps |
+| `openai/adw-or-chat`, `openai/adw-or-non-reasoning` | the same model on OpenRouter | provider comparison |
+| `adw-embed` | NVIDIA Nemotron 3 Embed 1B (2048 dimensions) | catalog and question embeddings |
+| rerank pass-through | NVIDIA Nemotron 3.5 Rerank 8B | ranking catalog hits |
+
 ## Why it works
 
 - **One door to every model.** Nothing calls a provider directly: Auto Ontology has no internet,
@@ -124,6 +153,32 @@ and the verdict mix week by week.
 - **Everything is recorded.** `ops.run_log` has one row per day (tests, rows, snapshot hash,
   refresh, golden and telemetry outcome); every issue has a worknote with its decisions and the
   commands that proved it done ([docs/task-management/](docs/task-management/)).
+
+## Strategy
+
+How the project was built, and why in this order:
+
+1. **Design first, then a spike.** [PLAN.md](PLAN.md) set the layers, naming, serving, gateway,
+   tracing and milestones before any code; milestone M0 then verified every risky assumption
+   (versions, file compatibility, request id passthrough, memory) with a command each, in
+   [docs/m0-findings.md](docs/m0-findings.md). Several decisions changed on that evidence.
+2. **Pin versions where tools meet.** dbt bundles its own DuckDB and Auto Ontology locks another,
+   so the project stays on DuckDB 1.5.x and CI proves all three can open one file (decision D1).
+3. **Govern the coding agent from day one.** The harness came before the warehouse (M1): the
+   work loop, hooks, the activity log, the AI usage footer and the PR checks. Every later
+   milestone was built by an agent inside those rails, one issue and one PR at a time.
+4. **Data you can trust before data you can ask.** Generator (M2), lake with audit columns (M3),
+   dbt with history (M4), checkers that block bad models (M5) and a knowledge base with expiry
+   (M6) came before any chat.
+5. **The gateway before the first model call.** LiteLLM and Langfuse (M8) were in place before
+   Auto Ontology (M9), so its very first ingest was already counted, budgeted and traced.
+6. **Measure before improving.** The golden runner (M10) and the human review loop (M11) came
+   before tuning anything. That is how the main cause of refused answers was found from the
+   traces alone, then fixed and measured (5 of 21 to 0 of 21).
+7. **Consume upstream, don't fork it.** Auto Ontology runs at a pinned commit with small overlay
+   patches applied at build time, so an upgrade is a new SHA plus a re-check of three patches.
+8. **Local first, cheap to move later.** Everything runs on one laptop behind 127.0.0.1;
+   [PLAN.md](PLAN.md) section 12 lists what keeps a later move to hosting cheap.
 
 ## Results so far
 
