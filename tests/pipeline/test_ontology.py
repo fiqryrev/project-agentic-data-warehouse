@@ -22,13 +22,18 @@ def test_upstream_is_pinned_and_images_carry_the_sha():
     assert "infra/auto-ontology/upstream/" in (REPO / ".gitignore").read_text()
 
 
-def test_overlay_patch_targets_the_duckdb_connector_only():
+def test_overlay_patches_are_small_and_targeted():
     patches = sorted((AO_DIR / "patches").glob("*.patch"))
-    assert [p.name for p in patches] == ["0001-duckdb-connector-reads-comments.patch"]
-    text = patches[0].read_text()
-    touched = re.findall(r"^\+\+\+ b/(.+)$", text, re.M)
-    assert touched == ["auto_ontology/connectors/duckdb.py"]
-    assert "duckdb_tables()" in text and "duckdb_columns()" in text and "AS description" in text
+    assert [p.name for p in patches] == ["0001-duckdb-connector-reads-comments.patch",
+                                         "0002-chat-api-calculation-only.patch"]
+    first, second = (p.read_text() for p in patches)
+    assert re.findall(r"^\+\+\+ b/(.+)$", first, re.M) == ["auto_ontology/connectors/duckdb.py"]
+    assert "duckdb_tables()" in first and "duckdb_columns()" in first and "AS description" in first
+    # 0002 (issue 34): the chat API passes calculation_only through to the text-to-SQL agent.
+    assert re.findall(r"^\+\+\+ b/(.+)$", second, re.M) == [
+        "auto_ontology/server/chat/helpers.py", "auto_ontology/server/chat/router.py",
+        "auto_ontology/server/chat/worker.py"]
+    assert "calculation_only: bool | None" in second and '"calculation_only": calculation_only' in second
 
 
 def test_auto_ontology_has_no_way_out_but_the_gateway():

@@ -99,9 +99,12 @@ def wait_for_compile(session: Session, timeout_s: int = 3600) -> dict:
     raise AskError("semantic compile did not finish")
 
 
-def chat(session: Session, question: str) -> dict:
-    """One chat answer: the `answer` of the stream's `result` event."""
-    for event in session.stream("/api/chat/completions", {"question": question}):
+def chat(session: Session, question: str, calculation_only: bool = False) -> dict:
+    """One chat answer: the `answer` of the stream's `result` event. `calculation_only` answers
+    with SQL only (overlay patch 0002): the agent is not offered the catalog view, whose tables
+    never come into view for run_sql (issue 34)."""
+    body = {"question": question, **({"calculation_only": True} if calculation_only else {})}
+    for event in session.stream("/api/chat/completions", body):
         if event.get("type") == "result":
             return event["answer"]
         if event.get("type") == "error":
@@ -175,11 +178,11 @@ class Answer:
         return self.started - WINDOW_PAD[0], self.finished + WINDOW_PAD[1]
 
 
-def ask(session: Session, question: str) -> Answer:
+def ask(session: Session, question: str, calculation_only: bool = False) -> Answer:
     """Ask once; a chat error becomes `Answer.error` instead of an exception."""
     started = dtm.datetime.now(dtm.UTC)
     try:
-        raw = chat(session, question)
+        raw = chat(session, question, calculation_only)
     except (AskError, OSError, ValueError) as e:
         return Answer(question, started, dtm.datetime.now(dtm.UTC), error=str(e)[:300])
     sql = raw.get("sql_code")

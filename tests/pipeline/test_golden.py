@@ -146,3 +146,18 @@ def test_a_call_in_two_padded_windows_counts_for_one_answer():
     assert ak.owner_of(t + 30 * s - s, [a1, a2]) is a1
     assert ak.owner_of(t - s, [a1, a2]) is a1                # a1's -2 s padding, before any start
     assert ak.owner_of(t + 75 * s, [a1, a2]) is None
+
+
+def test_golden_questions_are_asked_calculation_only(monkeypatch):
+    sent = []
+
+    class FakeSession:
+        def stream(self, path, body):
+            sent.append(body)
+            yield {"type": "result", "answer": {"response": "x", "sql_code": None, "sql_response_from_db": None}}
+
+    ak.ask(FakeSession(), "q")
+    ak.ask(FakeSession(), "q", calculation_only=True)
+    assert sent == [{"question": "q"}, {"question": "q", "calculation_only": True}]
+    import inspect
+    assert inspect.signature(g.ask_and_score).parameters["calculation_only"].default is True

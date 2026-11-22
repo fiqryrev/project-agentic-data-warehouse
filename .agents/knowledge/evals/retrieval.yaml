@@ -26,3 +26,5 @@ cases:
   - {query: "how do I write a trace to langfuse from our code", expect: de-0006}
   - {query: "langfuse scores endpoint answers 404", expect: de-0006}
   - {query: "openrouter alias still reasons with thinking off", expect: de-0007}
+  - {query: "auto ontology answers I couldn't write a query", expect: de-0008}
+  - {query: "why are golden answers refused", expect: de-0008}
