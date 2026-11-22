@@ -22,6 +22,7 @@ checks:
 	uv run python -m helpers.check_layers
 	uv run python -m helpers.check_audit_columns
 	uv run python -m helpers.check_gateway_only
+	uv run python -m helpers.check_knowledge
 
 generate:
 	uv run python -m generator --start $(START) --end $(END) --seed $(SEED) --out $(LANDING)

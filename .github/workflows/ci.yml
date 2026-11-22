@@ -73,6 +73,10 @@ jobs:
         if: success() || failure()
         run: uv run python -m helpers.check_gateway_only
 
+      - name: check_knowledge
+        if: success() || failure()
+        run: uv run python -m helpers.check_knowledge
+
       - name: check_worknote
         if: github.event_name == 'pull_request' && (success() || failure())
         env:

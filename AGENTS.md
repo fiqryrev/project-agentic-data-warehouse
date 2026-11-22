@@ -21,6 +21,7 @@ design; `docs/m0-findings.md` holds the verified versions and commands.
 | `Makefile` | `make test`, `make checks`, `make generate`, `make load`, `make dbt-build`, `make dbt-ci` |
 | `.agents/rules/` | one line per rule; the story behind each in `.agents/rules/history/` |
 | `.agents/skills/` | working procedures, loaded on use (`.claude/skills` points here) |
+| `.agents/knowledge/` | distilled knowledge: `entries/{de,da}/`, `evals/`, generated `index/` (`helpers/kb.py`) |
 | `.agents/harnesses.yaml` | registry of wired agent tools and their six duties |
 | `.agents/toolbelt.md` | every CLI and server: owner, access, reason, review date |
 | `.agents/ai-usage/model-pricing.yaml` | list prices per token class for the PR footer |
@@ -121,12 +122,13 @@ The PostToolUse hook logs every tool call the same way. Logs are gitignored.
 | layer reads | `uv run python -m helpers.check_layers` |
 | audit columns | `uv run python -m helpers.check_audit_columns` |
 | model calls only via the gateway | `uv run python -m helpers.check_gateway_only` |
+| knowledge (frontmatter, expiry, evidence, generated docs, recall) | `uv run python -m helpers.check_knowledge` |
 | worknote | `uv run python -m helpers.check_worknote --base origin/main` |
 | PR body | `uv run python -m helpers.check_pr_body --body-file pr-body.md` |
 | dbt (job `dbt`) | `make dbt-ci`: 3 generated days, loaded, then `dbt build --target ci` |
 
 The dbt checkers read the project statically (`helpers/dbtlib.py`); model and column rules
-are in `.agents/rules/dbt.md`. M6 adds `check_knowledge`.
+are in `.agents/rules/dbt.md`.
 
 ## Data access
 
@@ -136,6 +138,6 @@ Agents get `SELECT` on the serving snapshot through a read-only connection. Buil
 
 ## Skills
 
-`issue-create`, `branch-name`, `pr-open`, `closeout`. More arrive with their milestone
-(`dbt-add-model`, `run-backfill`, `ontology-refresh`, `knowledge-add`, `verify-literal`,
-the analyst and label skills).
+`issue-create`, `branch-name`, `pr-open`, `closeout`, `knowledge-add`, `verify-literal`.
+More arrive with their milestone (`dbt-add-model`, `run-backfill`, `ontology-refresh`, the
+analyst and label skills). Search lessons first: `uv run python -m helpers.kb search "<q>"`.
