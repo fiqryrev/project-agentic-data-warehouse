@@ -31,37 +31,33 @@ From a fresh clone to a working chat: [docs/runbook.md](docs/runbook.md).
 ## Architecture
 
 ```mermaid
-flowchart LR
-    subgraph AF["Airflow DAG warehouse_daily (one run per day)"]
-        direction TB
-        G["1 generate_source"] --> L["2 load_lake"] --> D["3 dbt build"] --> Q["4 quality_gate"]
-        Q --> P["5 publish_snapshot"] --> R["6 refresh_ontology"] --> GQ["7 golden_questions"]
-        GQ --> T["8 land_llm_telemetry"] --> RR["9 record_run"]
-    end
-
-    subgraph DW["DuckDB build file"]
-        direction TB
-        LK["data_lake_layer<br/>raw + audit columns"] --> ST["data_staging_layer"] --> WH["data_warehouse_layer<br/>dims with history, facts"] --> MT["data_mart_layer<br/>rpt__* reports"]
-    end
-
-    SNAP[("analytics.duckdb<br/>served snapshot<br/>warehouse + mart, read-only")]
-    AO["NVIDIA Auto Ontology<br/>semantic layer + text-to-SQL agent<br/>(no internet)"]
-    GW["LiteLLM gateway<br/>virtual key per caller<br/>daily budgets"]
-    PROV["Model providers<br/>NVIDIA, OpenRouter"]
-    LF["Langfuse<br/>traces, scores,<br/>queue answer-review"]
-    PR["Pull requests<br/>golden set, da- entries"]
-
-    L --> LK
-    D --> ST
-    P --> SNAP
-    SNAP --> AO
-    GQ -- "ask client" --> AO
-    AO -- "every model call" --> GW --> PROV
-    GW -- "traces, cost" --> LF
-    GQ -- "scores, wrong + refused" --> LF
-    LF -- "a person labels" --> PR
-    T -- "calls, answers, labels" --> LK
+flowchart TB
+    GEN["Synthetic marketplace<br/>generator/"] --> LAKE["data_lake_layer<br/>raw + audit columns"]
+    LAKE --> STG["data_staging_layer"] --> WH["data_warehouse_layer<br/>dims with history, facts"] --> MART["data_mart_layer<br/>rpt__* reports"]
+    MART --> SNAP[("analytics.duckdb<br/>served snapshot, read-only")]
+    SNAP --> AO["NVIDIA Auto Ontology<br/>semantic layer + text-to-SQL agent<br/>no internet"]
+    ASK["ask client / golden runner<br/>llm/"] -- "question + request id" --> AO
+    AO -- "every model call,<br/>tagged with the answer" --> GW["LiteLLM gateway<br/>virtual key + budget per caller"]
+    GW --> PROV["Model providers<br/>NVIDIA, OpenRouter"]
+    GW -- "traces, cost" --> LF["Langfuse<br/>traces, scores, review queue"]
+    ASK -- "scores; wrong and refused<br/>answers to the queue" --> LF
+    LF -- "a person labels" --> PRS["Pull requests<br/>golden questions, da- entries"]
+    LF -- "calls, answers, labels<br/>(DAG task 8)" --> LAKE
 ```
+
+Airflow runs it all once a day as DAG `warehouse_daily`
+([airflow/dags/warehouse_daily.py](airflow/dags/warehouse_daily.py)):
+
+1. `generate_source`: the day's source files.
+2. `load_lake`: replace the day's partition in `data_lake_layer`, with audit columns.
+3. `dbt_build`: staging, warehouse and mart, with their tests.
+4. `quality_gate`: dbt passed, the day landed, no empty business mart.
+5. `publish_snapshot`: warehouse and mart into `analytics.duckdb`, row counts checked, atomic swap.
+6. `refresh_ontology`: Auto Ontology picks up the new snapshot and compiles what changed.
+7. `golden_questions`: every golden question asked and scored; a wrong answer fails the task.
+8. `land_llm_telemetry`: gateway calls, Langfuse scores and answers into the lake, then the
+   `ops` models.
+9. `record_run`: one row in `ops.run_log`, whatever happened.
 
 - **Data.** `generator/` writes a deterministic marketplace (shop, ledger, marketing): customers,
   sellers, products with price history, orders, payments, shipments, refunds, invoices,
