@@ -25,8 +25,9 @@ def test_upstream_is_pinned_and_images_carry_the_sha():
 def test_overlay_patches_are_small_and_targeted():
     patches = sorted((AO_DIR / "patches").glob("*.patch"))
     assert [p.name for p in patches] == ["0001-duckdb-connector-reads-comments.patch",
-                                         "0002-chat-api-calculation-only.patch"]
-    first, second = (p.read_text() for p in patches)
+                                         "0002-chat-api-calculation-only.patch",
+                                         "0003-request-id-tags-model-calls.patch"]
+    first, second, third = (p.read_text() for p in patches)
     assert re.findall(r"^\+\+\+ b/(.+)$", first, re.M) == ["auto_ontology/connectors/duckdb.py"]
     assert "duckdb_tables()" in first and "duckdb_columns()" in first and "AS description" in first
     # 0002 (issue 34): the chat API passes calculation_only through to the text-to-SQL agent.
@@ -34,6 +35,11 @@ def test_overlay_patches_are_small_and_targeted():
         "auto_ontology/server/chat/helpers.py", "auto_ontology/server/chat/router.py",
         "auto_ontology/server/chat/worker.py"]
     assert "calculation_only: bool | None" in second and '"calculation_only": calculation_only' in second
+    # 0003 (issue 36): a request id from the chat API tags every model call (chat, embed, rerank).
+    touched = re.findall(r"^\+\+\+ b/(.+)$", third, re.M)
+    assert {"auto_ontology/utils/request_tags.py", "auto_ontology/utils/llm_invoke.py",
+            "auto_ontology/utils/embedding.py", "auto_ontology/utils/rerank.py"} <= set(touched)
+    assert "x-litellm-tags" in third and "set_request_id(request_id)" in third
 
 
 def test_auto_ontology_has_no_way_out_but_the_gateway():

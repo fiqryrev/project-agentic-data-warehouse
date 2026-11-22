@@ -15,6 +15,8 @@ fi
 git -C "$dir" fetch --quiet origin
 git -C "$dir" checkout --quiet --force "$sha"
 git -C "$dir" reset --quiet --hard "$sha"
+# Files a patch adds are untracked, so the reset leaves them; remove them too (patch 0003 adds one).
+git -C "$dir" clean --quiet --force -d
 for patch in "$here"/patches/*.patch; do
   git -C "$dir" apply --whitespace=nowarn "$patch"
   echo "[auto-ontology] applied $(basename "$patch")"

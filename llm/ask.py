@@ -99,11 +99,13 @@ def wait_for_compile(session: Session, timeout_s: int = 3600) -> dict:
     raise AskError("semantic compile did not finish")
 
 
-def chat(session: Session, question: str, calculation_only: bool = False) -> dict:
+def chat(session: Session, question: str, calculation_only: bool = False,
+         request_id: str | None = None) -> dict:
     """One chat answer: the `answer` of the stream's `result` event. `calculation_only` answers
     with SQL only (overlay patch 0002): the agent is not offered the catalog view, whose tables
     never come into view for run_sql (issue 34)."""
-    body = {"question": question, **({"calculation_only": True} if calculation_only else {})}
+    body = {"question": question, **({"calculation_only": True} if calculation_only else {}),
+            **({"request_id": request_id} if request_id else {})}
     for event in session.stream("/api/chat/completions", body):
         if event.get("type") == "result":
             return event["answer"]
@@ -172,6 +174,7 @@ class Answer:
     trace_id: str = dataclasses.field(default_factory=new_trace_id)
     calls: dict = dataclasses.field(default_factory=dict)
     generation_ids: list[str] = dataclasses.field(default_factory=list)
+    link_method: str = LINK_METHOD
 
     @property
     def window(self) -> tuple[dtm.datetime, dtm.datetime]:
@@ -179,12 +182,15 @@ class Answer:
 
 
 def ask(session: Session, question: str, calculation_only: bool = False) -> Answer:
-    """Ask once; a chat error becomes `Answer.error` instead of an exception."""
+    """Ask once; a chat error becomes `Answer.error` instead of an exception. The answer's trace
+    id goes along as `request_id` (overlay patch 0003), so every model call Auto Ontology makes
+    for it is tagged `answer:<trace id>` in the gateway (issue 36)."""
     started = dtm.datetime.now(dtm.UTC)
+    trace_id = new_trace_id()
     try:
-        raw = chat(session, question, calculation_only)
+        raw = chat(session, question, calculation_only, request_id=trace_id)
     except (AskError, OSError, ValueError) as e:
-        return Answer(question, started, dtm.datetime.now(dtm.UTC), error=str(e)[:300])
+        return Answer(question, started, dtm.datetime.now(dtm.UTC), error=str(e)[:300], trace_id=trace_id)
     sql = raw.get("sql_code")
     return Answer(
         question, started, dtm.datetime.now(dtm.UTC),
@@ -193,7 +199,7 @@ def ask(session: Session, question: str, calculation_only: bool = False) -> Answ
         rows=answer_rows(raw.get("sql_response_from_db")),
         thoughts=raw.get("thoughts"),
         conversation_id=raw.get("conversation_id") or raw.get("chat_id"),
-        raw_keys=sorted(raw))
+        raw_keys=sorted(raw), trace_id=trace_id)
 
 
 def owner_of(t: dtm.datetime, answers: list[Answer]) -> Answer | None:
@@ -207,10 +213,28 @@ def owner_of(t: dtm.datetime, answers: list[Answer]) -> Answer | None:
     return max(started, key=lambda a: a.started) if started else min(holding, key=lambda a: a.started)
 
 
+def request_tag(a: Answer) -> str:
+    return f"answer:{a.trace_id}"
+
+
+def tagged_with(row: dict, tag: str) -> bool:
+    """A spend-log row or Langfuse generation that carries the answer's tag (patch 0003)."""
+    tags = row.get("request_tags")
+    if isinstance(tags, str):
+        try:
+            tags = json.loads(tags)
+        except ValueError:
+            tags = [tags]
+    if isinstance(tags, list) and tag in tags:
+        return True
+    return tag in json.dumps(row.get("metadata") or {}, default=str)
+
+
 def link_calls(answers: list[Answer], env: dict[str, str], lf: Langfuse) -> None:
-    """Attach to each answer the `auto-ontology` calls made in its window (questions are asked one
-    at a time; a call in two padded windows goes to one answer, `owner_of`). One read of each
-    source for all answers."""
+    """Attach to each answer the `auto-ontology` calls made for it. Calls tagged with the answer's
+    request id (overlay patch 0003) are exact; an answer without any tagged call falls back to its
+    time window, a call in two padded windows going to one answer (`owner_of`). One read of each
+    source for all answers; `link_method` says which way each answer was linked."""
     if not answers:
         return
     since = min(a.window[0] for a in answers)
@@ -219,14 +243,25 @@ def link_calls(answers: list[Answer], env: dict[str, str], lf: Langfuse) -> None
     gens = [g for g in lf.generations(since, until) if generation_key_alias(g) == AO_CALLER]
     rows: dict[int, list[dict]] = {id(a): [] for a in answers}
     ids: dict[int, list[str]] = {id(a): [] for a in answers}
+    tagged = {id(a): [r for r in logs if tagged_with(r, request_tag(a))] for a in answers}
+    claimed = {id(r) for rs in tagged.values() for r in rs}
     for r in logs:
-        if (a := owner_of(parse_time(r.get("startTime")), answers)):
+        if id(r) not in claimed and (a := owner_of(parse_time(r.get("startTime")), answers)) and not tagged[id(a)]:
             rows[id(a)].append(r)
+    # Langfuse generations carry the provider's response id, which is the spend log's request id,
+    # but not the gateway tag (and embeddings have no response id): a generation goes to the
+    # answer whose tagged call has its response id, else to its window (review on #37).
+    by_response = {r.get("request_id"): a for a in answers for r in tagged[id(a)] if r.get("request_id")}
     for g in gens:
-        if (a := owner_of(parse_time(g.get("startTime")), answers)):
+        rid = (g.get("metadata") or {}).get("attributes.llm.response.id")
+        a = by_response.get(rid) if rid else None
+        if a is None:
+            a = owner_of(parse_time(g.get("startTime")), answers)
+        if a is not None:
             ids[id(a)].append(g["id"])
     for a in answers:
-        a.calls = calls_summary(rows[id(a)], AO_CALLER)
+        a.link_method = "request_id" if tagged[id(a)] else LINK_METHOD
+        a.calls = calls_summary(tagged[id(a)] or rows[id(a)], AO_CALLER)
         a.generation_ids = ids[id(a)]
 
 
@@ -257,10 +292,11 @@ def trace_attrs(*, name: str, session_id: str | None, tags: list[str], input, ou
 def answer_spans(a: Answer, *, session_id: str | None, tags: list[str], snapshot: str | None,
                  extra: dict | None = None) -> list[Span]:
     """One answer trace `ask` (root span) and its chat span."""
-    link = {"method": LINK_METHOD, "caller": AO_CALLER, "window_start": iso(a.window[0]),
+    link = {"method": a.link_method, "caller": AO_CALLER, "request_tag": request_tag(a), "window_start": iso(a.window[0]),
             "window_end": iso(a.window[1]), **a.calls, "generation_ids": a.generation_ids,
-            "note": ("model calls are matched by caller key and time window: Auto Ontology cannot "
-                     "forward a request id, and web UI questions in the same window count too")}
+            "note": ("request_id: every call carried the answer's tag answer:<trace id> (overlay "
+                     "patch 0003); caller_key+time_window: no tagged call, so calls of the "
+                     "auto-ontology key in the answer's window, web UI questions included")}
     output = {"answer": a.text, "sql": a.sql, "rows": (a.rows or [])[:MAX_ROWS_KEPT],
               "row_count": None if a.rows is None else len(a.rows), "error": a.error}
     meta = {"snapshot_hash": snapshot, "conversation_id": a.conversation_id, "finished_at": iso(a.finished),

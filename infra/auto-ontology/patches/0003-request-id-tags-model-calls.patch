@@ -1,0 +1,188 @@
+diff --git a/auto_ontology/server/chat/helpers.py b/auto_ontology/server/chat/helpers.py
+index 12b2b2ab..2eaa0d8d 100644
+--- a/auto_ontology/server/chat/helpers.py
++++ b/auto_ontology/server/chat/helpers.py
+@@ -65,6 +65,17 @@ class ChatRequest(BaseModel):
+             "answer from the catalog."
+         ),
+     )
++    # Tag every model call this question makes with the caller's id, so a gateway
++    # can tell which question each call served (an evaluation harness).
++    request_id: str | None = Field(
++        default=None,
++        max_length=128,
++        pattern=r"^[A-Za-z0-9._:-]+$",
++        description=(
++            "Caller-chosen id; every model call for this question carries the header "
++            "x-litellm-tags: answer:<request_id>."
++        ),
++    )
+     # Scope retrieval/SQL to one connected database. When omitted (and more
+     # than one connector is loaded), the pipeline does not pin a database.
+     target_db: str | None = Field(
+diff --git a/auto_ontology/server/chat/router.py b/auto_ontology/server/chat/router.py
+index da0672b4..5b2b14ec 100644
+--- a/auto_ontology/server/chat/router.py
++++ b/auto_ontology/server/chat/router.py
+@@ -663,6 +663,7 @@ async def chat_completions(
+         conversation_history=conversation_history,
+         evidence=request.evidence,
+         calculation_only=bool(request.calculation_only),
++        request_id=request.request_id,
+     )
+     threading.Thread(target=_pump, args=(slot,), daemon=True).start()
+     asyncio.create_task(_watch_disconnect(http_request, slot))
+diff --git a/auto_ontology/server/chat/worker.py b/auto_ontology/server/chat/worker.py
+index 3fb56bf4..4831787b 100644
+--- a/auto_ontology/server/chat/worker.py
++++ b/auto_ontology/server/chat/worker.py
+@@ -27,6 +27,7 @@ no more than one pre-warmed spare at a time.
+ 
+ from __future__ import annotations
+ 
++from auto_ontology.utils.request_tags import set_request_id
+ import logging
+ import multiprocessing as mp
+ import threading
+@@ -142,7 +143,9 @@ def _worker_loop(
+             conversation_history,
+             evidence,
+             calculation_only,
++            request_id,
+         ) = payload
++        set_request_id(request_id)
+         try:
+             # Connections are resolved once at worker init. If that
+             # lookup came back empty — the store not yet reachable when this
+@@ -249,6 +252,7 @@ class PrewarmedWorker:
+         conversation_history: list[dict[str, str | None]] | None = None,
+         evidence: str | None = None,
+         calculation_only: bool = False,
++        request_id: str | None = None,
+     ) -> None:
+         """Ask *question*, optionally forcing the prediction/SQL branch.
+ 
+@@ -272,6 +276,7 @@ class PrewarmedWorker:
+                     conversation_history or [],
+                     evidence,
+                     calculation_only,
++                    request_id,
+                 ),
+             )
+         )
+diff --git a/auto_ontology/utils/embedding.py b/auto_ontology/utils/embedding.py
+index 98860f37..99345bd8 100644
+--- a/auto_ontology/utils/embedding.py
++++ b/auto_ontology/utils/embedding.py
+@@ -20,6 +20,7 @@ or a dimension error from pgvector.
+ 
+ from __future__ import annotations
+ 
++from auto_ontology.utils.request_tags import tag_headers
+ import itertools
+ import logging
+ import math
+@@ -195,7 +196,7 @@ def embed_texts(
+                 "modality": params.embed_modality,
+             },
+             timeout=timeout or params.request_timeout_s,
+-            extra_headers=None if params.api_key else _NO_AUTH,
++            extra_headers=({} if params.api_key else dict(_NO_AUTH)) | tag_headers() or None,
+         )
+         returned = [item.index for item in response.data]
+         if sorted(returned) != list(range(len(indices))):
+diff --git a/auto_ontology/utils/llm_invoke.py b/auto_ontology/utils/llm_invoke.py
+index 0d82e415..f28c4d8e 100644
+--- a/auto_ontology/utils/llm_invoke.py
++++ b/auto_ontology/utils/llm_invoke.py
+@@ -228,6 +228,9 @@ def _build_client(
+     if model.startswith(("openai/", "azure/", "aws/")):
+         from langchain_openai import ChatOpenAI
+ 
++        from auto_ontology.utils.request_tags import tagging_http_clients
++
++        http_client, http_async_client = tagging_http_clients(LLM_INVOKE_TIMEOUT_S)
+         return ChatOpenAI(
+             model=model,
+             api_key=api_key,
+@@ -239,6 +242,8 @@ def _build_client(
+             max_tokens=max_tokens,
+             timeout=LLM_INVOKE_TIMEOUT_S,
+             max_retries=0,
++            http_client=http_client,
++            http_async_client=http_async_client,
+         )
+ 
+     from langchain_nvidia_ai_endpoints import ChatNVIDIA
+diff --git a/auto_ontology/utils/request_tags.py b/auto_ontology/utils/request_tags.py
+new file mode 100644
+index 00000000..87af3ed3
+--- /dev/null
++++ b/auto_ontology/utils/request_tags.py
+@@ -0,0 +1,45 @@
++"""The request id of the question a chat worker is answering, sent with every model call.
++
++A caller (an evaluation harness) may pass ``request_id`` with a chat question. The worker sets it
++here for the duration of that question, and every model client adds
++``x-litellm-tags: answer:<request_id>`` to its requests, so a LiteLLM gateway records which
++question each call served. A worker subprocess answers one question at a time, and model calls
++may run on helper threads, so this is a module value rather than a context variable.
++"""
++
++from __future__ import annotations
++
++import re
++
++_REQUEST_ID: str | None = None
++_SAFE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
++
++
++def set_request_id(request_id: str | None) -> None:
++    """Set (or clear, with None) the request id of the question being answered."""
++    global _REQUEST_ID
++    _REQUEST_ID = request_id if request_id and _SAFE.match(request_id) else None
++
++
++def tag_headers() -> dict[str, str]:
++    """Headers that tag a model call with the current request id; empty without one."""
++    return {"x-litellm-tags": f"answer:{_REQUEST_ID}"} if _REQUEST_ID else {}
++
++
++def _tag_request(request) -> None:  # noqa: ANN001 (httpx.Request)
++    for name, value in tag_headers().items():
++        request.headers[name] = value
++
++
++async def _tag_request_async(request) -> None:  # noqa: ANN001 (httpx.Request)
++    _tag_request(request)
++
++
++def tagging_http_clients(timeout: float | None):  # noqa: ANN201
++    """(sync, async) httpx clients that add the tag headers to every request they send."""
++    import httpx
++
++    return (
++        httpx.Client(timeout=timeout, event_hooks={"request": [_tag_request]}),
++        httpx.AsyncClient(timeout=timeout, event_hooks={"request": [_tag_request_async]}),
++    )
+diff --git a/auto_ontology/utils/rerank.py b/auto_ontology/utils/rerank.py
+index 476ebd04..881884bd 100644
+--- a/auto_ontology/utils/rerank.py
++++ b/auto_ontology/utils/rerank.py
+@@ -22,6 +22,7 @@ from __future__ import annotations
+ 
+ from typing import Any
+ 
++from auto_ontology.utils.request_tags import tag_headers
+ import httpx
+ 
+ from auto_ontology.utils.model_config import resolve
+@@ -71,7 +72,7 @@ def _scores(
+             "passages": [{"text": d} for d in documents],
+             "truncate": "END",
+         }
+-    headers = {"accept": "application/json"}
++    headers = {"accept": "application/json", **tag_headers()}
+     if api_key:
+         headers["Authorization"] = f"Bearer {api_key}"
+ 
