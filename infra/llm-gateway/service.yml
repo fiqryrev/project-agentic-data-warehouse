@@ -1,0 +1,17 @@
+# Environment of the llm-gateway service in infra/compose.yml (merged with `extends`).
+# The one place outside .env that names the provider key variables (check_gateway_only).
+services:
+  llm-gateway:
+    environment:
+      LITELLM_MASTER_KEY: sk-${LITELLM_MASTER_SECRET:?run make up-obs, which writes it to .env}
+      DATABASE_URL: postgresql://obs:${OBS_DB_SECRET}@obs-db:5432/litellm
+      # Checked by `make up-obs` (bootstrap.py check-keys), not here: compose reads every
+      # variable for every profile, and the core profile needs no provider key.
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      LANGFUSE_PUBLIC_KEY: pk-lf-${LANGFUSE_PROJECT_PUBLIC_SECRET}
+      LANGFUSE_SECRET_KEY: sk-lf-${LANGFUSE_PROJECT_SECRET}
+      LANGFUSE_HOST: http://langfuse-web:3000
+      LANGFUSE_OTEL_HOST: http://langfuse-web:3000
+      LITELLM_TELEMETRY: "False"
+      LITELLM_LOG: INFO

@@ -20,7 +20,9 @@ design; `docs/m0-findings.md` holds the verified versions and commands.
 | `infra/duckdb-pins.yaml` | DuckDB builds that must open one file (loader, dbt, Auto Ontology) |
 | `infra/compose.yml`, `airflow/` | local stack (profile core): Airflow image, DAG `warehouse_daily`, backfill script |
 | `publish/` | DAG steps after dbt: `quality_gate`, `run_recorder` (`ops.run_log`) |
-| `Makefile` | `make test`, `make checks`, `make generate`, `make load`, `make dbt-build`, `make dbt-ci`, `make up-core`, `make backfill`, `make run-log` |
+| `infra/llm-gateway/` | LiteLLM config (aliases), `budgets.yaml` (virtual key per caller), bootstrap |
+| `llm/` | gateway clients: `gateway_smoke` (`make llm-smoke`); later the ask client and golden runner |
+| `Makefile` | `make test`, `make checks`, `make generate`, `make load`, `make dbt-build`, `make dbt-ci`, `make up-core`, `make backfill`, `make run-log`, `make up-obs`, `make llm-smoke` |
 | `.agents/rules/` | one line per rule; the story behind each in `.agents/rules/history/` |
 | `.agents/skills/` | working procedures, loaded on use (`.claude/skills` points here) |
 | `.agents/knowledge/` | distilled knowledge: `entries/{de,da}/`, `evals/`, generated `index/` (`helpers/kb.py`) |

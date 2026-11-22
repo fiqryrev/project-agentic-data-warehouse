@@ -284,6 +284,10 @@ RERANK_ENDPOINT=http://llm-gateway:4000/nvidia/rerank/reranking   # ends in /rer
   splits by purpose.
 - **Recorded per call:** alias, provider, model, input tokens, output tokens, reasoning tokens
   when the provider reports them, cached tokens, cost in USD, latency, status, error.
+  **Rerank and virtual keys (M8):** in LiteLLM OSS only the master key may call a pass-through
+  route; a virtual key gets 403, and the per-key `allowed_passthrough_routes` is Enterprise-only.
+  M9 decides how Auto Ontology reaches rerank (an unauthenticated route on the private network,
+  or a small adapter on `/rerank`) without handing it the master key.
   Exception: calls on a pass-through route (today only rerank) are logged and traced with model,
   latency, status and call id, but LiteLLM records no tokens and no cost for them (measured in
   M0). The telemetry mart reports them as a call count with an estimated cost (calls times the
