@@ -200,6 +200,12 @@ Platform sources, landed daily by the same loader:
 
 - **Laptop asleep at run time:** `catchup=True` plus a deterministic generator; missed days run
   in order at the next start.
+- **Backfill (M7):** `make backfill FROM= TO=` runs one recorded DAG run per day, oldest first,
+  with `airflow dags test`, and stops at the first failed day. Airflow's `backfill create` is not
+  used: the scheduler starts no run of a paused DAG, and an unpaused DAG's catch-up runs would
+  write the same DuckDB file beside the backfill. The DAG starts paused; unpausing it starts the
+  daily schedule, which catches up from `WAREHOUSE_START_DATE` and skips days that already ran.
+  The synthetic world must be contiguous from 2026-01-01 (orders refer to earlier customers).
 - **load_lake:** `DELETE WHERE dt = ds` then `INSERT ... FROM read_parquet`. Idempotent.
 - **dbt build:** `BashOperator` calling the dbt v2 binary.
 - **publish_snapshot:** temp file, row counts verified, atomic rename, last 7 kept.

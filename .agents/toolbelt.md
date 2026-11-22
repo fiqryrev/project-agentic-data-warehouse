@@ -14,8 +14,9 @@ Every CLI and server an agent may use. Review each line by its date; remove what
 | `dbt` 2.0.12 | owner | run `dev` and `ci` targets; `prod` is Airflow's | builds staging, warehouse, mart (`dbt/`) | 2027-02-22 |
 | `kb` (`helpers/kb.py`) | owner | run; writes only `.agents/knowledge/` and the generated docs | search, add and render knowledge entries | 2027-02-22 |
 | `make` | owner | run | shortcuts in `Makefile` | 2027-02-22 |
+| Docker compose | owner | run `make up-core`, `make down-core`, `make backfill`; agents never `down -v` | local stack in `infra/compose.yml` (profile core) | 2027-02-22 |
+| Airflow 3.3.2 | owner | UI on 127.0.0.1:8080; CLI inside the scheduler container | runs `warehouse_daily`, the only writer of `data/build/` | 2027-02-22 |
 | gitleaks | owner | CI only | secret scan beside `check_secrets` | 2027-02-21 |
 
-Planned (added with their milestone): Docker compose and Airflow
-(M7), LiteLLM gateway and Langfuse (M8), Auto Ontology (M9). Their verified version pins are
+Planned (added with their milestone): LiteLLM gateway and Langfuse (M8), Auto Ontology (M9). Their verified version pins are
 in `docs/m0-findings.md` ("Version pins found").
