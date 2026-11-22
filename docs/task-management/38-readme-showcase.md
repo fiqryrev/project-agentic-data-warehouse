@@ -21,12 +21,17 @@ the runbook; status (M0 to M12 with PRs); honest limits.
   each, since that is what makes the warehouse "agentic" rather than a warehouse with a chatbot.
 - **Every number has a source:** run reports in `docs/runs/`, worknotes in
   `docs/task-management/`, and model counts from the layer folders. No number without one.
+- **Architecture diagram top to bottom, DAG tasks as a list:** checked on GitHub's rendered
+  file view: the first version laid the nine DAG tasks out in one row, which GitHub shrank to
+  unreadable text; top to bottom with the tasks listed below it reads at normal width.
 - **PR references are full links**: a bare `#3` is not linked in a rendered README.
 - **No upstream material**: the overlay patches are described as part of this project only.
 
 ## Done
 
-- `README.md` rewritten (208 lines); `check_secrets`, `check_gateway_only`, `check_entry_size` OK;
+- Both Mermaid diagrams render on GitHub (`blob/38-readme-showcase/README.md`, checked in a
+  browser).
+- `README.md` rewritten (204 lines); `check_secrets`, `check_gateway_only`, `check_entry_size` OK;
   `uv run pytest -q` and `make checks` PASS.
 
 ## Open
