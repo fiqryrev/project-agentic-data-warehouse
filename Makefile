@@ -17,6 +17,11 @@ checks:
 	uv run python -m helpers.check_secrets
 	uv run python -m helpers.check_prices
 	uv run python -m helpers.check_duckdb_compat
+	uv run python -m helpers.check_naming
+	uv run python -m helpers.check_bundle
+	uv run python -m helpers.check_layers
+	uv run python -m helpers.check_audit_columns
+	uv run python -m helpers.check_gateway_only
 
 generate:
 	uv run python -m generator --start $(START) --end $(END) --seed $(SEED) --out $(LANDING)
