@@ -1,0 +1,14 @@
+# Labels handled by make label-prs (llm/labels.py); one row per trace and labeller.
+labels:
+- trace_id: 1ad14290471b4c40b2965bb94fa44335
+  labeler: api
+  verdict: correct
+  outcome: golden
+  labeled_at: '2026-11-22T09:17:27.073Z'
+  ref: g-0008
+- trace_id: 8f48413776644145a3da572fa82b7b05
+  labeler: api
+  verdict: wrong_definition
+  outcome: knowledge
+  labeled_at: '2026-11-22T09:17:27.073Z'
+  ref: da-0006

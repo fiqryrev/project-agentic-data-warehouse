@@ -104,6 +104,25 @@
       "file": ".agents/knowledge/entries/da/da-0005-shipped-renamed-in-transit.md"
     },
     {
+      "id": "da-0006",
+      "kind": "data",
+      "title": "Label wrong_definition: How many active customers did we have on 2026-01-05?",
+      "tags": [
+        "active",
+        "customers",
+        "have",
+        "label",
+        "many",
+        "wrong-definition"
+      ],
+      "paths": [
+        "evals/labels/processed.yaml"
+      ],
+      "status": "active",
+      "last_verified": "2026-11-22",
+      "file": ".agents/knowledge/entries/da/da-0006-how-many-active-customers-did-we.md"
+    },
+    {
       "id": "de-0001",
       "kind": "engineering",
       "title": "Build dimension history from the lake, not from dbt snapshots",

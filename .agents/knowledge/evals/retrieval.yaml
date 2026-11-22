@@ -28,3 +28,4 @@ cases:
   - {query: "openrouter alias still reasons with thinking off", expect: de-0007}
   - {query: "auto ontology answers I couldn't write a query", expect: de-0008}
   - {query: "why are golden answers refused", expect: de-0008}
+  - {query: "How many active customers did we have on 2026-01-05?", expect: da-0006}
