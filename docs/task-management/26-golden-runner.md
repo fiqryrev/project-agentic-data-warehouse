@@ -40,10 +40,12 @@ Approved in chat on 2026-11-22, including the real model calls (about $0.002 per
   note that web UI questions in the same window would be counted too. Generations stay separate
   traces: Langfuse cannot re-parent them.
 - **Scores.** `refused` = no rows with a number (the chat ends with "couldn't write a query", no
-  SQL). A scalar is matched against every number in the answer's rows (dates come as strings);
-  more than 20 rows is `wrong`. `exact_match` is a difference under 0.5 for integers;
-  `within_tolerance` uses `tolerance_pct`. `rows` questions match each reference row by its key,
-  case-insensitively. Asked once, no retry: retries would hide the instability the queue is for.
+  SQL). A scalar answer must state one value (review on #27): one row, and in it a single number
+  or the number whose column is named like the reference column; anything else is `wrong`
+  (ambiguous). `rows` answers must hold exactly the reference keys, each once (an extra,
+  duplicate or missing key is `wrong`), matched case-insensitively. More than 20 rows is `wrong`.
+  `exact_match` is a difference under 0.5 for integers; `within_tolerance` uses `tolerance_pct`.
+  Asked once, no retry: retries would hide the instability the queue is for.
 - **The answer's SQL runs with `enable_external_access = false` and `lock_configuration`** on a
   read-only connection, interrupted after 60 s: it is model-written, so `COPY ... TO` must not
   write a file (a test proves it does not).

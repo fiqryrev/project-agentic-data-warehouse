@@ -29,6 +29,9 @@ def test_answer_rows_parse_the_json_string_auto_ontology_sends():
     (None, "refused"),
     ([{"note": "no data"}], "refused"),
     ([{"v": 718490209}] * 25, "wrong"),
+    ([{"invoice_count": 510, "net_revenue_idr": 718490209}], "exact_match"),     # named column wins
+    ([{"a": 1, "b": 718490209}], "wrong"),                                        # ambiguous
+    ([{"net_revenue_idr": 1}, {"net_revenue_idr": 718490209}], "wrong"),          # two rows
 ])
 def test_scalar_verdicts(rows, verdict):
     assert g.score_answer(SCALAR, ["net_revenue_idr"], [(718490209,)], rows)[0] == verdict
@@ -49,6 +52,12 @@ def test_rows_verdicts():
     assert g.score_answer(ROWS, ref_cols, ref, ok[:2])[0] == "wrong"
     off = ok[:2] + [{"channel_name": "tiktok", "spend_idr": 2070000}]
     assert g.score_answer(ROWS, ref_cols, ref, off)[0] == "within_tolerance"
+    extra = ok + [{"channel_name": "radio", "spend_idr": 1}]
+    assert g.score_answer(ROWS, ref_cols, ref, extra) == ("wrong", "extra: radio")
+    dupe = ok + [{"channel_name": "google", "spend_idr": 99}]
+    assert g.score_answer(ROWS, ref_cols, ref, dupe) == ("wrong", "duplicate: google")
+    renamed = [{"channel": r["channel_name"], "total": r["spend_idr"]} for r in ok]
+    assert g.score_answer(ROWS, ref_cols, ref, renamed)[0] == "exact_match"
 
 
 @pytest.fixture()

@@ -115,11 +115,39 @@ def worst(verdicts: list[str]) -> str:
     return max(verdicts, key=VERDICTS.index) if verdicts else "wrong"
 
 
+def scalar_value(rows: list[dict], ref_col: str) -> tuple[float | None, str]:
+    """The one value a scalar answer states: one row, and in it either a single number or the
+    number whose column name matches the reference column. Anything else is ambiguous, so an
+    unrelated number that happens to match cannot pass a wrong answer (review on #27)."""
+    if len(rows) != 1:
+        return None, f"{len(rows)} rows answer a one-value question"
+    nums = {k: n[0] for k, v in rows[0].items() if len(n := ak.numbers_in(v)) == 1}
+    if len(nums) == 1:
+        return next(iter(nums.values())), ""
+    ref = ref_col.lower()
+    named = [n for k, n in nums.items() if k.lower() == ref or k.lower() in ref or ref in k.lower()]
+    if len(named) == 1:
+        return named[0], ""
+    return None, f"ambiguous: {len(nums)} numbers ({', '.join(nums)}) and none named like {ref_col}"
+
+
+def key_column(rows: list[dict], key: str, keys: set[str]) -> str | None:
+    """The answer's column that names a row: the reference key column, else the first column
+    whose values hold every reference key."""
+    cols = list(rows[0])
+    if key in cols:
+        return key
+    for c in cols:
+        if keys <= {str(r.get(c)).strip().lower() for r in rows}:
+            return c
+    return None
+
+
 def score_answer(q: Question, ref_cols: list[str], ref_rows: list[tuple],
                  rows: list[dict] | None) -> tuple[str, str]:
-    """(golden_verdict, reason). No rows is `refused`; the answer's rows are matched to the
-    reference: `scalar` needs the value among the answer's numbers, `rows` needs every reference
-    row (by its key) with each of its numbers."""
+    """(golden_verdict, reason). No rows is `refused`. `scalar` compares the one value the answer
+    states (`scalar_value`); `rows` needs exactly the reference keys, each once, and each
+    reference number in its row."""
     if not rows or not ak.numbers_in(rows):
         return "refused", "the answer has no rows with a number"
     if len(rows) > MAX_ANSWER_ROWS:
@@ -128,19 +156,27 @@ def score_answer(q: Question, ref_cols: list[str], ref_rows: list[tuple],
         return "wrong", "the reference SQL returned no row"
     if q.kind == "scalar":
         expected = float(ref_rows[0][0])
-        got = ak.numbers_in(rows)
-        v = best([compare(expected, n, q.tolerance_pct) for n in got])
-        return v, f"expected {expected:,.2f}; answer numbers {', '.join(f'{n:,.2f}' for n in got[:6])}"
+        got, why = scalar_value(rows, ref_cols[0])
+        if got is None:
+            return "wrong", f"expected {expected:,.2f}; {why}"
+        return compare(expected, got, q.tolerance_pct), f"expected {expected:,.2f}; answer {got:,.2f}"
     ki = ref_cols.index(q.key)
+    ref_keys = [str(r[ki]).strip().lower() for r in ref_rows]
+    col = key_column(rows, q.key, set(ref_keys))
+    if col is None:
+        return "wrong", f"no column of the answer names every {q.key} of the reference"
+    by_key: dict[str, list[dict]] = {}
+    for r in rows:
+        by_key.setdefault(str(r.get(col)).strip().lower(), []).append(r)
+    extra = sorted(set(by_key) - set(ref_keys))
+    dupes = sorted(k for k, v in by_key.items() if len(v) > 1)
+    missing = sorted(set(ref_keys) - set(by_key))
+    if extra or dupes or missing:
+        return "wrong", "; ".join(f"{label}: {', '.join(ks)}" for label, ks in
+                                  (("missing", missing), ("extra", extra), ("duplicate", dupes)) if ks)
     per_key, reasons = [], []
-    for ref in ref_rows:
-        key = str(ref[ki]).strip().lower()
-        match = [r for r in rows if any(str(v).strip().lower() == key for v in r.values())]
-        if not match:
-            per_key.append("wrong")
-            reasons.append(f"{ref[ki]}: missing")
-            continue
-        got = ak.numbers_in(match[0])
+    for ref, key in zip(ref_rows, ref_keys):
+        got = ak.numbers_in({k: v for k, v in by_key[key][0].items() if k != col})
         vs = [best([compare(float(e), n, q.tolerance_pct) for n in got])
               for i, e in enumerate(ref) if i != ki and isinstance(e, (int, float))]
         per_key.append(worst(vs))
