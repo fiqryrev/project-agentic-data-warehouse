@@ -319,7 +319,9 @@ Linking model calls to their answer: M0 found that Auto Ontology cannot forward 
 header to its model client (one answer showed up as 22 unrelated traces). Calls are attached by
 caller key and time window, with golden questions asked one at a time, and the UI says so. A
 small overlay patch that passes a per-request id in `_build_client`, `embed_texts` and `_scores`
-is the next step if the window is too coarse.
+is the next step if the window is too coarse. Done in issue 36: overlay patch 0003 takes
+`request_id` on the chat API and tags every model call `answer:<request_id>`; the `ask` client
+links by that tag and keeps the window only for untagged calls.
 
 Questions asked in the Auto Ontology web UI are still counted and costed by the gateway, but only
 questions asked through the `ask` client (CLI, golden runner, review app) get a full answer trace.

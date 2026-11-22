@@ -156,8 +156,30 @@ def test_golden_questions_are_asked_calculation_only(monkeypatch):
             sent.append(body)
             yield {"type": "result", "answer": {"response": "x", "sql_code": None, "sql_response_from_db": None}}
 
-    ak.ask(FakeSession(), "q")
-    ak.ask(FakeSession(), "q", calculation_only=True)
-    assert sent == [{"question": "q"}, {"question": "q", "calculation_only": True}]
+    a1 = ak.ask(FakeSession(), "q")
+    a2 = ak.ask(FakeSession(), "q", calculation_only=True)
+    assert sent == [{"question": "q", "request_id": a1.trace_id},
+                    {"question": "q", "calculation_only": True, "request_id": a2.trace_id}]
     import inspect
     assert inspect.signature(g.ask_and_score).parameters["calculation_only"].default is True
+
+
+def test_tagged_calls_link_exactly_and_untagged_answers_fall_back_to_the_window(monkeypatch):
+    t = dtm.datetime(2026, 11, 22, 10, tzinfo=dtm.UTC)
+    a1 = ak.Answer("q1", t, t + dtm.timedelta(seconds=30))
+    a2 = ak.Answer("q2", t + dtm.timedelta(seconds=31), t + dtm.timedelta(seconds=60))
+    ao = {"user_api_key_alias": "auto-ontology"}
+    logs = [  # a1's calls are tagged; one of them runs late, inside a2's window
+        {"startTime": "2026-11-22T10:00:05Z", "metadata": ao, "spend": 0.01, "request_tags": [f"answer:{a1.trace_id}"]},
+        {"startTime": "2026-11-22T10:00:40Z", "metadata": ao, "spend": 0.02, "request_tags": [f"answer:{a1.trace_id}"]},
+        {"startTime": "2026-11-22T10:00:45Z", "metadata": ao, "spend": 0.04, "request_tags": ["caller:auto-ontology"]},
+    ]
+    monkeypatch.setattr(ak, "spend_logs", lambda *a, **k: logs)
+
+    class FakeLf:
+        def generations(self, since, until):
+            return []
+
+    ak.link_calls([a1, a2], {"LITELLM_MASTER_SECRET": "x"}, FakeLf())
+    assert (a1.link_method, a1.calls["call_count"], a1.calls["cost_usd"]) == ("request_id", 2, 0.03)
+    assert (a2.link_method, a2.calls["call_count"], a2.calls["cost_usd"]) == ("caller_key+time_window", 1, 0.04)
