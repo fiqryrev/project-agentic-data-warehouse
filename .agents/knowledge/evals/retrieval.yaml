@@ -25,3 +25,4 @@ cases:
   - {query: "langfuse ingestion rejects trace-create event type not accepted", expect: de-0006}
   - {query: "how do I write a trace to langfuse from our code", expect: de-0006}
   - {query: "langfuse scores endpoint answers 404", expect: de-0006}
+  - {query: "openrouter alias still reasons with thinking off", expect: de-0007}
