@@ -246,6 +246,30 @@
       "status": "active",
       "last_verified": "2026-11-22",
       "file": ".agents/knowledge/entries/de/de-0007-openrouter-reasoning-off.md"
+    },
+    {
+      "id": "de-0008",
+      "kind": "engineering",
+      "title": "Golden questions go to Auto Ontology as calculation_only",
+      "tags": [
+        "auto-ontology",
+        "refused",
+        "refusal",
+        "retrieve",
+        "information",
+        "calculation_only",
+        "golden",
+        "text-to-sql",
+        "overlay"
+      ],
+      "paths": [
+        "infra/auto-ontology/patches/0002-chat-api-calculation-only.patch",
+        "llm/ask.py",
+        "llm/golden.py"
+      ],
+      "status": "active",
+      "last_verified": "2026-11-22",
+      "file": ".agents/knowledge/entries/de/de-0008-calculation-only.md"
     }
   ]
 }

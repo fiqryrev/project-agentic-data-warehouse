@@ -269,9 +269,10 @@ def report_doc(ds: str, run_id: str, status: str, **extra) -> dict:
 
 
 def ask_and_score(session: ak.Session, env: dict, lf: Langfuse, snapshot: Path, dirs: list[Path],
-                  label: str = "[golden]") -> tuple[str | None, list[Result]]:
+                  label: str = "[golden]", calculation_only: bool = True) -> tuple[str | None, list[Result]]:
     """Ask every golden question the snapshot covers, one at a time, link each answer's calls,
-    and score it against the reference SQL on the same snapshot. Shared with llm/compare.py."""
+    and score it against the reference SQL on the same snapshot. Shared with llm/compare.py.
+    Golden questions are calculations, so they are asked with `calculation_only` (issue 34)."""
     con = connect(snapshot)
     try:
         day = snapshot_day(con)
@@ -281,7 +282,7 @@ def ask_and_score(session: ak.Session, env: dict, lf: Langfuse, snapshot: Path, 
         refs, answers = {}, []
         for q in ready:
             refs[q.id] = run_sql(con, q.reference_sql)
-            a = ak.ask(session, q.question)
+            a = ak.ask(session, q.question, calculation_only)
             answers.append(a)
             print(f"{label} {q.id}: {int((a.finished - a.started).total_seconds())}s"
                   + (f", error {a.error}" if a.error else ""))

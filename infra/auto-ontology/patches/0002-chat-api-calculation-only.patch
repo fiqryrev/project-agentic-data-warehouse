@@ -1,0 +1,69 @@
+diff --git a/auto_ontology/server/chat/helpers.py b/auto_ontology/server/chat/helpers.py
+index 88ecd88d..12b2b2ab 100644
+--- a/auto_ontology/server/chat/helpers.py
++++ b/auto_ontology/server/chat/helpers.py
+@@ -55,6 +55,16 @@ class ChatRequest(BaseModel):
+     # False -> exclude prediction; classify as information or calculation
+     # None  -> classify among all intents (default)
+     prediction: bool | None = None
++    # Answer with SQL only: the text-to-SQL agent is not offered the catalog
++    # ("information") view, so every table it retrieves is in view for run_sql.
++    # For callers whose questions are calculations (an evaluation harness).
++    calculation_only: bool | None = Field(
++        default=None,
++        description=(
++            "When true, the question is answered with SQL only; the agent does not "
++            "answer from the catalog."
++        ),
++    )
+     # Scope retrieval/SQL to one connected database. When omitted (and more
+     # than one connector is loaded), the pipeline does not pin a database.
+     target_db: str | None = Field(
+diff --git a/auto_ontology/server/chat/router.py b/auto_ontology/server/chat/router.py
+index 0fd1b24e..da0672b4 100644
+--- a/auto_ontology/server/chat/router.py
++++ b/auto_ontology/server/chat/router.py
+@@ -662,6 +662,7 @@ async def chat_completions(
+         subject_token=subject_token,
+         conversation_history=conversation_history,
+         evidence=request.evidence,
++        calculation_only=bool(request.calculation_only),
+     )
+     threading.Thread(target=_pump, args=(slot,), daemon=True).start()
+     asyncio.create_task(_watch_disconnect(http_request, slot))
+diff --git a/auto_ontology/server/chat/worker.py b/auto_ontology/server/chat/worker.py
+index 2dcb1198..3fb56bf4 100644
+--- a/auto_ontology/server/chat/worker.py
++++ b/auto_ontology/server/chat/worker.py
+@@ -141,6 +141,7 @@ def _worker_loop(
+             subject_token,
+             conversation_history,
+             evidence,
++            calculation_only,
+         ) = payload
+         try:
+             # Connections are resolved once at worker init. If that
+@@ -188,6 +189,7 @@ def _worker_loop(
+                 "evidence": evidence or "",
+                 "processing_question": processing_question,
+                 "prediction": prediction,
++                "calculation_only": calculation_only,
+                 "data_retriever": data_retriever,
+                 "semantic_retriever": semantic_retriever,
+                 "connectors": ask_connectors,
+@@ -246,6 +248,7 @@ class PrewarmedWorker:
+         subject_token: str | None = None,
+         conversation_history: list[dict[str, str | None]] | None = None,
+         evidence: str | None = None,
++        calculation_only: bool = False,
+     ) -> None:
+         """Ask *question*, optionally forcing the prediction/SQL branch.
+ 
+@@ -268,6 +271,7 @@ class PrewarmedWorker:
+                     subject_token,
+                     conversation_history or [],
+                     evidence,
++                    calculation_only,
+                 ),
+             )
+         )
