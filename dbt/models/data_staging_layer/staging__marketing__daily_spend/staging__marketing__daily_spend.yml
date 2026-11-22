@@ -1,0 +1,23 @@
+version: 2
+models:
+- name: staging__marketing__daily_spend
+  description: '{{ doc("staging__marketing__daily_spend") }}'
+  columns:
+  - name: spend_date
+    description: Day of the spend.
+  - name: campaign_id
+    description: 'Campaign id: <yyyymm> * 10 + n.'
+  - name: spend_idr
+    description: Spend that day in rupiah.
+  - name: impression_count
+    description: Ad impressions that day.
+  - name: click_count
+    description: Ad clicks that day.
+  - name: _dt
+    description: Lake partition date the row arrived in.
+  data_tests:
+  - unique_combination:
+      arguments:
+        columns:
+        - spend_date
+        - campaign_id

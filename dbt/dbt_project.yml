@@ -11,12 +11,12 @@ models:
     +persist_docs:
       relation: true
       columns: true
-    staging:
+    data_staging_layer:
       +schema: staging
       +materialized: view
-    warehouse:
+    data_warehouse_layer:
       +schema: warehouse
       +materialized: table
-    mart:
+    data_mart_layer:
       +schema: mart
       +materialized: table

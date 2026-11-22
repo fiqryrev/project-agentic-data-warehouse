@@ -1,0 +1,31 @@
+version: 2
+models:
+- name: staging__shop__customers
+  description: '{{ doc("staging__shop__customers") }}'
+  columns:
+  - name: customer_id
+    description: Shop customer id; the ledger writes it as cust_ref C-0001234.
+    data_tests:
+    - not_null
+  - name: full_name
+    description: Customer name (fictional).
+  - name: email_address
+    description: Customer email (fictional, example.com).
+  - name: city_name
+    description: City, in title case.
+    data_tests:
+    - not_null
+  - name: province_name
+    description: Province of the city.
+  - name: created_at
+    description: When the record was created in the source (UTC).
+  - name: updated_at
+    description: When the source wrote this version of the record (UTC).
+  - name: _dt
+    description: Lake partition date the row arrived in.
+  data_tests:
+  - unique_combination:
+      arguments:
+        columns:
+        - customer_id
+        - updated_at

@@ -1,0 +1,31 @@
+version: 2
+models:
+- name: staging__shop__shipments
+  description: '{{ doc("staging__shop__shipments") }}'
+  columns:
+  - name: shipment_id
+    description: Shipment id (equals the order id).
+  - name: order_id
+    description: 'Shop order id: <day index of creation> * 100000 + n; the ledger writes ORD-<id>.'
+  - name: courier_name
+    description: Courier.
+  - name: shipment_status
+    description: 'Shipment status: in_transit or delivered.'
+    data_tests:
+    - accepted_values:
+        arguments:
+          values:
+          - in_transit
+          - delivered
+  - name: shipped_at
+    description: When the parcel was handed to the courier (UTC).
+  - name: delivered_at
+    description: When the parcel was delivered (UTC); null until then.
+  - name: _dt
+    description: Lake partition date the row arrived in.
+  data_tests:
+  - unique_combination:
+      arguments:
+        columns:
+        - shipment_id
+        - shipment_status

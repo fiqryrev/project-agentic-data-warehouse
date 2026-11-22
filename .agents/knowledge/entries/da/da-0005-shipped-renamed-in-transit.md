@@ -2,14 +2,14 @@
 id: da-0005
 title: Status shipped renamed in_transit from 2026-06-01
 tags: [shop, orders, shipments, status, rename, defect, data-quality]
-paths: [generator/DEFECTS.md, dbt/models/staging/shop/staging__shop__orders.sql, dbt/models/staging/shop/staging__shop__shipments.sql]
+paths: [generator/DEFECTS.md, dbt/models/data_staging_layer/staging__shop__orders/staging__shop__orders.sql, dbt/models/data_staging_layer/staging__shop__shipments/staging__shop__shipments.sql]
 status: active
 created: 2026-11-22
 last_verified: 2026-11-22
 evidence:
   - generator/DEFECTS.md::| Renamed status |
-  - dbt/models/staging/shop/staging__shop__orders.sql::when order_status = 'shipped' then 'in_transit'
-  - dbt/models/staging/shop/staging__shop__shipments.sql::when shipment_status = 'shipped' then 'in_transit'
+  - dbt/models/data_staging_layer/staging__shop__orders/staging__shop__orders.sql::when order_status = 'shipped' then 'in_transit'
+  - dbt/models/data_staging_layer/staging__shop__shipments/staging__shop__shipments.sql::when shipment_status = 'shipped' then 'in_transit'
 supersedes: []
 ---
 

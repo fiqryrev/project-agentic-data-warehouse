@@ -2,13 +2,13 @@
 id: da-0003
 title: Late order rows land in a later partition
 tags: [shop, orders, late-rows, partition, defect, data-quality]
-paths: [generator/DEFECTS.md, dbt/models/warehouse/sales/fact__sales__orders.sql]
+paths: [generator/DEFECTS.md, dbt/models/data_warehouse_layer/fact__sales__orders/fact__sales__orders.sql]
 status: active
 created: 2026-11-22
 last_verified: 2026-11-22
 evidence:
   - generator/DEFECTS.md::| Late rows |
-  - dbt/models/warehouse/sales/fact__sales__orders.sql::a late row never wins
+  - dbt/models/data_warehouse_layer/fact__sales__orders/fact__sales__orders.sql::a late row never wins
 supersedes: []
 ---
 

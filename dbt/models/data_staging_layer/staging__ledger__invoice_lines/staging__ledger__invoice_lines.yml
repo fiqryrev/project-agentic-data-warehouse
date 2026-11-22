@@ -1,0 +1,23 @@
+version: 2
+models:
+- name: staging__ledger__invoice_lines
+  description: '{{ doc("staging__ledger__invoice_lines") }}'
+  columns:
+  - name: invoice_id
+    description: Ledger invoice id, INV-<order id>.
+  - name: line_number
+    description: Line number on the invoice.
+  - name: product_id
+    description: Shop product id; ids from 9,000,000 are orphan keys with no product.
+  - name: item_quantity
+    description: Units on the line.
+  - name: line_amount_idr
+    description: quantity * unit price, in rupiah.
+  - name: _dt
+    description: Lake partition date the row arrived in.
+  data_tests:
+  - unique_combination:
+      arguments:
+        columns:
+        - invoice_id
+        - line_number

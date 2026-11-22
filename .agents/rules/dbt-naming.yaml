@@ -1,0 +1,38 @@
+# Names the dbt checkers accept (check_naming, check_bundle, check_layers read this file).
+# One line per rule is in dbt.md; the reasons are in history/dbt.md.
+
+# Folder under dbt/models/ -> layer. Inside a layer, one folder per table, named after it.
+layers:
+  data_lake_layer: lake            # source YAML and doc only; the loader builds the tables
+  data_staging_layer: staging
+  data_warehouse_layer: warehouse
+  data_mart_layer: mart
+
+# <domain> in lake and staging names is the source system; in warehouse and mart, the business.
+source_domains: [shop, ledger, marketing, gateway, langfuse]
+business_domains: [sales, finance, marketing, ops]
+
+cadences: [daily, weekly, monthly, quarterly, yearly, snapshot]
+
+# The last word of every staging, warehouse and mart column. Lake columns keep the source's
+# names; staging renames them.
+class_words:
+  identifier: [id, key, code, number]
+  text: [name, address, description]
+  state: [status, type]
+  time: [at, date]
+  money: [idr, pct]
+  measure: [count, quantity]
+
+# A flag starts with one of these instead of ending in a class word.
+flag_prefixes: [is, has]
+
+# The doc block in <table>.md: an opening paragraph, then these H2 sections in this order.
+doc_sections:
+  - Potential Analyses
+  - Grain
+  - Table Lineage
+  - Units and Conventions
+  - Known Caveats
+  - Refresh Cadence
+  - Change History

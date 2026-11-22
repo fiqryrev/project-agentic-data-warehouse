@@ -18,7 +18,7 @@ Tags: dbt, scd2, history, dimensions, backfill, snapshots. Source: `.agents/know
 
 ## Rule
 
-Slowly changing dimensions (`valid_from`, `valid_to`, `is_current`) are computed with window
+Slowly changing dimensions (`valid_from_at`, `valid_to_at`, `is_current`) are computed with window
 functions over every version the lake holds, not with dbt snapshots.
 
 ### Why
@@ -30,8 +30,8 @@ full rebuild reproduces the same history every time.
 ### How to apply
 
 Make the source write a new row on each change (with `updated_at`), keep all of them in staging,
-and derive `valid_from = updated_at`, `valid_to = lead(updated_at)`, `is_current = valid_to is
-null`. Test with `scd2_valid` (no overlap, one current row per key).
+and derive `valid_from_at = updated_at`, `valid_to_at = lead(updated_at)`,
+`is_current = valid_to_at is null`. Test with `scd2_valid` (no overlap, one current row per key).
 
 ### Example
 

@@ -1,0 +1,38 @@
+version: 2
+models:
+- name: dim__sales__customers
+  description: '{{ doc("dim__sales__customers") }}'
+  columns:
+  - name: customer_version_key
+    description: Key of the customer version (one row of dim__sales__customers).
+    data_tests:
+    - unique
+    - not_null
+  - name: customer_id
+    description: Shop customer id; the ledger writes it as cust_ref C-0001234.
+    data_tests:
+    - not_null
+  - name: full_name
+    description: Customer name (fictional).
+  - name: email_address
+    description: Customer email (fictional, example.com).
+  - name: city_name
+    description: City, in title case.
+  - name: province_name
+    description: Province of the city.
+  - name: created_at
+    description: When the record was created in the source (UTC).
+  - name: valid_from_at
+    description: Start of the period this row is valid for.
+  - name: valid_to_at
+    description: End of the period this row is valid for; null while it is current.
+  - name: is_current
+    description: True for the version that is valid now.
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).
+  data_tests:
+  - scd2_valid:
+      arguments:
+        key: customer_id

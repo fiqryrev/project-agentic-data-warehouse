@@ -1,0 +1,50 @@
+version: 2
+models:
+- name: fact__sales__order_items
+  description: '{{ doc("fact__sales__order_items") }}'
+  columns:
+  - name: order_item_id
+    description: 'Order line id: order_id * 10 + line number.'
+    data_tests:
+    - unique
+    - not_null
+  - name: order_id
+    description: 'Shop order id: <day index of creation> * 100000 + n; the ledger writes ORD-<id>.'
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('fact__sales__orders')
+          field: order_id
+        config:
+          severity: warn
+        description: 'Warns, not fails: an order row held back as a late row may not have arrived yet
+          at the edge of the loaded dates.'
+  - name: order_date
+    description: Day the order was created.
+  - name: product_id
+    description: Shop product id; ids from 9,000,000 are orphan keys with no product.
+  - name: product_version_key
+    description: Key of the product version valid on the order day; null for orphan product keys.
+    data_tests:
+    - not_null:
+        config:
+          severity: warn
+  - name: customer_id
+    description: Shop customer id; the ledger writes it as cust_ref C-0001234.
+  - name: customer_version_key
+    description: Key of the customer version (one row of dim__sales__customers).
+    data_tests:
+    - not_null:
+        config:
+          severity: warn
+        description: 'Warns: null while the order row is still a late row in transit.'
+  - name: item_quantity
+    description: Units on the line.
+  - name: unit_price_idr
+    description: Price per unit on the order day, in rupiah.
+  - name: line_amount_idr
+    description: Line amount (quantity * unit price), before voucher and shipping, in rupiah.
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).

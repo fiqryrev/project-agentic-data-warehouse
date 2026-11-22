@@ -1,0 +1,38 @@
+version: 2
+models:
+- name: fact__sales__orders
+  description: '{{ doc("fact__sales__orders") }}'
+  columns:
+  - name: order_id
+    description: 'Shop order id: <day index of creation> * 100000 + n; the ledger writes ORD-<id>.'
+    data_tests:
+    - unique
+    - not_null
+  - name: customer_id
+    description: Shop customer id; the ledger writes it as cust_ref C-0001234.
+  - name: order_status
+    description: 'Order status: placed, paid, in_transit, delivered or cancelled (shipped before 2026-06-01
+      is renamed in_transit).'
+    data_tests:
+    - accepted_values:
+        arguments:
+          values:
+          - placed
+          - paid
+          - in_transit
+          - delivered
+          - cancelled
+  - name: voucher_code
+    description: Voucher code used on the order, if any.
+  - name: shipping_fee_idr
+    description: Shipping fee charged to the customer, in rupiah.
+  - name: created_at
+    description: When the record was created in the source (UTC).
+  - name: order_date
+    description: Day the order was created.
+  - name: updated_at
+    description: When the source wrote this version of the record (UTC).
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).

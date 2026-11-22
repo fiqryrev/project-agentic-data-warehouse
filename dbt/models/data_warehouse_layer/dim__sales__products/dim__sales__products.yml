@@ -1,0 +1,47 @@
+version: 2
+models:
+- name: dim__sales__products
+  description: '{{ doc("dim__sales__products") }}'
+  columns:
+  - name: product_version_key
+    description: Key of the product version valid on the order day; null for orphan product keys.
+    data_tests:
+    - unique
+    - not_null
+  - name: product_id
+    description: Shop product id; ids from 9,000,000 are orphan keys with no product.
+  - name: product_name
+    description: Product name.
+  - name: seller_id
+    description: Shop seller id; the ledger writes it as seller_ref S-00007.
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('dim__sales__sellers')
+          field: seller_id
+  - name: category_id
+    description: Shop category id.
+  - name: category_name
+    description: Category name (Indonesian).
+    data_tests:
+    - not_null
+  - name: parent_name
+    description: Top-level category group.
+  - name: price_idr
+    description: List price in rupiah, PPN included.
+  - name: created_at
+    description: When the record was created in the source (UTC).
+  - name: valid_from_at
+    description: Start of the period this row is valid for.
+  - name: valid_to_at
+    description: End of the period this row is valid for; null while it is current.
+  - name: is_current
+    description: True for the version that is valid now.
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).
+  data_tests:
+  - scd2_valid:
+      arguments:
+        key: product_id

@@ -15,7 +15,7 @@
       "paths": [
         "generator/DEFECTS.md",
         "generator/model.py",
-        "dbt/models/staging/shop/staging__shop__customers.sql"
+        "dbt/models/data_staging_layer/staging__shop__customers/staging__shop__customers.sql"
       ],
       "status": "active",
       "last_verified": "2026-11-22",
@@ -34,7 +34,7 @@
       ],
       "paths": [
         "generator/DEFECTS.md",
-        "dbt/models/staging/shop/staging__shop__orders.sql"
+        "dbt/models/data_staging_layer/staging__shop__orders/staging__shop__orders.sql"
       ],
       "status": "active",
       "last_verified": "2026-11-22",
@@ -54,7 +54,7 @@
       ],
       "paths": [
         "generator/DEFECTS.md",
-        "dbt/models/warehouse/sales/fact__sales__orders.sql"
+        "dbt/models/data_warehouse_layer/fact__sales__orders/fact__sales__orders.sql"
       ],
       "status": "active",
       "last_verified": "2026-11-22",
@@ -75,7 +75,7 @@
       ],
       "paths": [
         "generator/DEFECTS.md",
-        "dbt/models/staging/shop/_staging__shop.yml"
+        "dbt/models/data_staging_layer/staging__shop__order_items/staging__shop__order_items.yml"
       ],
       "status": "active",
       "last_verified": "2026-11-22",
@@ -96,8 +96,8 @@
       ],
       "paths": [
         "generator/DEFECTS.md",
-        "dbt/models/staging/shop/staging__shop__orders.sql",
-        "dbt/models/staging/shop/staging__shop__shipments.sql"
+        "dbt/models/data_staging_layer/staging__shop__orders/staging__shop__orders.sql",
+        "dbt/models/data_staging_layer/staging__shop__shipments/staging__shop__shipments.sql"
       ],
       "status": "active",
       "last_verified": "2026-11-22",
@@ -116,8 +116,8 @@
         "snapshots"
       ],
       "paths": [
-        "dbt/models/warehouse/sales/dim__sales__customers.sql",
-        "dbt/models/warehouse/sales/dim__sales__products.sql"
+        "dbt/models/data_warehouse_layer/dim__sales__customers/dim__sales__customers.sql",
+        "dbt/models/data_warehouse_layer/dim__sales__products/dim__sales__products.sql"
       ],
       "status": "active",
       "last_verified": "2026-11-22",
