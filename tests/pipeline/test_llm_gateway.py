@@ -129,3 +129,13 @@ def test_budget_refusal_is_recognised_and_hides_the_key():
     assert not smoke.is_budget_refusal(500, {"error": {"type": "server"}})
     assert smoke.budget_numbers(body) == "Current cost: 2e-05, Max budget: 1e-06"
     assert "sk-" not in smoke.budget_numbers(body)
+
+
+def test_profile_teardown_keeps_the_shared_network():
+    """`down` with one profile would try to remove the network the other profile still uses."""
+    make = (REPO / "Makefile").read_text(encoding="utf-8")
+    for target in ("down-core", "down-obs"):
+        recipe = make.split(f"\n{target}:\n", 1)[1].split("\n\n", 1)[0]
+        assert "rm --stop --force" in recipe and " down" not in recipe, target
+    down = make.split("\ndown:\n", 1)[1].split("\n\n", 1)[0]
+    assert "--profile core --profile obs down" in down

@@ -6,7 +6,7 @@ LANDING ?= data/landing
 # Manual loads and dbt-build use the development file; only Airflow writes data/build/ (AGENTS.md, Data access).
 DB    ?= data/dev/dwh.duckdb
 
-.PHONY: test checks generate load dbt-build dbt-ci env-secrets up-core down-core backfill run-log up-obs down-obs llm-smoke
+.PHONY: test checks generate load dbt-build dbt-ci env-secrets up-core down-core backfill run-log up-obs down-obs llm-smoke down
 
 test:
 	uv run pytest -q
@@ -52,8 +52,14 @@ env-secrets:
 up-core: env-secrets
 	GIT_SHA=$$(git rev-parse HEAD) $(COMPOSE) up -d --build --wait
 
+# down-<profile> removes only that profile's containers: the shared network "wh" stays for the
+# other profile (compose `down` would try to remove it while still in use). Named volumes stay.
 down-core:
-	$(COMPOSE) down
+	$(COMPOSE) rm --stop --force
+
+# Every profile down, then the network.
+down:
+	docker compose -f infra/compose.yml --env-file .env --profile core --profile obs down
 
 # Backfill FROM..TO through the scheduler (one day at a time, oldest first) and wait for it.
 backfill:
@@ -69,7 +75,7 @@ up-obs: env-secrets
 	uv run python infra/llm-gateway/bootstrap.py keys
 
 down-obs:
-	$(OBS) down
+	$(OBS) rm --stop --force
 
 # One tagged call that must reach Langfuse with tokens and cost; one caller refused over budget.
 llm-smoke:

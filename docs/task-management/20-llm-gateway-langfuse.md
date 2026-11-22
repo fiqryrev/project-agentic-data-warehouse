@@ -53,6 +53,12 @@ Approved in chat on 2026-11-22, including a few cheap real model calls on the ow
   the master key. The route stays `auth: true` (master key only) and M9 decides how Auto Ontology
   reaches rerank without the master key. PLAN section 8.1 notes it.
 
+- **Profile teardown keeps the shared network** (review on #21): `make down-core` and
+  `make down-obs` run `rm --stop --force` on their profile's containers; compose `down` with one
+  profile also tries to remove the shared network `wh` and reports "Resource is still in use"
+  while the other profile runs (reproduced with both profiles up). `make down` stops both
+  profiles and removes the network. Named volumes stay in every case.
+
 ## Done
 
 - `make up-obs` on fresh volumes: all seven containers healthy; Langfuse org, project, keys and
@@ -70,7 +76,9 @@ Approved in chat on 2026-11-22, including a few cheap real model calls on the ow
   between $0.000002 and $0.00005, from `x-litellm-response-cost`).
 - Memory with obs up (`docker stats`): about 4.9 GiB (ClickHouse 2.09, LiteLLM 1.04, langfuse-web
   0.90, langfuse-worker 0.58, MinIO 0.22, Postgres 0.04, Redis 0.01), more than M0's 3.2 GiB.
-- `uv run pytest -q` -> 271 passed (13 new in `tests/pipeline/test_llm_gateway.py`); `make checks`
+- Teardown with core and obs up: `make down-obs` left the four core containers running with no
+  network error; `make down-core` left the network; `make down` removed it.
+- `uv run pytest -q` -> 272 passed (14 new in `tests/pipeline/test_llm_gateway.py`); `make checks`
   -> all eleven OK, `check_gateway_only` included.
 
 ## Open
