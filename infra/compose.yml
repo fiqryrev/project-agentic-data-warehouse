@@ -14,7 +14,7 @@ x-airflow: &airflow
       condition: service_healthy
   environment:
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db/airflow
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_DB_SECRET:?run make up-core, which writes it to .env}@airflow-db/airflow
     AIRFLOW__CORE__DAGS_FOLDER: /opt/wh/airflow/dags
     AIRFLOW__CORE__LOAD_EXAMPLES: "false"
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow   # metadata only, reachable only on the wh network
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_SECRET:?run make up-core, which writes it to .env}
       POSTGRES_DB: airflow
     volumes:
       - airflow-db:/var/lib/postgresql/data

@@ -67,6 +67,15 @@ def test_compose_binds_ports_to_localhost_and_pins_images():
     assert "airflow/Dockerfile" in doc["services"]["airflow-scheduler"]["build"]["dockerfile"]
 
 
+def test_compose_takes_every_password_from_env():
+    text = (REPO / "infra" / "compose.yml").read_text(encoding="utf-8")
+    doc = yaml.safe_load(text)
+    assert doc["services"]["airflow-db"]["environment"]["POSTGRES_PASSWORD"].startswith("${AIRFLOW_DB_SECRET")
+    assert "airflow:${AIRFLOW_DB_SECRET" in text and "airflow:airflow@" not in text
+    example = (REPO / ".env.example").read_text(encoding="utf-8")
+    assert "AIRFLOW_DB_SECRET=\n" in example and "AIRFLOW_JWT_SECRET=\n" in example
+
+
 def test_dockerfile_pins_airflow_and_uv():
     text = (REPO / "airflow" / "Dockerfile").read_text(encoding="utf-8")
     assert "FROM apache/airflow:3.3.2-python3.12" in text
