@@ -241,7 +241,7 @@ def answer_spans(a: Answer, *, session_id: str | None, tags: list[str], snapshot
                      "forward a request id, and web UI questions in the same window count too")}
     output = {"answer": a.text, "sql": a.sql, "rows": (a.rows or [])[:MAX_ROWS_KEPT],
               "row_count": None if a.rows is None else len(a.rows), "error": a.error}
-    meta = {"snapshot_hash": snapshot, "conversation_id": a.conversation_id,
+    meta = {"snapshot_hash": snapshot, "conversation_id": a.conversation_id, "finished_at": iso(a.finished),
             "cost_usd": a.calls.get("cost_usd"), "call_count": a.calls.get("call_count"),
             "linked_calls": link, "answer_keys": a.raw_keys, **(extra or {})}
     root = Span(a.trace_id, "ask", a.started, a.finished,

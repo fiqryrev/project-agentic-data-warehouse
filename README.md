@@ -2,7 +2,8 @@
 
 A local data warehouse (DuckDB, dbt, Airflow) feeding NVIDIA Auto Ontology, with a LiteLLM
 gateway and Langfuse traces. The design is in [PLAN.md](PLAN.md); agents start at
-[AGENTS.md](AGENTS.md).
+[AGENTS.md](AGENTS.md). To run it from a fresh clone, follow
+[docs/runbook.md](docs/runbook.md).
 
 ```bash
 uv sync

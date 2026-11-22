@@ -22,7 +22,8 @@ ALIASES = {m["model_name"] for m in CONFIG["model_list"]}
 
 
 def test_aliases_are_the_ones_auto_ontology_and_m12_use():
-    assert ALIASES == {"openai/adw-reasoning", "openai/adw-non-reasoning", "openai/adw-or-chat", "adw-embed"}
+    assert ALIASES == {"openai/adw-reasoning", "openai/adw-non-reasoning", "openai/adw-or-chat",
+                       "openai/adw-or-non-reasoning", "adw-embed"}
     embed = [m for m in CONFIG["model_list"] if m["model_name"] == "adw-embed"][0]
     assert embed["litellm_params"]["model"] == "nvidia_nim/nvidia/nemotron-3-embed-1b"
 

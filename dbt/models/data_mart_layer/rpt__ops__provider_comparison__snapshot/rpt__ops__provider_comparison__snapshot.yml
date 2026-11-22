@@ -1,0 +1,49 @@
+version: 2
+models:
+- name: rpt__ops__provider_comparison__snapshot
+  description: '{{ doc("rpt__ops__provider_comparison__snapshot") }}'
+  columns:
+  - name: comparison_run_code
+    description: Comparison run (`compare-<UTC minute>`).
+  - name: candidate_name
+    description: Candidate provider (nvidia, openrouter).
+  - name: reasoning_model_name
+    description: Gateway alias of Auto Ontology's reasoning role in the run.
+  - name: non_reasoning_model_name
+    description: Gateway alias of Auto Ontology's non-reasoning role in the run.
+  - name: provider_name
+    description: Provider the candidate's chat calls went to (LiteLLM); null when no call matched.
+  - name: model_name
+    description: Provider model of the candidate's chat calls.
+  - name: run_started_at
+    description: First question of the candidate's run (UTC).
+  - name: question_count
+    description: Golden questions asked.
+  - name: exact_match_count
+    description: Answers scored exact_match.
+  - name: within_tolerance_count
+    description: Answers scored within_tolerance.
+  - name: wrong_count
+    description: Answers scored wrong.
+  - name: refused_count
+    description: Answers scored refused.
+  - name: accuracy_pct
+    description: Exact or within tolerance over questions asked, percent.
+  - name: linked_cost_usd
+    description: Cost of the model calls linked to the answers, US dollars at list price.
+  - name: cost_per_correct_usd
+    description: Linked cost divided by correct answers, US dollars; null without a correct answer.
+  - name: linked_call_count
+    description: Model calls linked to the answers.
+  - name: p95_latency_ms
+    description: 95th percentile duration of the candidate's chat calls in the run's window, milliseconds.
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).
+  data_tests:
+  - unique_combination:
+      arguments:
+        columns:
+        - comparison_run_code
+        - candidate_name

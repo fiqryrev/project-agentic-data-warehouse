@@ -268,6 +268,45 @@ def report_doc(ds: str, run_id: str, status: str, **extra) -> dict:
             "finished_at": ak.iso(dtm.datetime.now(dtm.UTC)), **extra}
 
 
+def ask_and_score(session: ak.Session, env: dict, lf: Langfuse, snapshot: Path, dirs: list[Path],
+                  label: str = "[golden]") -> tuple[str | None, list[Result]]:
+    """Ask every golden question the snapshot covers, one at a time, link each answer's calls,
+    and score it against the reference SQL on the same snapshot. Shared with llm/compare.py."""
+    con = connect(snapshot)
+    try:
+        day = snapshot_day(con)
+        questions = load_questions(*dirs)
+        ready = [q for q in questions if not q.needs_day or (day and q.needs_day <= day)]
+        print(f"{label}: snapshot ends {day}; {len(ready)} of {len(questions)} question(s) asked")
+        refs, answers = {}, []
+        for q in ready:
+            refs[q.id] = run_sql(con, q.reference_sql)
+            a = ak.ask(session, q.question)
+            answers.append(a)
+            print(f"{label} {q.id}: {int((a.finished - a.started).total_seconds())}s"
+                  + (f", error {a.error}" if a.error else ""))
+        time.sleep(ak.INGEST_WAIT_S)
+        ak.link_calls(answers, env, lf)
+        results = []
+        for q, a in zip(ready, answers):
+            cols, rows = refs[q.id]
+            verdict, reason = score_answer(q, cols, rows, a.rows)
+            if a.error:
+                verdict, reason = "refused", f"chat error: {a.error}"
+            consistent, creason = sql_consistent(con, a.sql, a.rows)
+            results.append(Result(q, a, verdict, reason, consistent, creason, [list(r) for r in rows]))
+    finally:
+        con.close()
+    return day, results
+
+
+def answer_extra(r: Result) -> dict:
+    """Golden fields every answer trace of a scored question carries."""
+    return {"golden_id": r.q.id, "reference_sql": r.q.reference_sql, "expected_rows": r.expected,
+            "golden_verdict": r.verdict, "verdict_reason": r.reason,
+            "sql_consistent": r.consistent, "consistency_reason": r.consistency_reason}
+
+
 def run(ds: str, run_id: str, dirs: list[Path], snapshot: Path, artifacts: Path) -> int:
     out = day_dir(ds, artifacts) / "golden.json"
     env = read_env()
@@ -282,31 +321,7 @@ def run(ds: str, run_id: str, dirs: list[Path], snapshot: Path, artifacts: Path)
     queue_id = lf.queue_id()
     ak.wait_for_compile(session)
 
-    con = connect(snapshot)
-    try:
-        day = snapshot_day(con)
-        questions = load_questions(*dirs)
-        ready = [q for q in questions if not q.needs_day or (day and q.needs_day <= day)]
-        print(f"[golden] {ds}: snapshot ends {day}; {len(ready)} of {len(questions)} question(s) asked")
-        refs, answers = {}, []
-        for q in ready:
-            refs[q.id] = run_sql(con, q.reference_sql)
-            a = ak.ask(session, q.question)
-            answers.append(a)
-            print(f"[golden] {q.id}: {int((a.finished - a.started).total_seconds())}s"
-                  + (f", error {a.error}" if a.error else ""))
-        time.sleep(ak.INGEST_WAIT_S)
-        ak.link_calls(answers, env, lf)
-        results = []
-        for q, a in zip(ready, answers):
-            cols, rows = refs[q.id]
-            verdict, reason = score_answer(q, cols, rows, a.rows)
-            if a.error:
-                verdict, reason = "refused", f"chat error: {a.error}"
-            consistent, creason = sql_consistent(con, a.sql, a.rows)
-            results.append(Result(q, a, verdict, reason, consistent, creason, [list(r) for r in rows]))
-    finally:
-        con.close()
+    day, results = ask_and_score(session, env, lf, snapshot, dirs, label=f"[golden] {ds}")
 
     session_id = f"golden:{ds}:{run_id}"
     snap = ak.snapshot_hash(snapshot)
@@ -315,10 +330,7 @@ def run(ds: str, run_id: str, dirs: list[Path], snapshot: Path, artifacts: Path)
         spans += ak.answer_spans(
             r.answer, session_id=session_id, snapshot=snap,
             tags=["job:golden", "caller:golden-runner", f"golden:{r.q.id}", f"verdict:{r.verdict}"],
-            extra={"golden_id": r.q.id, "reference_sql": r.q.reference_sql, "expected_rows": r.expected,
-                   "golden_verdict": r.verdict, "verdict_reason": r.reason,
-                   "sql_consistent": r.consistent, "consistency_reason": r.consistency_reason,
-                   "ds": ds, "run_id": run_id})
+            extra={**answer_extra(r), "ds": ds, "run_id": run_id})
         scores += score_events(r, configs)
     summary = summarise(results)
     now = dtm.datetime.now(dtm.UTC)

@@ -64,6 +64,8 @@ TABLES: dict[str, pa.Schema] = {
         ("row_count", pa.int64()), ("error", pa.string()), ("snapshot_hash", pa.string()),
         ("golden_id", pa.string()), ("golden_verdict", pa.string()), ("sql_consistent", pa.bool_()),
         ("linked_cost_usd", pa.float64()), ("linked_call_count", pa.int64()), ("link_method", pa.string()),
+        ("finished_at", TS), ("comparison_run", pa.string()), ("candidate", pa.string()),
+        ("reasoning_model", pa.string()), ("non_reasoning_model", pa.string()),
     ]),
     "airflow.run_log": pa.schema([
         ("run_date", pa.date32()), ("dag_run_id", pa.string()), ("git_commit_id", pa.string()),
@@ -152,6 +154,9 @@ def answer_row(t: dict) -> dict:
         "linked_cost_usd": _float(link.get("cost_usd", meta.get("cost_usd"))),
         "linked_call_count": _int(link.get("call_count", meta.get("call_count"))),
         "link_method": link.get("method"),
+        "finished_at": _naive(meta.get("finished_at") or link.get("window_end")),
+        "comparison_run": meta.get("comparison_run"), "candidate": meta.get("candidate"),
+        "reasoning_model": meta.get("reasoning_model"), "non_reasoning_model": meta.get("non_reasoning_model"),
     }
 
 

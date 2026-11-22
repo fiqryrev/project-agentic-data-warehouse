@@ -26,6 +26,14 @@ model_list:
     litellm_params:
       model: openrouter/nvidia/nemotron-3.5-lightning
       api_key: os.environ/OPENROUTER_API_KEY
+  - model_name: openai/adw-or-non-reasoning # OpenRouter, thinking off (the pair of adw-or-chat, M12)
+    litellm_params:
+      model: openrouter/nvidia/nemotron-3.5-lightning
+      api_key: os.environ/OPENROUTER_API_KEY
+      # OpenRouter ignores chat_template_kwargs (148 reasoning tokens with it); its own switch:
+      extra_body:
+        reasoning:
+          enabled: false
   - model_name: adw-embed                   # 2048 dimensions, matches Auto Ontology's vector(2048)
     litellm_params:
       model: nvidia_nim/nvidia/nemotron-3-embed-1b
