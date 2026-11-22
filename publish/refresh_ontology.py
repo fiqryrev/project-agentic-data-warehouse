@@ -7,7 +7,8 @@ Both Auto Ontology services keep the old serving file open until they restart (M
    compile pass (compile is enabled by the ao-seed service). The pass is incremental: tables
    already compiled are not compiled again (M0). Wait until `/semantic/status` reports a success
    newer than the restart.
-3. Write data/artifacts/<ds>/refresh.json.
+3. Write data/artifacts/<ds>/refresh.json in every outcome (passed, failed, skipped), so the run
+   recorder never has to guess what a missing report means.
 
 Exit 99 (Airflow marks the task skipped) when the ontology profile is not running, so the core
 profile alone still runs and backfills days (M7).
@@ -68,14 +69,20 @@ def compile_done(status: dict, since: dtm.datetime) -> tuple[bool, str | None]:
 
 def refresh(ds: str, run_id: str, artifacts: Path = ARTIFACTS, timeout_s: int = 3600,
             poll_s: int = 15) -> int:
+    report = day_dir(ds, artifacts) / "refresh.json"
     if request("GET", f"{PROXY}/_ping", timeout=5)[0] != 200:
+        write_json(report, {"ds": ds, "run_id": run_id, "status": "skipped",
+                            "error": None, "reason": "the ontology profile is not running"})
         print("[refresh_ontology] the ontology profile is not running (no docker proxy); skipped")
         return SKIP
     since = dtm.datetime.now(dtm.UTC)
     for name in CONTAINERS:
         code, _ = request("POST", f"{PROXY}/{API}/containers/{name}/restart?t=20", timeout=120)
         if code != 204:
-            print(f"[refresh_ontology] restart {name} failed: HTTP {code}")
+            error = f"restart {name} failed: HTTP {code}"
+            write_json(report, {"ds": ds, "run_id": run_id, "restarted_at": since.isoformat(),
+                                "status": "failed", "error": error})
+            print(f"[refresh_ontology] {error}")
             return 1
         print(f"[refresh_ontology] restarted {name}")
     deadline = time.monotonic() + timeout_s
@@ -90,7 +97,7 @@ def refresh(ds: str, run_id: str, artifacts: Path = ARTIFACTS, timeout_s: int = 
             error = err
             break
     took = (dtm.datetime.now(dtm.UTC) - since).total_seconds()
-    write_json(day_dir(ds, artifacts) / "refresh.json",
+    write_json(report,
                {"ds": ds, "run_id": run_id, "restarted_at": since.isoformat(), "seconds": round(took),
                 "status": "failed" if error else "passed", "error": error, "semantic_status": status})
     if error:

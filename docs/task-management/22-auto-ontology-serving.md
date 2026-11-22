@@ -69,6 +69,13 @@ Approved in chat on 2026-11-22, including the unauthenticated rerank route and r
   your request" once a compile's traces are in the project. The gateway's `/spend/logs` with a
   date range sums per key unless `summarize=false`.
 
+- **Review on #23, two fixes.** (1) `refresh_ontology` now writes `refresh.json` in every outcome,
+  `skipped` included; before, a failed restart returned without a report and the recorder read the
+  missing file as a skip, so a passed gate could stay `passed`. The recorder now marks a missing
+  report after a published snapshot as `failed`. (2) Snapshot retention never deletes the file
+  just written and hashes it before pruning; before, republishing a day older than the seven kept
+  deleted its own copy and failed after replacing `analytics.duckdb`.
+
 ## Done
 
 - `make up-obs`, `make up-ontology`: all containers healthy; the first ingest read 16 tables, 145
@@ -91,7 +98,8 @@ Approved in chat on 2026-11-22, including the unauthenticated rerank route and r
 - Spend: the `auto-ontology` key reads $0.056 after the first compile, the refresh and four
   questions. The first compile partly ran before the NVIDIA price was set, so that is a lower bound.
 - Memory with core, obs and ontology up (`docker stats`): 5.20 GiB in all.
-- `uv run pytest -q` -> 292 passed (`tests/pipeline/test_ontology.py` new, snapshot and refresh
+- After the review fixes: 2026-01-09 through Airflow -> `passed`, `refresh.json` `passed` in 106s.
+- `uv run pytest -q` -> 297 passed (review fixes add 5); earlier 292 passed (`tests/pipeline/test_ontology.py` new, snapshot and refresh
   tests added); `make checks` -> all eleven OK.
 
 ## Open

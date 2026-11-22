@@ -106,12 +106,17 @@ def publish(db, art, run_id="run-1"):
     return snapshot.publish(db, DS, run_id, serve=art.parent / "serve", artifacts=art)
 
 
+def skipped_refresh(art, run_id="run-1"):
+    (art / DS / "refresh.json").write_text(json.dumps({"run_id": run_id, "status": "skipped"}))
+
+
 def test_record_writes_one_row_per_day_and_replaces_it(build, monkeypatch):
     db, art = build
     monkeypatch.setenv("GIT_SHA", "abc123")
     write_results(art, results("pass", "warn"))
     gate(db, art, "run-1")
     publish(db, art)
+    skipped_refresh(art)
     assert run_recorder.main(["--ds", DS, "--db", str(db), "--run-id", "run-1", "--artifacts", str(art)]) == 0
     assert run_recorder.main(["--ds", DS, "--db", str(db), "--run-id", "run-1", "--artifacts", str(art)]) == 0
     assert run_log(db) == [(DS, "passed", "inv-1", 1, 1, 1, 1, "abc123")]
@@ -148,6 +153,7 @@ def test_record_keeps_snapshot_hash_and_refresh_status(build):
     write_results(art, results("pass"))
     gate(db, art, "run-1")
     doc = publish(db, art)
+    (art / DS / "refresh.json").write_text(json.dumps({"run_id": "run-1", "status": "skipped"}))
     row = run_recorder.record(db, DS, "run-1", art)
     assert row["run_status"] == "passed" and row["ontology_refresh_status"] == "skipped"
     assert row["snapshot_hash_code"] == doc["snapshot_hash"]
@@ -217,6 +223,44 @@ def test_compile_done_waits_for_a_pass_after_the_restart():
     assert finished and "failed" in err
 
 
-def test_refresh_skips_when_the_profile_is_down(tmp_path, monkeypatch):
+def test_refresh_skips_when_the_profile_is_down_and_says_so(tmp_path, monkeypatch):
     monkeypatch.setattr(refresh_ontology, "PROXY", "http://127.0.0.1:9")
     assert refresh_ontology.refresh(DS, "run-1", tmp_path) == refresh_ontology.SKIP
+    report = json.loads((tmp_path / DS / "refresh.json").read_text())
+    assert (report["run_id"], report["status"]) == ("run-1", "skipped")
+
+
+def test_refresh_reports_a_failed_restart(tmp_path, monkeypatch):
+    calls = []
+
+    def fake(method, url, timeout=30):
+        calls.append(url)
+        return (200, {}) if url.endswith("/_ping") else (404, {})
+    monkeypatch.setattr(refresh_ontology, "request", fake)
+    assert refresh_ontology.refresh(DS, "run-1", tmp_path) == 1
+    report = json.loads((tmp_path / DS / "refresh.json").read_text())
+    assert report["status"] == "failed" and "restart wh-ingestion-service-1 failed: HTTP 404" in report["error"]
+
+
+def test_record_fails_when_refresh_did_not_report_after_a_publish(build):
+    db, art = build
+    write_results(art, results("pass"))
+    gate(db, art, "run-1")
+    publish(db, art)
+    row = run_recorder.record(db, DS, "run-1", art)
+    assert row["run_status"] == "failed" and row["ontology_refresh_status"] == "missing"
+    assert "ontology refresh did not report" in row["run_problem_description"]
+    skipped_refresh(art, "run-old")                    # a report from an earlier run does not count
+    assert run_recorder.record(db, DS, "run-1", art)["run_status"] == "failed"
+
+
+def test_republishing_an_old_day_keeps_its_snapshot(build):
+    db, art = build
+    serve = art.parent / "serve"
+    for day in range(10, 18):
+        snapshot.publish(db, f"2026-01-{day:02d}", "r", serve=serve, artifacts=art)
+    doc = snapshot.publish(db, "2026-01-02", "r", serve=serve, artifacts=art)
+    dated = sorted(p.name for p in serve.glob("analytics-*.duckdb"))
+    assert "analytics-2026-01-02.duckdb" in dated and len(dated) == 7
+    assert dated[1:] == [f"analytics-2026-01-{d:02d}.duckdb" for d in range(12, 18)]
+    assert len(doc["snapshot_hash"]) == 64

@@ -91,13 +91,17 @@ def publish(build_db: Path, ds: str, run_id: str, serve: Path = SERVE,
     facts = build_snapshot(build_db, tmp)
     dated = serve / f"{SERVE_NAME}-{ds}.duckdb"
     os.replace(tmp, dated)
+    digest = file_hash(dated)
     staged = serve / f".{SERVE_NAME}.next.duckdb"
     shutil.copyfile(dated, staged)
     os.replace(staged, serve / f"{SERVE_NAME}.duckdb")     # atomic: readers see old or new
-    for old in sorted(serve.glob(f"{SERVE_NAME}-????-??-??.duckdb"))[:-keep]:
+    # Keep the newest `keep` dated copies, and always the one just written: a backfill of an old
+    # day must not delete its own snapshot (review on #23).
+    others = sorted(p for p in serve.glob(f"{SERVE_NAME}-????-??-??.duckdb") if p != dated)
+    for old in others[:max(0, len(others) - (keep - 1))]:
         old.unlink()
     doc = {"ds": ds, "run_id": run_id, "path": str(serve / f"{SERVE_NAME}.duckdb"),
-           "snapshot_hash": file_hash(dated), **facts}
+           "snapshot_hash": digest, **facts}
     write_json(day_dir(ds, artifacts) / "snapshot.json", doc)
     return doc
 

@@ -82,10 +82,18 @@ def record(db: Path, ds: str, run_id: str, artifacts: Path = ARTIFACTS) -> dict:
         status, problems = gate["status"], list(gate.get("problems") or [])
     if status == "passed" and snapshot is None:
         status, problems = "failed", problems + ["the snapshot was not published in this run"]
-    refresh_status = (refresh or {}).get("status", "skipped")
+    # refresh_ontology reports every outcome, skipped included; no report after a published
+    # snapshot means it crashed or never ran, which must not pass as a skip (review on #23).
+    if refresh is None:
+        refresh_status = "missing" if snapshot is not None else "not run"
+    else:
+        refresh_status = refresh.get("status", "missing")
     if refresh_status == "failed":
         status = "failed"
         problems.append(f"ontology refresh failed: {refresh.get('error')}")
+    elif refresh_status == "missing" and status == "passed":
+        status = "failed"
+        problems.append("ontology refresh did not report in this run")
     tests = dbt_test_counts(run_results)
     db.parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(str(db))
