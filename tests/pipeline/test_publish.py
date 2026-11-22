@@ -108,6 +108,12 @@ def publish(db, art, run_id="run-1"):
 
 def skipped_refresh(art, run_id="run-1"):
     (art / DS / "refresh.json").write_text(json.dumps({"run_id": run_id, "status": "skipped"}))
+    telemetry(art, run_id)
+
+
+def telemetry(art, run_id="run-1", status="passed"):
+    (art / DS).mkdir(parents=True, exist_ok=True)
+    (art / DS / "telemetry.json").write_text(json.dumps({"run_id": run_id, "status": status, "error": "boom"}))
 
 
 def test_record_writes_one_row_per_day_and_replaces_it(build, monkeypatch):
@@ -134,6 +140,7 @@ def test_record_ignores_a_verdict_from_another_run(build):
     db, art = build
     write_results(art, results("pass"))
     gate(db, art, "run-old")
+    telemetry(art, "run-new")
     row = run_recorder.record(db, DS, "run-new", art)
     assert row["run_status"] == "failed"
     assert row["run_problem_description"] == "the quality gate did not run in this run"
@@ -154,6 +161,7 @@ def test_record_keeps_snapshot_hash_and_refresh_status(build):
     gate(db, art, "run-1")
     doc = publish(db, art)
     (art / DS / "refresh.json").write_text(json.dumps({"run_id": "run-1", "status": "skipped"}))
+    telemetry(art)
     row = run_recorder.record(db, DS, "run-1", art)
     assert row["run_status"] == "passed" and row["ontology_refresh_status"] == "skipped"
     assert row["snapshot_hash_code"] == doc["snapshot_hash"]
@@ -168,6 +176,7 @@ def test_record_keeps_the_golden_result_and_fails_a_wrong_answer(build):
     gate(db, art, "run-1")
     publish(db, art)
     (art / DS / "refresh.json").write_text(json.dumps({"run_id": "run-1", "status": "passed"}))
+    telemetry(art)
     row = run_recorder.record(db, DS, "run-1", art)
     assert row["run_status"] == "failed" and row["golden_status"] == "missing"
     golden = {"run_id": "run-1", "status": "passed", "asked": 7, "counts": {"wrong": 0, "refused": 1}}
@@ -181,6 +190,22 @@ def test_record_keeps_the_golden_result_and_fails_a_wrong_answer(build):
     skipped_refresh(art)
     (art / DS / "golden.json").unlink()
     assert run_recorder.record(db, DS, "run-1", art)["golden_status"] == "not run"
+
+
+def test_record_fails_a_day_whose_telemetry_failed_or_never_reported(build):
+    db, art = build
+    write_results(art, results("pass"))
+    gate(db, art, "run-1")
+    publish(db, art)
+    skipped_refresh(art)
+    assert run_recorder.record(db, DS, "run-1", art)["telemetry_status"] == "passed"
+    telemetry(art, status="skipped")
+    assert run_recorder.record(db, DS, "run-1", art)["run_status"] == "passed"
+    telemetry(art, status="failed")
+    row = run_recorder.record(db, DS, "run-1", art)
+    assert row["run_status"] == "failed" and "telemetry landing: boom" in row["run_problem_description"]
+    (art / DS / "telemetry.json").unlink()
+    assert run_recorder.record(db, DS, "run-1", art)["telemetry_status"] == "missing"
 
 
 def test_snapshot_keeps_warehouse_and_mart_with_comments(build):

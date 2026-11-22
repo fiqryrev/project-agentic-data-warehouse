@@ -1,0 +1,46 @@
+version: 2
+models:
+- name: fact__ops__llm_call
+  description: '{{ doc("fact__ops__llm_call") }}'
+  columns:
+  - name: request_id
+    description: Gateway request id.
+    data_tests:
+    - unique
+    - not_null
+  - name: call_type
+    description: LiteLLM call type.
+  - name: caller_name
+    description: Virtual key alias of the caller; `none` without a key.
+  - name: model_alias_name
+    description: Gateway alias asked for.
+  - name: model_name
+    description: Provider model the alias resolved to.
+  - name: provider_name
+    description: LiteLLM provider.
+  - name: call_status
+    description: success or failure.
+  - name: job_name
+    description: Job tag of the call; `none` without one.
+  - name: call_started_at
+    description: When the call started (UTC).
+  - name: call_ended_at
+    description: When the call ended (UTC).
+  - name: call_date
+    description: UTC day the call started.
+  - name: call_duration_ms
+    description: Request duration in milliseconds.
+  - name: prompt_token_count
+    description: Prompt tokens.
+  - name: completion_token_count
+    description: Completion tokens.
+  - name: total_token_count
+    description: Prompt plus completion tokens.
+  - name: spend_usd
+    description: Cost in US dollars at list price.
+  - name: is_cache_hit
+    description: Answered from the gateway cache.
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).

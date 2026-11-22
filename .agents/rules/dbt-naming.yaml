@@ -10,7 +10,7 @@ layers:
   data_mart_layer: mart
 
 # <domain> in lake and staging names is the source system; in warehouse and mart, the business.
-source_domains: [shop, ledger, marketing, gateway, langfuse]
+source_domains: [shop, ledger, marketing, gateway, langfuse, airflow]
 business_domains: [sales, finance, marketing, ops]
 
 cadences: [daily, weekly, monthly, quarterly, yearly, snapshot]
@@ -22,8 +22,9 @@ class_words:
   text: [name, address, description]
   state: [status, type]
   time: [at, date]
-  money: [idr, pct]
+  money: [idr, usd, pct]           # usd: model prices are list prices in US dollars (M11)
   measure: [count, quantity]
+  duration: [ms]                  # latency in milliseconds (M11)
 
 # A flag starts with one of these instead of ending in a class word.
 flag_prefixes: [is, has]

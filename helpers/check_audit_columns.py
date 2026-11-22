@@ -73,14 +73,18 @@ def model_errors(models: list[dbtlib.Model]) -> list[str]:
 
 def build_lake(db: Path) -> None:
     from generator.write import write_day
+    from llm import telemetry
     from loader.load import load_day
 
     landing = db.parent / "landing"
     day = dtm.date.fromisoformat(PROBE_DATE)
     write_day(42, day, landing)
+    # Telemetry tables (M11) go through the same loader, from an empty landed day.
+    telemetry.write_day(db.parent / "landing-telemetry", day, {})
     con = duckdb.connect(str(db))
     try:
         load_day(con, landing, day)
+        load_day(con, db.parent / "landing-telemetry", day)
     finally:
         con.close()
 

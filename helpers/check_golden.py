@@ -7,8 +7,9 @@
 - The reference SQL is one read-only `select` or `with` statement that reads only
   `data_warehouse_layer` and `data_mart_layer` models that exist in the dbt project (the snapshot
   holds nothing else).
-- A string literal other than `date '...'` or `timestamp '...'` needs `evidence`: `da-` entries
-  that verify it (rule: verify a literal before filtering on it).
+- A string literal other than a date (`date '...'`, `timestamp '...'` or a plain `'YYYY-MM-DD'`,
+  as the chat writes them) needs `evidence`: `da-` entries that verify it (rule: verify a
+  literal before filtering on it).
 """
 from __future__ import annotations
 
@@ -79,7 +80,8 @@ def check_question(path: Path, doc, models: dict[str, set[str]], entries: set[st
         except ValueError:
             errors.append(f"{where}: needs_day {day!r} is not a date")
     errors += check_sql(where, sql, models)
-    literals = [m.group(2) for m in LITERAL.finditer(sql) if not m.group(1)]
+    literals = [m.group(2) for m in LITERAL.finditer(sql)
+                if not m.group(1) and not re.fullmatch(r"\d{4}-\d{2}-\d{2}( [0-9:.]+)?", m.group(2))]
     evidence = doc.get("evidence") or []
     if literals and not evidence:
         errors.append(f"{where}: literal(s) {literals} need evidence (a da- entry that verifies them)")

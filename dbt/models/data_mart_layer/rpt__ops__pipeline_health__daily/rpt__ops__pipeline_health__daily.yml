@@ -1,0 +1,42 @@
+version: 2
+models:
+- name: rpt__ops__pipeline_health__daily
+  description: '{{ doc("rpt__ops__pipeline_health__daily") }}'
+  columns:
+  - name: run_date
+    description: The DAG's date for the run.
+    data_tests:
+    - unique
+    - not_null
+  - name: run_status
+    description: passed or failed.
+  - name: run_problem_description
+    description: Why the run failed.
+  - name: test_pass_count
+    description: dbt tests passed.
+  - name: test_warn_count
+    description: dbt tests that warned.
+  - name: test_fail_count
+    description: dbt tests failed.
+  - name: lake_day_row_count
+    description: Lake rows of the day's partition.
+  - name: warehouse_row_count
+    description: Warehouse rows in all.
+  - name: mart_row_count
+    description: Mart rows in all.
+  - name: ontology_refresh_status
+    description: Task 6 outcome.
+  - name: golden_status
+    description: Task 7 outcome.
+  - name: golden_question_count
+    description: Golden questions asked.
+  - name: golden_wrong_count
+    description: Golden answers scored wrong.
+  - name: golden_refused_count
+    description: Golden answers scored refused.
+  - name: recorded_at
+    description: When the run was recorded (UTC).
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).

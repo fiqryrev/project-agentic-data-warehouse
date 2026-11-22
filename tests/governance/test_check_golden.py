@@ -52,6 +52,11 @@ def test_bad_question_fails(change, expect):
     assert any(expect in e for e in errors(**change)), errors(**change)
 
 
+def test_iso_date_string_needs_no_evidence():
+    sql = "select order_count from data_mart_layer.rpt__finance__revenue__daily where revenue_date = '2026-01-03'"
+    assert errors(reference_sql=sql) == []
+
+
 def test_literal_with_evidence_passes():
     sql = "select count(*) from data_warehouse_layer.fact__sales__orders where order_status = 'cancelled'"
     assert errors(reference_sql=sql, evidence=["da-0001"]) == []

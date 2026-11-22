@@ -31,10 +31,10 @@ def test_dag_runs_one_day_at_a_time_in_order():
     assert ast.literal_eval(defaults["depends_on_past"]) is True
 
 
-def test_dag_has_tasks_1_to_7_and_9_in_order():
+def test_dag_has_tasks_1_to_9_in_order():
     tasks = [ast.literal_eval(kw["task_id"]) for kw in call_kwargs(dag_tree(), "BashOperator")]
     assert tasks == ["generate_source", "load_lake", "dbt_build", "quality_gate", "publish_snapshot",
-                     "refresh_ontology", "golden_questions", "record_run"]
+                     "refresh_ontology", "golden_questions", "land_llm_telemetry", "record_run"]
     chain = [n for n in ast.walk(dag_tree()) if isinstance(n, ast.Expr) and isinstance(n.value, ast.BinOp)]
     names = []
     node = chain[0].value
@@ -58,6 +58,15 @@ def test_golden_is_skippable_and_never_holds_the_next_day():
     assert "llm.golden" in ast.unparse(golden["bash_command"]) and "dag_run.conf" in ast.unparse(golden["bash_command"])
     for name in ("golden_questions", "record_run"):
         assert ast.literal_eval(tasks[name]["depends_on_past"]) is False, name
+
+
+def test_telemetry_runs_after_a_failure_and_skips_without_obs():
+    tasks = {ast.literal_eval(kw["task_id"]): kw for kw in call_kwargs(dag_tree(), "BashOperator")}
+    t8 = tasks["land_llm_telemetry"]
+    assert ast.unparse(t8["trigger_rule"]) == "TriggerRule.ALL_DONE"
+    assert ast.literal_eval(t8["skip_on_exit_code"]) == 99
+    assert ast.literal_eval(t8["depends_on_past"]) is False
+    assert "llm.telemetry" in ast.unparse(t8["bash_command"]) and "--init-only" in ast.unparse(tasks["load_lake"]["bash_command"])
 
 
 def test_record_run_runs_after_a_failure():

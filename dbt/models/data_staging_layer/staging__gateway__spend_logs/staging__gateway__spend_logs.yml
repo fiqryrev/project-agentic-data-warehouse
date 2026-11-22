@@ -1,0 +1,42 @@
+version: 2
+models:
+- name: staging__gateway__spend_logs
+  description: '{{ doc("staging__gateway__spend_logs") }}'
+  columns:
+  - name: request_id
+    description: Gateway request id.
+    data_tests:
+    - unique
+    - not_null
+  - name: call_type
+    description: 'LiteLLM call type: acompletion, aembedding, pass_through_endpoint, rerank.'
+  - name: caller_name
+    description: Virtual key alias of the caller (budgets.yaml); `none` for calls without a key (rerank).
+  - name: model_alias_name
+    description: Gateway alias the caller asked for (model_group).
+  - name: model_name
+    description: Provider model the alias resolved to.
+  - name: provider_name
+    description: LiteLLM provider of the model.
+  - name: call_status
+    description: success or failure, as the gateway logged it.
+  - name: job_name
+    description: The call's `job:<name>` tag (ingest, compile, chat, golden, smoke); `none` without one.
+  - name: call_started_at
+    description: When the call started (UTC).
+  - name: call_ended_at
+    description: When the call ended (UTC).
+  - name: call_duration_ms
+    description: Request duration in milliseconds.
+  - name: prompt_token_count
+    description: Prompt (input) tokens.
+  - name: completion_token_count
+    description: Completion (output) tokens.
+  - name: total_token_count
+    description: Prompt plus completion tokens.
+  - name: spend_usd
+    description: Cost of the call in US dollars at list price.
+  - name: is_cache_hit
+    description: The gateway answered from its cache.
+  - name: _dt
+    description: 'Lake partition date the row arrived in: the real UTC day of the event (llm/telemetry.py).'
