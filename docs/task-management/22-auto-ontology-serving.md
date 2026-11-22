@@ -99,7 +99,7 @@ Approved in chat on 2026-11-22, including the unauthenticated rerank route and r
   questions. The first compile partly ran before the NVIDIA price was set, so that is a lower bound.
 - Memory with core, obs and ontology up (`docker stats`): 5.20 GiB in all.
 - After the review fixes: 2026-01-09 through Airflow -> `passed`, `refresh.json` `passed` in 106s.
-- `uv run pytest -q` -> 297 passed (review fixes add 5); earlier 292 passed (`tests/pipeline/test_ontology.py` new, snapshot and refresh
+- `uv run pytest -q` -> 295 passed after the review fixes (292 before) (`tests/pipeline/test_ontology.py` new, snapshot and refresh
   tests added); `make checks` -> all eleven OK.
 
 ## Open
