@@ -76,6 +76,11 @@ Approved in chat on 2026-11-22, including the unauthenticated rerank route and r
   just written and hashes it before pruning; before, republishing a day older than the seven kept
   deleted its own copy and failed after replacing `analytics.duckdb`.
 
+- **Sign in on localhost, not 127.0.0.1.** Auto Ontology's auth trusts only `APP_URL`
+  (`http://localhost:3000`; `frontend/auth/auth.ts` has no setting for more origins), so a browser
+  on `http://127.0.0.1:3000` got "Invalid origin" at sign-in. The edge redirects 127.0.0.1 to
+  localhost.
+
 ## Done
 
 - `make up-obs`, `make up-ontology`: all containers healthy; the first ingest read 16 tables, 145

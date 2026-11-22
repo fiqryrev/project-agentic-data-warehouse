@@ -81,7 +81,7 @@ down-obs:
 llm-smoke:
 	uv run python -m llm.gateway_smoke
 
-# Auto Ontology at infra/auto-ontology/UPSTREAM_SHA plus our patches: UI http://127.0.0.1:3000
+# Auto Ontology at infra/auto-ontology/UPSTREAM_SHA plus our patches: UI http://localhost:3000
 # (login admin@example.com, password AO_ADMIN_SECRET in .env); scripts use its /api routes.
 # Needs `make up-obs` first: its only way to a model is the gateway, with the auto-ontology key.
 ONT = docker compose -f infra/compose.yml --env-file .env --profile ontology
