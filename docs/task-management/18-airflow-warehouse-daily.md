@@ -71,7 +71,7 @@ core, DAG `warehouse_daily` with tasks 1-4 and 9, `ops.run_log`, backfill"); sta
 - First version of the gate failed day 1 on the empty `fact__sales__refunds`; relaxed to marts.
 - Memory with the core stack idle after the backfill (`docker stats`): about 0.86 GiB (scheduler
   0.42, api-server 0.23, dag-processor 0.17, Postgres 0.04).
-- `uv run pytest -q` -> 257 passed (19 new in `tests/pipeline/`); `make checks` -> all OK.
+- `uv run pytest -q` -> 257 passed (18 new in `tests/pipeline/`); `make checks` -> all OK.
 
 ## Open
 
