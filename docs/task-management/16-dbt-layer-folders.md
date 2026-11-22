@@ -51,7 +51,7 @@ Approved in chat on 2026-11-22.
 ## Done
 
 - `uv run pytest -q` -> 239 passed (governance tests rewritten for the new layout: naming 46,
-  bundle 35 including ten bad doc blocks, layers and audit columns on the new paths).
+  bundle 31 including ten bad doc blocks, layers and audit columns on the new paths).
 - `make checks` -> all eleven checkers OK; `check_naming`, `check_bundle` and `check_layers` read
   the 46 table folders (15 lake, 15 staging, 13 warehouse, 3 mart).
 - `make dbt-ci` -> `Summary: 115 total | 110 success | 5 warn`, the same as before the move.
