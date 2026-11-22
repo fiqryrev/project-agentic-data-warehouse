@@ -59,11 +59,11 @@ def test_dag_writes_only_the_build_file():
 def test_compose_binds_ports_to_localhost_and_pins_images():
     doc = yaml.safe_load((REPO / "infra" / "compose.yml").read_text(encoding="utf-8"))
     for name, svc in doc["services"].items():
-        assert "core" in svc["profiles"], name
+        assert set(svc["profiles"]) <= {"core", "obs", "ontology"} and svc["profiles"], name
         for port in svc.get("ports", []):
             assert port.startswith("127.0.0.1:"), (name, port)
         image = svc["image"]
-        assert ":" in image and not image.endswith(":latest"), (name, image)
+        assert (":" in image or "@sha256:" in image) and ":latest" not in image, (name, image)
     assert "airflow/Dockerfile" in doc["services"]["airflow-scheduler"]["build"]["dockerfile"]
 
 

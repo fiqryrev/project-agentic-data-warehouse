@@ -1,0 +1,20 @@
+# One virtual key per caller (PLAN section 8.1). `make up-obs` creates or updates them through
+# infra/llm-gateway/bootstrap.py and writes each key to .env as <env> (gitignored).
+# A caller over its daily budget gets an error, not a bill. Budgets are USD at list price.
+budget_duration: 1d
+callers:
+  - name: auto-ontology
+    env: GATEWAY_KEY_AUTO_ONTOLOGY
+    max_budget_usd: 2.00
+    models: [openai/adw-reasoning, openai/adw-non-reasoning, adw-embed]
+  - name: golden-runner
+    env: GATEWAY_KEY_GOLDEN_RUNNER
+    max_budget_usd: 1.00
+    models: [openai/adw-reasoning, openai/adw-non-reasoning, openai/adw-or-chat, adw-embed]
+  - name: agent-dev
+    env: GATEWAY_KEY_AGENT_DEV
+    max_budget_usd: 0.50
+    models: [openai/adw-reasoning, openai/adw-non-reasoning, openai/adw-or-chat, adw-embed]
+
+# Job tags a call carries (metadata.tags or the x-litellm-tags header), so spend splits by purpose.
+jobs: [ingest, compile, chat, golden, smoke]

@@ -6,7 +6,7 @@ LANDING ?= data/landing
 # Manual loads and dbt-build use the development file; only Airflow writes data/build/ (AGENTS.md, Data access).
 DB    ?= data/dev/dwh.duckdb
 
-.PHONY: test checks generate load dbt-build dbt-ci env-secrets up-core down-core backfill run-log
+.PHONY: test checks generate load dbt-build dbt-ci env-secrets up-core down-core backfill run-log up-obs down-obs llm-smoke
 
 test:
 	uv run pytest -q
@@ -58,6 +58,22 @@ down-core:
 # Backfill FROM..TO through the scheduler (one day at a time, oldest first) and wait for it.
 backfill:
 	$(COMPOSE) exec airflow-scheduler bash /opt/wh/airflow/backfill.sh $(FROM) $(TO)
+
+# Gateway (http://127.0.0.1:4000) and Langfuse (http://127.0.0.1:3001, login admin@example.com,
+# password LANGFUSE_ADMIN_SECRET in .env). Creates the per-caller virtual keys (budgets.yaml).
+OBS = docker compose -f infra/compose.yml --env-file .env --profile obs
+
+up-obs: env-secrets
+	uv run python infra/llm-gateway/bootstrap.py check-keys
+	$(OBS) up -d --wait
+	uv run python infra/llm-gateway/bootstrap.py keys
+
+down-obs:
+	$(OBS) down
+
+# One tagged call that must reach Langfuse with tokens and cost; one caller refused over budget.
+llm-smoke:
+	uv run python -m llm.gateway_smoke
 
 # The run log of the daily build file, read-only.
 run-log:

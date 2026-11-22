@@ -1,0 +1,40 @@
+# LiteLLM gateway (PLAN section 8.1). Every model call in the project goes through here.
+# Aliases verified in docs/m0-findings.md (items 4 and 5). Secrets come from .env; swapping a
+# provider is an edit here plus `make up-obs`. The embedding alias stays fixed: changing it
+# forces a full re-ingest in Auto Ontology.
+model_list:
+  - model_name: openai/adw-reasoning
+    litellm_params:
+      model: nvidia_nim/nvidia/nemotron-3.5-lightning-30b-a3b
+      api_key: os.environ/NVIDIA_API_KEY
+  - model_name: openai/adw-non-reasoning
+    litellm_params:
+      model: nvidia_nim/nvidia/nemotron-3.5-lightning-30b-a3b
+      api_key: os.environ/NVIDIA_API_KEY
+  - model_name: openai/adw-or-chat          # the same model on OpenRouter, for the M12 comparison
+    litellm_params:
+      model: openrouter/nvidia/nemotron-3.5-lightning
+      api_key: os.environ/OPENROUTER_API_KEY
+  - model_name: adw-embed                   # 2048 dimensions, matches Auto Ontology's vector(2048)
+    litellm_params:
+      model: nvidia_nim/nvidia/nemotron-3-embed-1b
+      api_key: os.environ/NVIDIA_API_KEY
+
+litellm_settings:
+  callbacks: ["langfuse_otel"]              # traces to Langfuse over OpenTelemetry (M0, item 7)
+  drop_params: true
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL     # virtual keys, budgets, spend log
+  store_prompts_in_spend_logs: false        # prompts live in Langfuse only
+  pass_through_endpoints:
+    # Rerank: LiteLLM's /rerank sends top_k, which NVIDIA rejects (M0, item 4). The pass-through
+    # keeps Auto Ontology's native payload; no tokens or cost logged. In LiteLLM OSS only the master
+    # key may call it: a virtual key gets 403 and `allowed_passthrough_routes` is Enterprise-only
+    # (M8). How Auto Ontology reaches rerank without the master key is decided in M9.
+    - path: /nvidia/rerank-8b/reranking
+      target: https://ai.api.nvidia.com/v1/retrieval/nvidia/nemotron-3.5-rerank-8b/reranking
+      headers:
+        Authorization: bearer os.environ/NVIDIA_API_KEY
+      auth: true
