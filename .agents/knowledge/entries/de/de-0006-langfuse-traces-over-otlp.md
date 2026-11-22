@@ -1,8 +1,8 @@
 ---
 id: de-0006
-title: Write Langfuse traces over OTLP, read them from observations v2
+title: Write Langfuse traces over OTLP; read scores only in write mode dual
 tags: [langfuse, trace, otlp, opentelemetry, ingestion, events_only, scores, annotation-queue]
-paths: [llm/observe.py, llm/ask.py]
+paths: [llm/observe.py, llm/ask.py, llm/telemetry.py, infra/compose.yml]
 status: active
 created: 2026-11-22
 last_verified: 2026-11-22
@@ -10,20 +10,25 @@ evidence:
   - "llm/observe.py::LANGFUSE_MIGRATION_V4_WRITE_MODE=events_only"
   - "llm/observe.py::/api/public/otel/v1/traces"
   - docs/task-management/26-golden-runner.md::events_only
+  - "infra/compose.yml::LANGFUSE_MIGRATION_V4_WRITE_MODE: dual"
 supersedes: []
 ---
 
 ## Rule
 
 Send traces and spans to Langfuse 4.83 over OTLP/HTTP (`/api/public/otel/v1/traces`, JSON, header
-`x-langfuse-ingestion-version: 4`); send only scores to `/api/public/ingestion`; read
-observations from `/api/public/v2/observations` with a time bound.
+`x-langfuse-ingestion-version: 4`); send only scores to `/api/public/ingestion`. Run Langfuse in
+write mode `dual` to read scores and traces back (`/api/public/scores`, `/api/public/traces`);
+observations v2 (with a time bound) reads everything, older rows included.
 
 ## Why
 
 Our Langfuse runs in `events_only` mode: `/api/public/ingestion` answers 400 "Event type not
 accepted" to `trace-create` and `span-create`, and `GET /api/public/traces/<id>` answers 404. The
-first golden run in M10 asked seven questions and then lost every trace on that error.
+first golden run in M10 asked seven questions and then lost every trace on that error. In M11
+the label export needed scores back: in `events_only` every score read answers 404 too, and
+metrics v2 has no TEXT scores or trace ids. `dual` reopens the reads for rows written after the
+switch only.
 
 ## How to apply
 

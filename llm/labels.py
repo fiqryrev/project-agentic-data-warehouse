@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dtm
+import os
 import re
 import subprocess
 import sys
@@ -30,6 +31,7 @@ from pathlib import Path
 
 import yaml
 
+from helpers.ai_usage_footer import project_dir_for
 from llm import golden as gd
 from llm.ask import SNAPSHOT
 from llm.observe import Langfuse, iso, parse_time, read_env
@@ -37,6 +39,12 @@ from llm.observe import Langfuse, iso, parse_time, read_env
 REPO = Path(__file__).resolve().parents[1]
 PROCESSED = Path("evals/labels/processed.yaml")
 FIELDS = ("verdict", "reasoning_ok", "correct_answer", "correct_sql", "note")
+class _Block(yaml.SafeDumper):
+    """Multi-line strings (SQL) as `|` blocks, as the hand-written golden files have them."""
+
+
+_Block.add_representer(str, lambda d, v: d.represent_scalar("tag:yaml.org,2002:str", v, style="|" if "\n" in v else None))
+
 TO_GOLDEN, TO_KNOWLEDGE, TO_ISSUE = ("correct",), ("wrong_definition", "wrong_filter"), ("wrong_grain", "wrong_number")
 
 
@@ -191,7 +199,9 @@ def dbt_issue_body(label: dict, answer: dict) -> str:
 # --- the pull request ------------------------------------------------------------------------
 
 def sh(*cmd: str, cwd: Path | None = None) -> str:
-    done = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    # The batch worktree has its own environment: drop the caller's VIRTUAL_ENV for uv.
+    env = {k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"}
+    done = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, env=env)
     if done.returncode != 0:
         raise SystemExit(f"[label-prs] {' '.join(cmd[:3])} failed: {(done.stderr or done.stdout).strip()[:300]}")
     return done.stdout.strip()
@@ -246,7 +256,8 @@ def open_batch(plan: list[dict], files: dict[str, str], today: str, lf_note: str
     sh(*uv, "helpers.kb", "render", cwd=tree)
     checks = []
     for name in ("check_knowledge", "check_golden", "check_secrets"):
-        ok = subprocess.run([*uv, f"helpers.{name}"], cwd=tree, capture_output=True, text=True).returncode == 0
+        ok = subprocess.run([*uv, f"helpers.{name}"], cwd=tree, capture_output=True, text=True,
+                            env={k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"}).returncode == 0
         checks.append(f"- `{name}` → {'PASS' if ok else 'FAIL: see the CI log'}")
     sh("git", "add", "-A", cwd=tree)
     sh("git", "commit", "-q", "-m", f"docs: {title.lower()}\n\nCloses #{issue}", cwd=tree)
@@ -274,7 +285,9 @@ Closes #{issue}
 """
     body_file = tree / ".pr-body.md"
     body_file.write_text(pr_body, encoding="utf-8")
-    sh("uv", "run", "python", "helpers/ai_usage_footer.py", "render", "--body-file", str(body_file), "--prior-from-gh", cwd=tree)
+    # The session transcript belongs to the checkout the agent runs in, not to the batch worktree.
+    sh("uv", "run", "python", "helpers/ai_usage_footer.py", "render", "--body-file", str(body_file),
+       "--prior-from-gh", "--project-dir", str(project_dir_for(REPO)), cwd=tree)
     sh(*uv, "helpers.check_pr_body", "--body-file", str(body_file), cwd=tree)
     url = sh("gh", "pr", "create", "--base", base, "--head", branch, "--title", f"docs: {title}",
              "--body-file", str(body_file), "--label", "documentation", cwd=tree)
@@ -309,8 +322,8 @@ def main(argv: list[str] | None = None) -> int:
             day, _ = snapshot_facts(None)
             qid = f"g-{gnext:04d}"
             gnext += 1
-            files[f"evals/golden/{qid}-{slug(ans['question'])}.yaml"] = yaml.safe_dump(
-                golden_doc(qid, lab, ans, day), sort_keys=False, width=100)
+            files[f"evals/golden/{qid}-{slug(ans['question'])}.yaml"] = yaml.dump(
+                golden_doc(qid, lab, ans, day), Dumper=_Block, sort_keys=False, width=100)
             item["ref"] = qid
         elif out == "knowledge":
             day, rows = snapshot_facts(lab.get("correct_sql") or ans.get("sql"))

@@ -48,6 +48,7 @@ def test_golden_from_a_correct_label_passes_check_golden(tmp_path):
     doc = L.golden_doc("g-0099", lab, ANSWER, "2026-01-10")
     assert doc["needs_day"] == "2026-01-05"
     path = tmp_path / "g-0099-revenue.yaml"
-    path.write_text(yaml.safe_dump(doc))
+    path.write_text(yaml.dump(doc, Dumper=L._Block, sort_keys=False))
+    assert "reference_sql: |" in path.read_text()
     models = check_golden.layer_models(REPO)
     assert check_golden.check_question(path.relative_to(tmp_path), yaml.safe_load(path.read_text()), models, set()) == []
