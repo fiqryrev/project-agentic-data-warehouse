@@ -1,0 +1,48 @@
+# 38: README presents the repository as an end-to-end agentic data warehouse
+
+## Goal
+
+The README was 11 lines. A first-time reader should see what the project does end to end, what
+it showcases, how it is built, why it works, what it has shown so far, how to run it, and its
+limits, with every number citing a file in the repository.
+
+## Plan (as approved)
+
+Approved in chat on 2026-11-22: pitch; what you can do (commands and outcomes); architecture
+(Mermaid: data flow, DAG tasks 1 to 9, gateway and Langfuse, the label feedback loop); why it
+works (design choices with evidence); results with sources; repository map; quickstart pointing to
+the runbook; status (M0 to M12 with PRs); honest limits.
+
+## Decisions
+
+- **English**, like the rest of the repository; Mermaid, which GitHub renders, for the two
+  diagrams (architecture and feedback loop).
+- **Three kinds of agent named up front** (chat agent, coding agent, person) with what checks
+  each, since that is what makes the warehouse "agentic" rather than a warehouse with a chatbot.
+- **Every number has a source:** run reports in `docs/runs/`, worknotes in
+  `docs/task-management/`, and model counts from the layer folders. No number without one.
+- **Architecture diagram top to bottom, DAG tasks as a list:** checked on GitHub's rendered
+  file view: the first version laid the nine DAG tasks out in one row, which GitHub shrank to
+  unreadable text; top to bottom with the tasks listed below it reads at normal width.
+- **Tech stack and Strategy added** (owner's request on the PR): a table of every tool with its
+  pinned version, its role and the file that pins it, a table of the model aliases, and the build
+  order with its reasons (design and spike first, pins where tools meet, the agent harness before
+  the warehouse, trusted data before the chat, the gateway before the first model call, measure
+  before improving, consume upstream at a pinned commit, local first).
+- **Review on #39 (Codex):** the backfill row now says which tasks need the `ontology` and `obs`
+  profiles (skipped without them, as in the quickstart order) and that golden questions run on
+  the last day only (`airflow/backfill.sh`).
+- **PR references are full links**: a bare `#3` is not linked in a rendered README.
+- **No upstream material**: the overlay patches are described as part of this project only.
+
+## Done
+
+- Both Mermaid diagrams render on GitHub (`blob/38-readme-showcase/README.md`, checked in a
+  browser).
+- `README.md` rewritten (259 lines with Tech stack and Strategy); `check_secrets`, `check_gateway_only`, `check_entry_size` OK;
+  `uv run pytest -q` and `make checks` PASS.
+
+## Open
+
+- Re-check the Results table when the golden set grows or a new comparison runs.
+- Knowledge: no new lesson.
