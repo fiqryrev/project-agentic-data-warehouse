@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
     "duckdb>=1.5.5,<1.6",
     "pyarrow>=26.0.1",
+    "pyyaml>=6",
 ]
 
 [dependency-groups]
@@ -14,7 +15,6 @@ dbt = [
 ]
 dev = [
     "pytest>=8",
-    "pyyaml>=6",
 ]
 
 [tool.uv]

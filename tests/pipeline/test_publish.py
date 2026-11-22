@@ -162,6 +162,27 @@ def test_record_keeps_snapshot_hash_and_refresh_status(build):
     assert row["run_status"] == "failed" and "ontology refresh failed: boom" in row["run_problem_description"]
 
 
+def test_record_keeps_the_golden_result_and_fails_a_wrong_answer(build):
+    db, art = build
+    write_results(art, results("pass"))
+    gate(db, art, "run-1")
+    publish(db, art)
+    (art / DS / "refresh.json").write_text(json.dumps({"run_id": "run-1", "status": "passed"}))
+    row = run_recorder.record(db, DS, "run-1", art)
+    assert row["run_status"] == "failed" and row["golden_status"] == "missing"
+    golden = {"run_id": "run-1", "status": "passed", "asked": 7, "counts": {"wrong": 0, "refused": 1}}
+    (art / DS / "golden.json").write_text(json.dumps(golden))
+    row = run_recorder.record(db, DS, "run-1", art)
+    assert row["run_status"] == "passed"
+    assert (row["golden_status"], row["golden_question_count"], row["golden_refused_count"]) == ("passed", 7, 1)
+    (art / DS / "golden.json").write_text(json.dumps({**golden, "status": "failed", "counts": {"wrong": 1}}))
+    row = run_recorder.record(db, DS, "run-1", art)
+    assert row["run_status"] == "failed" and "1 wrong answer" in row["run_problem_description"]
+    skipped_refresh(art)
+    (art / DS / "golden.json").unlink()
+    assert run_recorder.record(db, DS, "run-1", art)["golden_status"] == "not run"
+
+
 def test_snapshot_keeps_warehouse_and_mart_with_comments(build):
     db, art = build
     con = duckdb.connect(str(db))

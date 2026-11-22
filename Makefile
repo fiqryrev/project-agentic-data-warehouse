@@ -6,7 +6,7 @@ LANDING ?= data/landing
 # Manual loads and dbt-build use the development file; only Airflow writes data/build/ (AGENTS.md, Data access).
 DB    ?= data/dev/dwh.duckdb
 
-.PHONY: test checks generate load dbt-build dbt-ci env-secrets up-core down-core backfill run-log up-obs down-obs llm-smoke down up-ontology down-ontology ontology-check
+.PHONY: test checks generate load dbt-build dbt-ci env-secrets up-core down-core backfill run-log up-obs down-obs llm-smoke down up-ontology down-ontology ontology-check ask golden
 
 test:
 	uv run pytest -q
@@ -23,6 +23,7 @@ checks:
 	uv run python -m helpers.check_audit_columns
 	uv run python -m helpers.check_gateway_only
 	uv run python -m helpers.check_knowledge
+	uv run python -m helpers.check_golden
 
 generate:
 	uv run python -m generator --start $(START) --end $(END) --seed $(SEED) --out $(LANDING)
@@ -73,6 +74,7 @@ up-obs: env-secrets
 	uv run python infra/llm-gateway/bootstrap.py check-keys
 	$(OBS) up -d --wait
 	uv run python infra/llm-gateway/bootstrap.py keys
+	uv run python infra/langfuse/bootstrap.py
 
 down-obs:
 	$(OBS) rm --stop --force
@@ -99,6 +101,15 @@ down-ontology:
 DAY ?= 2026-01-05
 ontology-check:
 	uv run python -m llm.ontology_check --day $(DAY)
+
+# One question to Auto Ontology with a full answer trace in Langfuse (llm/ask.py).
+ask:
+	uv run python -m llm.ask "$(Q)"
+
+# Every golden question, scored against reference SQL on the snapshot (llm/golden.py, DAG task 7).
+DS ?= $(shell date -u +%F)
+golden:
+	uv run python -m llm.golden --ds $(DS)
 
 # The run log of the daily build file, read-only.
 run-log:

@@ -18,81 +18,31 @@ Prints counts, costs and the comparison; never a key. Exit 1 if any step fails.
 from __future__ import annotations
 
 import argparse
-import base64
 import datetime as dtm
-import http.cookiejar
 import json
 import subprocess
 import sys
 import time
-import urllib.error
-import urllib.request
 from pathlib import Path
 
 import duckdb
 
-from llm.gateway_smoke import GATEWAY, LANGFUSE, read_env
+from llm.ask import (AskError, Session, chat, numbers_in, sign_in,  # noqa: F401 (tests use them)
+                     wait_for_compile)
+from llm.observe import (Langfuse, caller_of, generation_key_alias, read_env,  # noqa: F401
+                         spend_logs)
 
-AO = "http://localhost:3000"     # APP_URL: the only origin Auto Ontology trusts (edge redirects 127.0.0.1)
 SNAPSHOT = Path("data/serve/analytics.duckdb")
 CALLER = "auto-ontology"
 CONTAINERS = ("wh-auto-ontology-1", "wh-ingestion-service-1")
 DEFAULT_DAY = "2026-01-05"
 
 
-class Session:
-    """A signed-in Auto Ontology session (cookie jar), as the web UI would hold."""
-
-    def __init__(self, email: str, password: str):
-        self.opener = urllib.request.build_opener(
-            urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
-        status, _ = self.call("POST", "/api/auth/sign-in/email", {"email": email, "password": password})
-        if status != 200:
-            raise SystemExit(f"[ontology-check] sign-in failed: HTTP {status}")
-
-    def call(self, method: str, path: str, body: dict | None = None, timeout: int = 60):
-        req = urllib.request.Request(
-            AO + path, method=method, data=json.dumps(body).encode() if body is not None else None,
-            headers={"Content-Type": "application/json", "Origin": "http://localhost:3000"})
-        try:
-            with self.opener.open(req, timeout=timeout) as resp:
-                return resp.status, resp.read()
-        except urllib.error.HTTPError as e:
-            return e.code, e.read()
-
-    def stream(self, path: str, body: dict, timeout: int = 900):
-        req = urllib.request.Request(
-            AO + path, method="POST", data=json.dumps(body).encode(),
-            headers={"Content-Type": "application/json", "Origin": "http://localhost:3000",
-                     "Accept": "text/event-stream"})
-        with self.opener.open(req, timeout=timeout) as resp:
-            for raw in resp:
-                line = raw.decode("utf-8", "replace").strip()
-                if line.startswith("data:"):
-                    payload = line.removeprefix("data:").strip()
-                    if payload == "[DONE]":
-                        return
-                    yield json.loads(payload)
-
-
-def wait_for_compile(session: Session, timeout_s: int = 3600) -> dict:
-    deadline = time.monotonic() + timeout_s
-    while time.monotonic() < deadline:
-        status, body = session.call("GET", "/api/semantic-compilation/status")
-        doc = json.loads(body or b"{}") if status == 200 else {}
-        if doc and not doc.get("running") and doc.get("last_success_at"):
-            return doc
-        time.sleep(15)
-    raise SystemExit("[ontology-check] FAIL: semantic compile did not finish")
-
-
 def ask(session: Session, question: str) -> dict:
-    for event in session.stream("/api/chat/completions", {"question": question}):
-        if event.get("type") == "result":
-            return event["answer"]
-        if event.get("type") == "error":
-            raise SystemExit(f"[ontology-check] FAIL: chat error: {event.get('message')}")
-    raise SystemExit("[ontology-check] FAIL: the chat stream ended without a result")
+    try:
+        return chat(session, question)
+    except AskError as e:
+        raise SystemExit(f"[ontology-check] FAIL: {e}") from None
 
 
 def expected_net_revenue(day: str, snapshot: Path = SNAPSHOT) -> int:
@@ -107,72 +57,8 @@ def expected_net_revenue(day: str, snapshot: Path = SNAPSHOT) -> int:
     return int(row[0])
 
 
-def numbers_in(value) -> list[float]:
-    """Every number in an answer's rows. Auto Ontology sends rows as a list holding a JSON string
-    (`["[{\"net_revenue_idr\": 718545885.0}]"]`, seen in M9), so strings are parsed too."""
-    if isinstance(value, bool):
-        return []
-    if isinstance(value, (int, float)):
-        return [float(value)]
-    if isinstance(value, str):
-        try:
-            parsed = json.loads(value)
-        except ValueError:
-            try:
-                return [float(value)]
-            except ValueError:
-                return []
-        return numbers_in(parsed) if not isinstance(parsed, str) else []
-    if isinstance(value, dict):
-        value = list(value.values())
-    if isinstance(value, list):
-        return [n for v in value for n in numbers_in(v)]
-    return []
-
-
 def answer_matches(answer: dict, expected: int, tolerance: float = 1.0) -> bool:
     return any(abs(n - expected) <= tolerance for n in numbers_in(answer.get("sql_response_from_db")))
-
-
-def spend_logs(master: str, since: dtm.datetime, until: dtm.datetime) -> list[dict]:
-    # With a date range the API sums spend per key unless summarize=false (seen in M9).
-    q = (f"summarize=false&start_date={since.date().isoformat()}"
-         f"&end_date={(until + dtm.timedelta(days=1)).date().isoformat()}")
-    req = urllib.request.Request(f"{GATEWAY}/spend/logs?{q}", headers={"Authorization": f"Bearer {master}"})
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        rows = json.loads(resp.read())
-    return [r for r in rows if since <= parse_time(r.get("startTime")) <= until]
-
-
-def parse_time(value) -> dtm.datetime:
-    t = dtm.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    return t if t.tzinfo else t.replace(tzinfo=dtm.UTC)
-
-
-def caller_of(row: dict) -> str | None:
-    meta = row.get("metadata") or {}
-    if isinstance(meta, str):
-        meta = json.loads(meta or "{}")
-    return meta.get("user_api_key_alias")
-
-
-def langfuse_generations(env: dict, since: dtm.datetime, until: dtm.datetime) -> list[dict]:
-    """Generations in [since, until]. Without an upper bound Langfuse 4.83 answers 422 "narrow your
-    request" once the project holds a compile's worth of traces (seen in M9)."""
-    pk, sk = f"pk-lf-{env['LANGFUSE_PROJECT_PUBLIC_SECRET']}", f"sk-lf-{env['LANGFUSE_PROJECT_SECRET']}"
-    auth = base64.b64encode(f"{pk}:{sk}".encode()).decode()
-    out, cursor = [], None
-    while True:
-        url = (f"{LANGFUSE}/api/public/v2/observations?type=GENERATION&limit=50&fields=core,basic,metadata"
-               f"&fromStartTime={since.strftime('%Y-%m-%dT%H:%M:%SZ')}"
-               f"&toStartTime={until.strftime('%Y-%m-%dT%H:%M:%SZ')}" + (f"&cursor={cursor}" if cursor else ""))
-        req = urllib.request.Request(url, headers={"Authorization": f"Basic {auth}"})
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            page = json.loads(resp.read())
-        out += page.get("data") or []
-        cursor = (page.get("meta") or {}).get("cursor")
-        if not cursor:
-            return out
 
 
 def egress_blocked(container: str) -> tuple[bool, str]:
@@ -195,8 +81,11 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     env = read_env()
     ok = True
-    session = Session("admin@example.com", env["AO_ADMIN_SECRET"])
-    status = wait_for_compile(session)
+    try:
+        session = sign_in(env)
+        status = wait_for_compile(session)
+    except AskError as e:
+        raise SystemExit(f"[ontology-check] FAIL: {e}") from None
     print(f"[ontology-check] compile ok: last success {status.get('last_success_at')}")
 
     question = f"What was the net revenue on {args.day}?"
@@ -222,8 +111,7 @@ def main(argv: list[str] | None = None) -> int:
     others = [r for r in logs if caller_of(r) not in (CALLER, None)]
     cost = sum(float(r.get("spend") or 0) for r in ours)
     models = sorted({str(r.get("model_group") or r.get("model")) for r in ours})
-    gens = [g for g in langfuse_generations(env, *window)
-            if (g.get("metadata") or {}).get("attributes.litellm.key_alias") == CALLER]
+    gens = [g for g in Langfuse(env).generations(*window) if generation_key_alias(g) == CALLER]
     calls_ok = len(ours) > 0 and len(gens) >= len(ours)
     ok &= calls_ok
     print(f"[ontology-check] {'gateway ok' if calls_ok else 'FAIL gateway'}: {len(ours)} call(s) with the "

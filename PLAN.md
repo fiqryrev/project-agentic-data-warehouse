@@ -344,6 +344,14 @@ Label schema (one form, the same for every answer):
 | correct_sql | the right SQL, when known |
 | note | free text: which term was misread, which column was missed |
 
+As built in M10: golden questions are `evals/golden/g-NNNN-*.yaml` (`check_golden` in CI);
+`refused` means the answer has no rows with a number; a scalar answered with more than 20 rows is
+`wrong`. Each question is asked once (no retry, so an unstable answer stays visible). The
+answer's own SQL is re-run with file access off; the result is the score `sql_consistent`. Score
+configs, the label form and the queue `answer-review` live in `infra/langfuse/scores.yaml`.
+Task 7 and `record_run` do not depend on the previous day, so a wrong answer never holds the next
+day's data; `make backfill` asks the golden set on its last day only.
+
 ### 8.4 What a label changes
 
 ```

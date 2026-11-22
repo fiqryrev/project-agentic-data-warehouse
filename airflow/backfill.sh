@@ -7,14 +7,16 @@
 # on the paused DAG. Airflow's own `backfill create` does not: the scheduler starts no run of a
 # paused DAG, and unpausing it lets catch-up runs write the same DuckDB file in parallel
 # (docs/task-management/18-airflow-warehouse-daily.md, Decisions).
+# Golden questions (task 7) are asked on the last day only: each run takes minutes and model calls.
 set -euo pipefail
 from="$1"; to="$2"; dag=warehouse_daily
 
 day="$from"
 while [[ ! "$day" > "$to" ]]; do
   echo "[backfill] $day"
-  if ! airflow dags test "$dag" "$day" > "/tmp/backfill-$day.log" 2>&1; then
-    grep -E "\[(quality_gate|record_run)\]|ERROR|Error" "/tmp/backfill-$day.log" | tail -20 || true
+  conf='{"golden": false}'; [[ "$day" == "$to" ]] && conf='{}'
+  if ! airflow dags test "$dag" "$day" --conf "$conf" > "/tmp/backfill-$day.log" 2>&1; then
+    grep -E "\[(quality_gate|golden|record_run)\]|ERROR|Error" "/tmp/backfill-$day.log" | tail -20 || true
     echo "[backfill] $day failed; full log in the scheduler container at /tmp/backfill-$day.log"
     exit 1
   fi

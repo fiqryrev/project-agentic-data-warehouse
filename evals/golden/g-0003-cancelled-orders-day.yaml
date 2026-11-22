@@ -1,0 +1,9 @@
+id: g-0003
+question: How many orders placed on 2026-01-04 were cancelled?
+reference_sql: |
+  select cancelled_order_count
+  from data_mart_layer.rpt__sales__orders__daily
+  where order_date = date '2026-01-04'
+kind: scalar
+tolerance_pct: 0
+needs_day: 2026-01-04

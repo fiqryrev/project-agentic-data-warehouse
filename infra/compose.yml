@@ -33,6 +33,11 @@ x-airflow: &airflow
     # refresh_ontology (task 6): restart through the socket proxy, compile on the ingestion service.
     DOCKER_PROXY_URL: http://docker-proxy:2375
     INGESTION_SERVICE_URL: http://ingestion-service:3002
+    # golden_questions (task 7): Auto Ontology through its edge (Host and Origin stay
+    # localhost:3000, the only origin its auth trusts), the gateway's spend log, Langfuse.
+    AO_URL: http://ao-edge:3000
+    GATEWAY_URL: http://llm-gateway:4000
+    LANGFUSE_URL: http://langfuse-web:3000
   volumes:
     - ..:/opt/wh
     - airflow-logs:/opt/airflow/logs

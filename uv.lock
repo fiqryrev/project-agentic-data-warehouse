@@ -177,6 +177,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "duckdb" },
     { name = "pyarrow" },
+    { name = "pyyaml" },
 ]
 
 [package.dev-dependencies]
@@ -185,21 +186,18 @@ dbt = [
 ]
 dev = [
     { name = "pytest" },
-    { name = "pyyaml" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "duckdb", specifier = ">=1.5.5,<1.6" },
     { name = "pyarrow", specifier = ">=26.0.1" },
+    { name = "pyyaml", specifier = ">=6" },
 ]
 
 [package.metadata.requires-dev]
 dbt = [{ name = "dbt", specifier = "==2.0.12" }]
-dev = [
-    { name = "pytest", specifier = ">=8" },
-    { name = "pyyaml", specifier = ">=6" },
-]
+dev = [{ name = "pytest", specifier = ">=8" }]
 
 [[package]]
 name = "pyarrow"

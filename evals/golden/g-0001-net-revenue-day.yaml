@@ -1,0 +1,9 @@
+id: g-0001
+question: What was the net revenue in IDR on 2026-01-05?
+reference_sql: |
+  select net_revenue_idr
+  from data_mart_layer.rpt__finance__revenue__daily
+  where revenue_date = date '2026-01-05'
+kind: scalar
+tolerance_pct: 0.5
+needs_day: 2026-01-05
