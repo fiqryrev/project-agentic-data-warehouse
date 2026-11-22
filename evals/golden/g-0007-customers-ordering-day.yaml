@@ -1,0 +1,9 @@
+id: g-0007
+question: How many distinct customers placed at least one order on 2026-01-02?
+reference_sql: |
+  select count(distinct customer_id) as customer_count
+  from data_warehouse_layer.fact__sales__orders
+  where order_date = date '2026-01-02'
+kind: scalar
+tolerance_pct: 0
+needs_day: 2026-01-02

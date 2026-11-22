@@ -1,9 +1,10 @@
 """record_run (DAG task 9): one row per day in ops.run_log, whatever happened (PLAN section 7).
 
 Runs even when an earlier task failed. Reads the day's artifacts (dbt run_results, and this run's
-quality gate, snapshot and ontology refresh) and the build file, replaces the day's row in
-ops.run_log, and exits 1 unless this run's gate passed, its snapshot was published, and the
-ontology refresh passed or was skipped (profile down), so a failed day stays visible in Airflow.
+quality gate, snapshot, ontology refresh and golden questions) and the build file, replaces the
+day's row in ops.run_log, and exits 1 unless this run's gate passed, its snapshot was published,
+the ontology refresh passed or was skipped (profile down), and no golden answer was wrong, so a
+failed day stays visible in Airflow.
 Model spend joins the row with the telemetry task (M11).
 
     uv run python -m publish.run_recorder --ds 2026-01-01 --db data/build/dwh.duckdb --run-id manual
@@ -42,6 +43,10 @@ create table if not exists ops.run_log (
 );
 alter table ops.run_log add column if not exists snapshot_hash_code varchar;
 alter table ops.run_log add column if not exists ontology_refresh_status varchar;
+alter table ops.run_log add column if not exists golden_status varchar;
+alter table ops.run_log add column if not exists golden_question_count integer;
+alter table ops.run_log add column if not exists golden_wrong_count integer;
+alter table ops.run_log add column if not exists golden_refused_count integer;
 """
 
 
@@ -76,6 +81,7 @@ def record(db: Path, ds: str, run_id: str, artifacts: Path = ARTIFACTS) -> dict:
     gate = this_run(read_json(folder / "quality_gate.json"), run_id)
     snapshot = this_run(read_json(folder / "snapshot.json"), run_id)
     refresh = this_run(read_json(folder / "refresh.json"), run_id)
+    golden = this_run(read_json(folder / "golden.json"), run_id)
     if gate is None:
         status, problems = "failed", ["the quality gate did not run in this run"]
     else:
@@ -94,6 +100,18 @@ def record(db: Path, ds: str, run_id: str, artifacts: Path = ARTIFACTS) -> dict:
     elif refresh_status == "missing" and status == "passed":
         status = "failed"
         problems.append("ontology refresh did not report in this run")
+    # golden_questions runs only after a passed refresh (a skipped refresh skips it too).
+    if golden is None:
+        golden_status = "missing" if refresh_status == "passed" else "not run"
+    else:
+        golden_status = golden.get("status", "missing")
+    counts = (golden or {}).get("counts") or {}
+    if golden_status == "failed":
+        status = "failed"
+        problems.append(f"golden questions: {counts.get('wrong')} wrong answer(s)")
+    elif golden_status in ("error", "missing"):
+        status = "failed"
+        problems.append(f"golden questions did not finish: {(golden or {}).get('reason', 'no report in this run')}")
     tests = dbt_test_counts(run_results)
     db.parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(str(db))
@@ -111,6 +129,10 @@ def record(db: Path, ds: str, run_id: str, artifacts: Path = ARTIFACTS) -> dict:
             "run_problem_description": "; ".join(problems) or None,
             "snapshot_hash_code": (snapshot or {}).get("snapshot_hash"),
             "ontology_refresh_status": refresh_status,
+            "golden_status": golden_status,
+            "golden_question_count": (golden or {}).get("asked"),
+            "golden_wrong_count": counts.get("wrong"),
+            "golden_refused_count": counts.get("refused"),
             "recorded_at": dtm.datetime.now(dtm.UTC).replace(tzinfo=None),
         }
         con.execute("begin")

@@ -21,9 +21,11 @@ design; `docs/m0-findings.md` holds the verified versions and commands.
 | `infra/compose.yml`, `airflow/` | local stack (profile core): Airflow image, DAG `warehouse_daily`, backfill script |
 | `publish/` | DAG steps after dbt: `quality_gate`, `snapshot`, `refresh_ontology`, `run_recorder` (`ops.run_log`) |
 | `infra/llm-gateway/` | LiteLLM config (aliases), `budgets.yaml` (virtual key per caller), bootstrap |
+| `infra/langfuse/` | `scores.yaml` (automatic scores, label form, queue `answer-review`), bootstrap |
 | `infra/auto-ontology/` | `UPSTREAM_SHA`, overlay `patches/`, bootstrap (clone into gitignored `upstream/`), edge proxy |
-| `llm/` | gateway clients: `gateway_smoke`, `ontology_check`; later the ask client and golden runner |
-| `Makefile` | `make test`, `make checks`, `make generate`, `make load`, `make dbt-build`, `make dbt-ci`, `make up-core`, `make backfill`, `make run-log`, `make up-obs`, `make llm-smoke`, `make up-ontology`, `make ontology-check` |
+| `llm/` | `ask` client (answer traces), golden runner (DAG task 7), `observe`, `gateway_smoke`, `ontology_check` |
+| `evals/golden/` | golden questions with reference SQL, one YAML each (`README.md`) |
+| `Makefile` | `make test`, `make checks`, `make generate`, `make load`, `make dbt-build`, `make dbt-ci`, `make up-core`, `make backfill`, `make run-log`, `make up-obs`, `make llm-smoke`, `make up-ontology`, `make ontology-check`, `make ask`, `make golden` |
 | `.agents/rules/` | one line per rule; the story behind each in `.agents/rules/history/` |
 | `.agents/skills/` | working procedures, loaded on use (`.claude/skills` points here) |
 | `.agents/knowledge/` | distilled knowledge: `entries/{de,da}/`, `evals/`, generated `index/` (`helpers/kb.py`) |
@@ -128,6 +130,7 @@ The PostToolUse hook logs every tool call the same way. Logs are gitignored.
 | audit columns | `uv run python -m helpers.check_audit_columns` |
 | model calls only via the gateway | `uv run python -m helpers.check_gateway_only` |
 | knowledge (frontmatter, expiry, evidence, generated docs, recall) | `uv run python -m helpers.check_knowledge` |
+| golden questions (fields, read-only SQL on served models, literal evidence) | `uv run python -m helpers.check_golden` |
 | worknote | `uv run python -m helpers.check_worknote --base origin/main` |
 | PR body | `uv run python -m helpers.check_pr_body --body-file pr-body.md` |
 | dbt (job `dbt`) | `make dbt-ci`: 3 generated days, loaded, then `dbt build --target ci` |

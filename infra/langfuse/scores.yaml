@@ -1,0 +1,41 @@
+# Langfuse score configs and the annotation queue (PLAN 8.3). `make up-obs` runs
+# infra/langfuse/bootstrap.py, which creates what is missing and never changes or deletes a
+# config (Langfuse keeps scores tied to the config id).
+
+# Written by the golden runner (llm/golden.py) on every golden answer.
+automatic:
+  - name: golden_verdict
+    dataType: CATEGORICAL
+    categories: [exact_match, within_tolerance, wrong, refused]
+    description: Golden answer against the reference SQL on the same snapshot. wrong fails DAG task 7.
+  - name: sql_consistent
+    dataType: BOOLEAN
+    description: The answer's own SQL, re-run read-only on the snapshot, reproduces the rows it stated.
+
+# The label form a person fills in the queue (PLAN 8.3); the same form for every answer.
+label_form:
+  - name: verdict
+    dataType: CATEGORICAL
+    categories: [correct, wrong_number, wrong_definition, wrong_grain, wrong_filter,
+                 should_have_refused, refused_wrongly]
+    description: Is the answer right, and if not, what kind of wrong.
+  - name: reasoning_ok
+    dataType: CATEGORICAL
+    categories: ["yes", partly, "no"]
+    description: Did the step trace pick the right terms and joins.
+  - name: correct_answer
+    dataType: TEXT
+    description: The right number or text, when known.
+  - name: correct_sql
+    dataType: TEXT
+    description: The right SQL, when known.
+  - name: note
+    dataType: TEXT
+    description: Free text, for example which term was misread or which column was missed.
+
+queue:
+  name: answer-review
+  description: >-
+    Golden answers scored wrong or refused, and answers whose own SQL does not reproduce their
+    rows (M10). M11 adds a daily random sample of other ask answers.
+  score_configs: [verdict, reasoning_ok, correct_answer, correct_sql, note]

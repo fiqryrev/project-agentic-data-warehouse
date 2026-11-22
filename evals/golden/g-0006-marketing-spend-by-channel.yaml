@@ -1,0 +1,11 @@
+id: g-0006
+question: What was the marketing spend in IDR per channel on 2026-01-06?
+reference_sql: |
+  select channel_name, spend_idr
+  from data_mart_layer.rpt__marketing__spend__daily
+  where spend_date = date '2026-01-06'
+  order by channel_name
+kind: rows
+key: channel_name
+tolerance_pct: 0.5
+needs_day: 2026-01-06

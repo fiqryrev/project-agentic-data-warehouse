@@ -1,0 +1,9 @@
+id: g-0005
+question: What was the total net revenue in IDR from 2026-01-01 to 2026-01-07, both days included?
+reference_sql: |
+  select sum(net_revenue_idr) as net_revenue_idr
+  from data_mart_layer.rpt__finance__revenue__daily
+  where revenue_date between date '2026-01-01' and date '2026-01-07'
+kind: scalar
+tolerance_pct: 0.5
+needs_day: 2026-01-07

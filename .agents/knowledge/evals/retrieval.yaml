@@ -22,3 +22,5 @@ cases:
   - {query: "select star fails check_bundle", expect: de-0004}
   - {query: "relationship tests fail when the backfill starts in may", expect: de-0005}
   - {query: "missing sellers when starting the load later", expect: de-0005}
+  - {query: "langfuse ingestion rejects trace-create event type not accepted", expect: de-0006}
+  - {query: "how do I write a trace to langfuse from our code", expect: de-0006}

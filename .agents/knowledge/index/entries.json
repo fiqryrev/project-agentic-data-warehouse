@@ -201,6 +201,28 @@
       "status": "active",
       "last_verified": "2026-11-22",
       "file": ".agents/knowledge/entries/de/de-0005-load-from-the-epoch.md"
+    },
+    {
+      "id": "de-0006",
+      "kind": "engineering",
+      "title": "Write Langfuse traces over OTLP, read them from observations v2",
+      "tags": [
+        "langfuse",
+        "trace",
+        "otlp",
+        "opentelemetry",
+        "ingestion",
+        "events_only",
+        "scores",
+        "annotation-queue"
+      ],
+      "paths": [
+        "llm/observe.py",
+        "llm/ask.py"
+      ],
+      "status": "active",
+      "last_verified": "2026-11-22",
+      "file": ".agents/knowledge/entries/de/de-0006-langfuse-traces-over-otlp.md"
     }
   ]
 }

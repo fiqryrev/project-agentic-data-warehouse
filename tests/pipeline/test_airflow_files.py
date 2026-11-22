@@ -31,10 +31,10 @@ def test_dag_runs_one_day_at_a_time_in_order():
     assert ast.literal_eval(defaults["depends_on_past"]) is True
 
 
-def test_dag_has_tasks_1_to_6_and_9_in_order():
+def test_dag_has_tasks_1_to_7_and_9_in_order():
     tasks = [ast.literal_eval(kw["task_id"]) for kw in call_kwargs(dag_tree(), "BashOperator")]
     assert tasks == ["generate_source", "load_lake", "dbt_build", "quality_gate", "publish_snapshot",
-                     "refresh_ontology", "record_run"]
+                     "refresh_ontology", "golden_questions", "record_run"]
     chain = [n for n in ast.walk(dag_tree()) if isinstance(n, ast.Expr) and isinstance(n.value, ast.BinOp)]
     names = []
     node = chain[0].value
@@ -49,6 +49,15 @@ def test_refresh_is_skipped_when_the_ontology_profile_is_down():
     refresh = [kw for kw in call_kwargs(dag_tree(), "BashOperator")
                if ast.literal_eval(kw["task_id"]) == "refresh_ontology"][0]
     assert ast.literal_eval(refresh["skip_on_exit_code"]) == 99
+
+
+def test_golden_is_skippable_and_never_holds_the_next_day():
+    tasks = {ast.literal_eval(kw["task_id"]): kw for kw in call_kwargs(dag_tree(), "BashOperator")}
+    golden = tasks["golden_questions"]
+    assert ast.literal_eval(golden["skip_on_exit_code"]) == 99
+    assert "llm.golden" in ast.unparse(golden["bash_command"]) and "dag_run.conf" in ast.unparse(golden["bash_command"])
+    for name in ("golden_questions", "record_run"):
+        assert ast.literal_eval(tasks[name]["depends_on_past"]) is False, name
 
 
 def test_record_run_runs_after_a_failure():
@@ -110,3 +119,12 @@ def test_env_secrets_fills_empty_secrets_and_keeps_set_values(tmp_path):
     assert mod.fill(env, example) == ["A_SECRET"]
     again = mod.parse(env.read_text())
     assert len(again["A_SECRET"]) == 64 and again["PLAIN"] == "y"
+
+
+def test_runtime_imports_are_project_dependencies():
+    """The Airflow image installs the project without the dev group (`--no-dev`), so a module a
+    DAG task imports must be a runtime dependency (M10: golden_questions failed on `yaml`)."""
+    import tomllib
+    deps = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))["project"]["dependencies"]
+    names = {d.split(">")[0].split("=")[0].split("<")[0].strip().lower() for d in deps}
+    assert {"duckdb", "pyyaml"} <= names
