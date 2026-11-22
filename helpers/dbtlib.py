@@ -1,5 +1,8 @@
 """Static reading of the dbt project for the governance checkers (no database, no dbt run).
 
+Layout (`.agents/rules/dbt-naming.yaml`): `models/<layer folder>/<table>/<table>.{sql,yml,md}`,
+one folder per table. A model's layer comes from its layer folder, its domain from its name.
+
 A model is read from its files only:
 - `refs` and `sources` come from the `{{ ref(...) }}` and `{{ source(...) }}` calls in the SQL;
 - the YAML entry comes from any `.yml` under `models/` that lists the model by name;
@@ -26,7 +29,12 @@ except ModuleNotFoundError:
     from govlib import REPO  # type: ignore
 
 DBT_DIR = REPO / "dbt"
-LAYERS = ("staging", "warehouse", "mart")
+NAMING_FILE = REPO / ".agents" / "rules" / "dbt-naming.yaml"
+NAMING = yaml.safe_load(NAMING_FILE.read_text(encoding="utf-8"))
+LAYER_OF_FOLDER: dict[str, str] = NAMING["layers"]
+FOLDER_OF_LAYER = {v: k for k, v in LAYER_OF_FOLDER.items()}
+LAKE_FOLDER = FOLDER_OF_LAYER["lake"]
+LAYERS = ("staging", "warehouse", "mart")          # the layers dbt builds
 AUDIT_SQL = "'0' as _dbt_invocation_id, current_timestamp as _dbt_updated_at"
 
 _REF = re.compile(r"""ref\(\s*['"]([^'"]+)['"]\s*\)""")
@@ -39,14 +47,26 @@ class Model:
     name: str
     path: Path                      # relative to the dbt project
     sql: str
-    layer: str | None               # first folder under models/
-    domain: str | None              # second folder under models/
+    layer: str | None               # from the layer folder: staging, warehouse, mart (or lake)
+    domain: str | None              # second part of the name: staging__<domain>__..., dim__<domain>__...
     refs: list[str] = field(default_factory=list)
     sources: list[tuple[str, str]] = field(default_factory=list)
     yml: dict | None = None
     yml_path: Path | None = None
     columns: list[str] | None = None    # None when the select list cannot be read
     parse_error: str | None = None
+
+    @property
+    def doc_path(self) -> Path:
+        return self.path.with_suffix(".md")
+
+
+@dataclass
+class SourceTable:
+    source: str
+    name: str
+    yml: dict
+    yml_path: Path                  # relative to the dbt project
 
 
 class JinjaError(ValueError):
@@ -192,13 +212,22 @@ def _yml_models(models_dir: Path) -> dict[str, tuple[dict, Path]]:
     return out
 
 
-def load_sources(project: Path = DBT_DIR) -> dict[str, set[str]]:
-    """{source name: {table names}} declared in the project's YAML."""
-    out: dict[str, set[str]] = {}
+def source_tables(project: Path = DBT_DIR) -> list[SourceTable]:
+    """Every source table declared in the project's YAML, with the file that declares it."""
+    out = []
     for path in sorted((project / "models").rglob("*.yml")):
         doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         for src in doc.get("sources") or []:
-            out.setdefault(src["name"], set()).update(t["name"] for t in src.get("tables") or [])
+            for table in src.get("tables") or []:
+                out.append(SourceTable(src["name"], table["name"], table, path.relative_to(project)))
+    return out
+
+
+def load_sources(project: Path = DBT_DIR) -> dict[str, set[str]]:
+    """{source name: {table names}} declared in the project's YAML."""
+    out: dict[str, set[str]] = {}
+    for t in source_tables(project):
+        out.setdefault(t.source, set()).add(t.name)
     return out
 
 
@@ -208,13 +237,13 @@ def load_models(project: Path = DBT_DIR) -> list[Model]:
     models = []
     for path in sorted(models_dir.rglob("*.sql")):
         rel = path.relative_to(models_dir)
-        parts = rel.parts[:-1]
         sql = path.read_text(encoding="utf-8")
         exprs = [m.group(1).strip() for m in _EXPR.finditer(sql)]
+        name_parts = path.stem.split("__")
         m = Model(
             name=path.stem, path=path.relative_to(project), sql=sql,
-            layer=parts[0] if parts else None,
-            domain=parts[1] if len(parts) > 1 else None,
+            layer=LAYER_OF_FOLDER.get(rel.parts[0]) if len(rel.parts) > 1 else None,
+            domain=name_parts[1] if len(name_parts) > 1 else None,
             refs=[r.group(1) for e in exprs if (r := _REF.search(e))],
             sources=[(s.group(1), s.group(2)) for e in exprs if (s := _SOURCE.search(e))],
         )

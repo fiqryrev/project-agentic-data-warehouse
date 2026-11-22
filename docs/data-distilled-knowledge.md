@@ -37,12 +37,12 @@ from lake.shop__customers;
 ### Terms
 
 "Casing", "upper-case city", "messy city names". Downstream, `staging__shop__customers` and
-every warehouse table carry the title-case city.
+every warehouse table carry the title-case city as `city_name`.
 
 ### Data quality
 
-Fixed in staging with the `title_case` macro, so filter `staging` and `warehouse` on the
-title-case value; filter the lake only with `lower(city)`. DuckDB has no `initcap`, though
+Fixed in staging with the `title_case` macro, so filter `city_name` in `staging` and `warehouse`
+on the title-case value; filter the lake only with `lower(city)`. DuckDB has no `initcap`, though
 `generator/DEFECTS.md` names it as the way to spot the defect; use the query above.
 
 ## da-0002

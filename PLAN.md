@@ -131,6 +131,17 @@ Rules (each enforced by a checker):
 - No separate intermediate layer. A shared join that is not a dim or fact is an ephemeral dbt
   model, never a table.
 - Every lake and warehouse row carries audit columns (section 7).
+- One folder per table under four layer folders: `dbt/models/data_lake_layer/`,
+  `data_staging_layer/`, `data_warehouse_layer/`, `data_mart_layer/`. The table folder is named
+  after the table and holds `<table>.sql`, `<table>.yml` and `<table>.md` (lake folders hold no
+  SQL: the loader builds them). The `.md` is the table's doc block (opening paragraph, then
+  Potential Analyses, Grain, Table Lineage, Units and Conventions, Known Caveats, Refresh
+  Cadence, Change History) and the YAML description points to it, so it is what `persist_docs`
+  writes into the comment Auto Ontology reads.
+- Model columns end in a class word (`_id`, `_key`, `_code`, `_number`, `_name`, `_address`,
+  `_status`, `_type`, `_at`, `_date`, `_idr`, `_pct`, `_count`, `_quantity`) or start with
+  `is_`/`has_`; lake columns keep the source's names and staging renames them. The registry is
+  `.agents/rules/dbt-naming.yaml`.
 
 Auto Ontology sees `warehouse` and `mart` only. The `ops` domain (pipeline runs, model calls,
 labels) goes through the same layers as business data, so the chat can answer questions about
@@ -478,7 +489,7 @@ project-agentic-data-warehouse/
   .agents/  .claude/  .github/
   generator/            synthetic source (Python, uv) + reference files
   loader/               landing -> lake (business and platform sources)
-  dbt/models/{staging,warehouse,mart}/<domain>/
+  dbt/models/data_{lake,staging,warehouse,mart}_layer/<table>/   <table>.sql .yml .md
   airflow/              dags/, Dockerfile (Airflow + dbt binary + uv env)
   publish/              snapshot, ontology refresh, run recorder
   llm/                  ask client, golden runner, provider comparison, label export

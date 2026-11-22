@@ -1,0 +1,34 @@
+version: 2
+models:
+- name: staging__shop__products
+  description: '{{ doc("staging__shop__products") }}'
+  columns:
+  - name: product_id
+    description: Shop product id; ids from 9,000,000 are orphan keys with no product.
+    data_tests:
+    - not_null
+  - name: seller_id
+    description: Shop seller id; the ledger writes it as seller_ref S-00007.
+  - name: category_id
+    description: Shop category id.
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('staging__shop__categories')
+          field: category_id
+  - name: product_name
+    description: Product name.
+  - name: price_idr
+    description: List price in rupiah, PPN included.
+  - name: created_at
+    description: When the record was created in the source (UTC).
+  - name: updated_at
+    description: When the source wrote this version of the record (UTC).
+  - name: _dt
+    description: Lake partition date the row arrived in.
+  data_tests:
+  - unique_combination:
+      arguments:
+        columns:
+        - product_id
+        - updated_at

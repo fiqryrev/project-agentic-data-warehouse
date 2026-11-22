@@ -1,0 +1,29 @@
+version: 2
+models:
+- name: fact__finance__settlements
+  description: '{{ doc("fact__finance__settlements") }}'
+  columns:
+  - name: settlement_id
+    description: Ledger settlement id, STL-<yyyymmdd>-<seller id>.
+    data_tests:
+    - unique
+    - not_null
+  - name: seller_id
+    description: Shop seller id; the ledger writes it as seller_ref S-00007.
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('dim__sales__sellers')
+          field: seller_id
+  - name: settlement_date
+    description: Settlement day.
+  - name: gross_sales_idr
+    description: Seller sales settled that day, in rupiah.
+  - name: commission_idr
+    description: Marketplace commission (5%), in rupiah.
+  - name: payout_idr
+    description: Amount paid out to the seller, in rupiah.
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).

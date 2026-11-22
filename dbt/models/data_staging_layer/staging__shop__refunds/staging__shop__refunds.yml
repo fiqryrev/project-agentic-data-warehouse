@@ -1,0 +1,20 @@
+version: 2
+models:
+- name: staging__shop__refunds
+  description: '{{ doc("staging__shop__refunds") }}'
+  columns:
+  - name: refund_id
+    description: Refund id (equals the order id).
+    data_tests:
+    - unique
+    - not_null
+  - name: order_id
+    description: 'Shop order id: <day index of creation> * 100000 + n; the ledger writes ORD-<id>.'
+  - name: refund_reason_code
+    description: Reason given for the refund.
+  - name: amount_idr
+    description: Amount in rupiah.
+  - name: refunded_at
+    description: When the refund was made (UTC).
+  - name: _dt
+    description: Lake partition date the row arrived in.

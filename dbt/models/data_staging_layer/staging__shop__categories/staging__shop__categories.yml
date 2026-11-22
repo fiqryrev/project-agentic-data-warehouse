@@ -1,0 +1,16 @@
+version: 2
+models:
+- name: staging__shop__categories
+  description: '{{ doc("staging__shop__categories") }}'
+  columns:
+  - name: category_id
+    description: Shop category id.
+    data_tests:
+    - unique
+    - not_null
+  - name: category_name
+    description: Category name (Indonesian).
+  - name: parent_name
+    description: Top-level category group.
+  - name: _dt
+    description: Lake partition date the row arrived in.

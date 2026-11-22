@@ -1,0 +1,22 @@
+version: 2
+models:
+- name: dim__sales__sellers
+  description: '{{ doc("dim__sales__sellers") }}'
+  columns:
+  - name: seller_id
+    description: Shop seller id; the ledger writes it as seller_ref S-00007.
+    data_tests:
+    - unique
+    - not_null
+  - name: seller_name
+    description: Seller shop name.
+  - name: city_name
+    description: City, in title case.
+  - name: province_name
+    description: Province of the city.
+  - name: created_at
+    description: When the record was created in the source (UTC).
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).

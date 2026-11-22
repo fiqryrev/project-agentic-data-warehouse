@@ -29,7 +29,8 @@ def check(models: list[dbtlib.Model], sources: dict[str, set[str]]) -> list[str]
     for m in models:
         where = str(m.path)
         if m.layer not in MAY_REF:
-            errors.append(f"{where}: not under a layer folder ({', '.join(MAY_REF)})")
+            errors.append(f"{where}: not under a layer folder that dbt builds "
+                          f"({', '.join(dbtlib.FOLDER_OF_LAYER[x] for x in MAY_REF)})")
             continue
         for ref in m.refs:
             if ref not in layer_of:
@@ -46,7 +47,7 @@ def check(models: list[dbtlib.Model], sources: dict[str, set[str]]) -> list[str]
             for src, table in m.sources:
                 if table not in sources.get(src, set()):
                     errors.append(f"{where}: source('{src}', '{table}') is not declared in "
-                                  f"models/staging/_sources.yml")
+                                  f"models/{dbtlib.LAKE_FOLDER}/{table}/{table}.yml")
         elif m.sources:
             errors.append(f"{where}: {m.layer} reads sources {m.sources}; only staging reads the lake")
     return errors

@@ -1,0 +1,22 @@
+version: 2
+models:
+- name: staging__marketing__campaigns
+  description: '{{ doc("staging__marketing__campaigns") }}'
+  columns:
+  - name: campaign_id
+    description: 'Campaign id: <yyyymm> * 10 + n.'
+    data_tests:
+    - unique
+    - not_null
+  - name: campaign_name
+    description: Campaign name.
+  - name: channel_name
+    description: 'Marketing channel: google, meta, tiktok or email.'
+  - name: start_date
+    description: First day of the campaign.
+  - name: end_date
+    description: Last day of the campaign.
+  - name: budget_idr
+    description: Campaign budget in rupiah.
+  - name: _dt
+    description: Lake partition date the row arrived in.

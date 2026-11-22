@@ -2,13 +2,13 @@
 id: da-0002
 title: Exact duplicate order rows in the shop source
 tags: [shop, orders, duplicates, defect, data-quality]
-paths: [generator/DEFECTS.md, dbt/models/staging/shop/staging__shop__orders.sql]
+paths: [generator/DEFECTS.md, dbt/models/data_staging_layer/staging__shop__orders/staging__shop__orders.sql]
 status: active
 created: 2026-11-22
 last_verified: 2026-11-22
 evidence:
   - generator/DEFECTS.md::| Duplicates |
-  - dbt/models/staging/shop/staging__shop__orders.sql::select distinct
+  - dbt/models/data_staging_layer/staging__shop__orders/staging__shop__orders.sql::select distinct
 supersedes: []
 ---
 

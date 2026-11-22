@@ -1,0 +1,20 @@
+version: 2
+models:
+- name: staging__shop__payments
+  description: '{{ doc("staging__shop__payments") }}'
+  columns:
+  - name: payment_id
+    description: Payment id (equals the order id).
+    data_tests:
+    - unique
+    - not_null
+  - name: order_id
+    description: 'Shop order id: <day index of creation> * 100000 + n; the ledger writes ORD-<id>.'
+  - name: payment_method_code
+    description: Payment method.
+  - name: amount_idr
+    description: Amount in rupiah.
+  - name: paid_at
+    description: When the payment was received (UTC).
+  - name: _dt
+    description: Lake partition date the row arrived in.

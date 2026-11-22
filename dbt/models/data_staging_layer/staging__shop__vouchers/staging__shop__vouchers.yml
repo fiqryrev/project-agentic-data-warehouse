@@ -1,0 +1,22 @@
+version: 2
+models:
+- name: staging__shop__vouchers
+  description: '{{ doc("staging__shop__vouchers") }}'
+  columns:
+  - name: voucher_code
+    description: Voucher code used on the order, if any.
+    data_tests:
+    - unique
+    - not_null
+  - name: discount_pct
+    description: Voucher discount in percent.
+  - name: max_discount_idr
+    description: Voucher discount cap in rupiah.
+  - name: min_spend_idr
+    description: Minimum order subtotal for the voucher, in rupiah.
+  - name: valid_from_date
+    description: First day the voucher can be used (the first day of its month).
+  - name: valid_to_date
+    description: Last day the voucher can be used (the last day of its month); never null.
+  - name: _dt
+    description: Lake partition date the row arrived in.

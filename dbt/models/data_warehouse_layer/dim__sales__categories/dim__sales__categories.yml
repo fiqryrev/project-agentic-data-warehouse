@@ -1,0 +1,18 @@
+version: 2
+models:
+- name: dim__sales__categories
+  description: '{{ doc("dim__sales__categories") }}'
+  columns:
+  - name: category_id
+    description: Shop category id.
+    data_tests:
+    - unique
+    - not_null
+  - name: category_name
+    description: Category name (Indonesian).
+  - name: parent_name
+    description: Top-level category group.
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).

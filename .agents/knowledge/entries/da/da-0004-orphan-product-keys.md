@@ -2,13 +2,13 @@
 id: da-0004
 title: Orphan product keys on order lines
 tags: [shop, ledger, order_items, products, orphan-keys, defect, data-quality]
-paths: [generator/DEFECTS.md, dbt/models/staging/shop/_staging__shop.yml]
+paths: [generator/DEFECTS.md, dbt/models/data_staging_layer/staging__shop__order_items/staging__shop__order_items.yml]
 status: active
 created: 2026-11-22
 last_verified: 2026-11-22
 evidence:
   - generator/DEFECTS.md::| Orphan keys |
-  - dbt/models/staging/shop/_staging__shop.yml::ids from 9,000,000 are orphan keys
+  - dbt/models/data_staging_layer/staging__shop__order_items/staging__shop__order_items.yml::ids from 9,000,000 are orphan keys
 supersedes: []
 ---
 

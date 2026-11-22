@@ -1,0 +1,27 @@
+version: 2
+models:
+- name: staging__shop__order_items
+  description: '{{ doc("staging__shop__order_items") }}'
+  columns:
+  - name: order_item_id
+    description: 'Order line id: order_id * 10 + line number.'
+    data_tests:
+    - unique
+    - not_null
+  - name: order_id
+    description: 'Shop order id: <day index of creation> * 100000 + n; the ledger writes ORD-<id>.'
+  - name: product_id
+    description: Shop product id; ids from 9,000,000 are orphan keys with no product.
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('staging__shop__products')
+          field: product_id
+        config:
+          severity: warn
+  - name: item_quantity
+    description: Units on the line.
+  - name: unit_price_idr
+    description: Price per unit on the order day, in rupiah.
+  - name: _dt
+    description: Lake partition date the row arrived in.

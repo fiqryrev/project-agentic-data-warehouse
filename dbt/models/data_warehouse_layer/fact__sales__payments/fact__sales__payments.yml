@@ -1,0 +1,33 @@
+version: 2
+models:
+- name: fact__sales__payments
+  description: '{{ doc("fact__sales__payments") }}'
+  columns:
+  - name: payment_id
+    description: Payment id (equals the order id).
+    data_tests:
+    - unique
+    - not_null
+  - name: order_id
+    description: 'Shop order id: <day index of creation> * 100000 + n; the ledger writes ORD-<id>.'
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('fact__sales__orders')
+          field: order_id
+        config:
+          severity: warn
+        description: 'Warns, not fails: an order row held back as a late row may not have arrived yet
+          at the edge of the loaded dates.'
+  - name: payment_method_code
+    description: Payment method.
+  - name: amount_idr
+    description: Amount in rupiah.
+  - name: paid_at
+    description: When the payment was received (UTC).
+  - name: paid_date
+    description: Day of the payment.
+  - name: _dbt_invocation_id
+    description: dbt invocation that built this row.
+  - name: _dbt_updated_at
+    description: When dbt built this row (UTC).

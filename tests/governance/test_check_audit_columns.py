@@ -50,16 +50,16 @@ def test_empty_lake_fails(tmp_path):
 
 def test_warehouse_model_without_audit_macro_fails(tmp_path):
     root = make_project(tmp_path)
-    write(root, "models/warehouse/sales/fact__sales__orders.sql",
+    write(root, "models/data_warehouse_layer/fact__sales__orders/fact__sales__orders.sql",
           "select order_id, order_status from {{ ref('staging__shop__orders') }}")
     errs = c.model_errors(dbtlib.load_models(root))
-    assert errs == ["models/warehouse/sales/fact__sales__orders.sql: warehouse model does not "
+    assert errs == ["models/data_warehouse_layer/fact__sales__orders/fact__sales__orders.sql: warehouse model does not "
                     "output _dbt_invocation_id, _dbt_updated_at (add {{ dbt_audit_columns() }})"]
 
 
 def test_staging_model_dropping_dt_fails(tmp_path):
     root = make_project(tmp_path)
-    write(root, "models/staging/shop/staging__shop__orders.sql",
+    write(root, "models/data_staging_layer/staging__shop__orders/staging__shop__orders.sql",
           "select order_id from {{ source('lake', 'shop__orders') }}")
     errs = c.model_errors(dbtlib.load_models(root))
     assert any("staging model does not output _dt" in e for e in errs)
@@ -67,7 +67,7 @@ def test_staging_model_dropping_dt_fails(tmp_path):
 
 def test_mart_needs_no_audit_columns(tmp_path):
     root = make_project(tmp_path)
-    write(root, "models/mart/sales/rpt__sales__orders__daily.sql",
+    write(root, "models/data_mart_layer/rpt__sales__orders__daily/rpt__sales__orders__daily.sql",
           "select order_date from {{ ref('fact__sales__orders') }}")
     assert c.model_errors(dbtlib.load_models(root)) == []
 
