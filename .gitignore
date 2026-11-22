@@ -238,3 +238,6 @@ dbt/.user.yml
 .claude/settings.local.json
 # macOS
 .DS_Store
+
+# Auto Ontology clone at the pinned SHA (infra/auto-ontology/bootstrap.sh)
+infra/auto-ontology/upstream/

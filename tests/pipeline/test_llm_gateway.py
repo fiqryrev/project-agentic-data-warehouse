@@ -33,7 +33,16 @@ def test_provider_keys_come_from_env_only():
     assert CONFIG["general_settings"]["master_key"] == "os.environ/LITELLM_MASTER_KEY"
     assert CONFIG["litellm_settings"]["callbacks"] == ["langfuse_otel"]
     route = CONFIG["general_settings"]["pass_through_endpoints"][0]
-    assert route["path"].endswith("/reranking") and route["auth"] is True
+    # No key on rerank: virtual keys get 403 on pass-through routes in LiteLLM OSS (M8, M9).
+    assert route["path"].endswith("/reranking") and route["auth"] is False
+
+
+def test_nvidia_aliases_carry_a_price_and_non_reasoning_turns_thinking_off():
+    by_name = {m["model_name"]: m["litellm_params"] for m in CONFIG["model_list"]}
+    for alias in ("openai/adw-reasoning", "openai/adw-non-reasoning"):
+        assert by_name[alias]["input_cost_per_token"] > 0 and by_name[alias]["output_cost_per_token"] > 0
+    assert by_name["openai/adw-non-reasoning"]["extra_body"] == {"chat_template_kwargs": {"enable_thinking": False}}
+    assert "extra_body" not in by_name["openai/adw-reasoning"]
 
 
 def test_every_caller_has_a_budget_and_only_known_aliases():
@@ -91,7 +100,8 @@ def test_every_compose_variable_is_in_env_example():
 def test_gateway_environment_comes_from_service_yml():
     gw = COMPOSE["services"]["llm-gateway"]
     assert gw["extends"] == {"file": "llm-gateway/service.yml", "service": "llm-gateway"}
-    assert "environment" not in gw and "_API_KEY" not in COMPOSE_TEXT
+    assert "environment" not in gw
+    assert not any(name in COMPOSE_TEXT for name in bootstrap.PROVIDER_KEYS)
     assert GATEWAY_ENV["LANGFUSE_OTEL_HOST"] == "http://langfuse-web:3000"
 
 
@@ -138,4 +148,4 @@ def test_profile_teardown_keeps_the_shared_network():
         recipe = make.split(f"\n{target}:\n", 1)[1].split("\n\n", 1)[0]
         assert "rm --stop --force" in recipe and " down" not in recipe, target
     down = make.split("\ndown:\n", 1)[1].split("\n\n", 1)[0]
-    assert "--profile core --profile obs down" in down
+    assert "--profile core --profile obs --profile ontology down" in down

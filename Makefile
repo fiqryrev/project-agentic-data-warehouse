@@ -6,7 +6,7 @@ LANDING ?= data/landing
 # Manual loads and dbt-build use the development file; only Airflow writes data/build/ (AGENTS.md, Data access).
 DB    ?= data/dev/dwh.duckdb
 
-.PHONY: test checks generate load dbt-build dbt-ci env-secrets up-core down-core backfill run-log up-obs down-obs llm-smoke down
+.PHONY: test checks generate load dbt-build dbt-ci env-secrets up-core down-core backfill run-log up-obs down-obs llm-smoke down up-ontology down-ontology ontology-check
 
 test:
 	uv run pytest -q
@@ -59,7 +59,7 @@ down-core:
 
 # Every profile down, then the network.
 down:
-	docker compose -f infra/compose.yml --env-file .env --profile core --profile obs down
+	docker compose -f infra/compose.yml --env-file .env --profile core --profile obs --profile ontology down
 
 # Backfill FROM..TO through the scheduler (one day at a time, oldest first) and wait for it.
 backfill:
@@ -80,6 +80,25 @@ down-obs:
 # One tagged call that must reach Langfuse with tokens and cost; one caller refused over budget.
 llm-smoke:
 	uv run python -m llm.gateway_smoke
+
+# Auto Ontology at infra/auto-ontology/UPSTREAM_SHA plus our patches: UI http://localhost:3000
+# (login admin@example.com, password AO_ADMIN_SECRET in .env); scripts use its /api routes.
+# Needs `make up-obs` first: its only way to a model is the gateway, with the auto-ontology key.
+ONT = docker compose -f infra/compose.yml --env-file .env --profile ontology
+
+up-ontology: env-secrets
+	@grep -q '^GATEWAY_KEY_AUTO_ONTOLOGY=.' .env || (echo "run make up-obs first (it writes GATEWAY_KEY_AUTO_ONTOLOGY)"; exit 1)
+	bash infra/auto-ontology/bootstrap.sh
+	$(ONT) up -d --build --wait
+
+down-ontology:
+	$(ONT) rm --stop --force
+
+# Publish the build file, refresh Auto Ontology, ask a revenue question, check the answer against
+# SQL on the snapshot and every model call against the gateway's log.
+DAY ?= 2026-01-05
+ontology-check:
+	uv run python -m llm.ontology_check --day $(DAY)
 
 # The run log of the daily build file, read-only.
 run-log:

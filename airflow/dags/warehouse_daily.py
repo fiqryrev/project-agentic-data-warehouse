@@ -1,12 +1,15 @@
 """warehouse_daily: one day of the warehouse, from source files to ops.run_log (PLAN section 6).
 
-Tasks 1 to 4 and 9 of the plan; 5 to 8 (publish, ontology refresh, golden questions, LLM
-telemetry) arrive with M8 to M11.
+Tasks 1 to 6 and 9 of the plan; 7 and 8 (golden questions, LLM telemetry) arrive with M10 and
+M11.
 
     1 generate_source  generator writes the day's landing files (deterministic per date)
     2 load_lake        loader replaces the day's partition in lake.* of the build file
     3 dbt_build        dbt build --target prod over the whole lake; run_results kept per day
-    4 quality_gate     dbt passed, the day landed, no empty warehouse or mart table
+    4 quality_gate     dbt passed, the day landed, no empty mart table
+    5 publish_snapshot warehouse and mart into data/serve/analytics.duckdb (comments kept)
+    6 refresh_ontology Auto Ontology restarts on the new file and compiles (skipped when the
+                       ontology profile is down)
     9 record_run       one row in ops.run_log, whatever happened (runs after a failure too)
 
 One run at a time, oldest day first: every run writes the same DuckDB file, and a day's build
@@ -60,10 +63,20 @@ with DAG(
         task_id="quality_gate",
         bash_command=f"{PY} publish.quality_gate --ds {{{{ ds }}}} --db {BUILD_DB} --run-id '{{{{ run_id }}}}'",
     )
+    publish_snapshot = BashOperator(
+        task_id="publish_snapshot",
+        bash_command=f"{PY} publish.snapshot --ds {{{{ ds }}}} --db {BUILD_DB} --run-id '{{{{ run_id }}}}'",
+    )
+    refresh_ontology = BashOperator(
+        task_id="refresh_ontology",
+        bash_command=f"{PY} publish.refresh_ontology --ds {{{{ ds }}}} --run-id '{{{{ run_id }}}}'",
+        skip_on_exit_code=99,            # ontology profile not running
+    )
     record_run = BashOperator(
         task_id="record_run",
         bash_command=f"{PY} publish.run_recorder --ds {{{{ ds }}}} --db {BUILD_DB} --run-id '{{{{ run_id }}}}'",
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    generate_source >> load_lake >> dbt_build >> quality_gate >> record_run
+    (generate_source >> load_lake >> dbt_build >> quality_gate >> publish_snapshot
+     >> refresh_ontology >> record_run)
