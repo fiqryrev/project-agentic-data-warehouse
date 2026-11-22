@@ -12,11 +12,11 @@ models:
       relation: true
       columns: true
     data_staging_layer:
-      +schema: staging
+      +schema: data_staging_layer
       +materialized: view
     data_warehouse_layer:
-      +schema: warehouse
+      +schema: data_warehouse_layer
       +materialized: table
     data_mart_layer:
-      +schema: mart
+      +schema: data_mart_layer
       +materialized: table

@@ -19,8 +19,8 @@ One row per `category_id`.
 
 ```
 dim__sales__categories
-└── staging__shop__categories          (staging)
-    └── lake.shop__categories          (lake)
+└── staging__shop__categories          (data_staging_layer)
+    └── data_lake_layer.shop__categories          (data_lake_layer)
 ```
 
 ## Units and Conventions

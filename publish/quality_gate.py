@@ -19,7 +19,7 @@ from pathlib import Path
 
 import duckdb
 
-from publish.artifacts import ARTIFACTS, day_dir, failed_nodes, read_json, dbt_test_counts, write_json
+from publish.artifacts import ARTIFACTS, LAYER_SCHEMAS, day_dir, failed_nodes, read_json, dbt_test_counts, write_json
 
 
 def table_rows(con: duckdb.DuckDBPyConnection, schema: str) -> dict[str, int]:
@@ -31,8 +31,9 @@ def table_rows(con: duckdb.DuckDBPyConnection, schema: str) -> dict[str, int]:
 
 def lake_day_rows(con: duckdb.DuckDBPyConnection, ds: str) -> int:
     total = 0
-    for name in table_rows(con, "lake"):
-        total += con.execute(f'select count(*) from lake."{name}" where _dt = ?::date', [ds]).fetchone()[0]
+    lake = LAYER_SCHEMAS["lake"]
+    for name in table_rows(con, lake):
+        total += con.execute(f'select count(*) from {lake}."{name}" where _dt = ?::date', [ds]).fetchone()[0]
     return total
 
 
@@ -48,10 +49,11 @@ def evaluate(db: Path, ds: str, run_results: dict | None) -> tuple[list[str], di
         day = lake_day_rows(con, ds)
         if day == 0:
             problems.append(f"the lake has no row for {ds}")
-        empty_marts = [f"mart.{t}" for t, n in table_rows(con, "mart").items() if n == 0]
+        mart, warehouse = LAYER_SCHEMAS["mart"], LAYER_SCHEMAS["warehouse"]
+        empty_marts = [f"{mart}.{t}" for t, n in table_rows(con, mart).items() if n == 0]
         if empty_marts:
             problems.append("empty mart tables: " + ", ".join(empty_marts))
-        empty_warehouse = [f"warehouse.{t}" for t, n in table_rows(con, "warehouse").items() if n == 0]
+        empty_warehouse = [f"{warehouse}.{t}" for t, n in table_rows(con, warehouse).items() if n == 0]
     finally:
         con.close()
     return problems, {"lake_day_rows": day, "tests": counts, "empty_warehouse_tables": empty_warehouse}

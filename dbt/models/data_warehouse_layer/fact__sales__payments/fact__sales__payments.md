@@ -21,8 +21,8 @@ One row per `payment_id` (equal to `order_id`, one payment per order).
 
 ```
 fact__sales__payments
-└── staging__shop__payments          (staging)
-    └── lake.shop__payments          (lake)
+└── staging__shop__payments          (data_staging_layer)
+    └── data_lake_layer.shop__payments          (data_lake_layer)
 ```
 
 ## Units and Conventions

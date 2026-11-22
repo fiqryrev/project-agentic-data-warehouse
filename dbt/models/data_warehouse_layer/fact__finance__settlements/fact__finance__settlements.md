@@ -20,8 +20,8 @@ One row per `settlement_id` (one seller on one `settlement_date`).
 
 ```
 fact__finance__settlements
-└── staging__ledger__settlements          (staging)
-    └── lake.ledger__settlements          (lake)
+└── staging__ledger__settlements          (data_staging_layer)
+    └── data_lake_layer.ledger__settlements          (data_lake_layer)
 ```
 
 ## Units and Conventions

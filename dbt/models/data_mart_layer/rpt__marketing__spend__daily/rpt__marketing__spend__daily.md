@@ -19,9 +19,9 @@ One row per `spend_date` and `channel_name` (test `unique_combination`).
 
 ```
 rpt__marketing__spend__daily
-└── fact__marketing__daily_spend               (warehouse)
-    ├── staging__marketing__daily_spend        (staging)
-    └── staging__marketing__campaigns          (staging)
+└── fact__marketing__daily_spend               (data_warehouse_layer)
+    ├── staging__marketing__daily_spend        (data_staging_layer)
+    └── staging__marketing__campaigns          (data_staging_layer)
 ```
 
 ## Units and Conventions

@@ -81,7 +81,7 @@ comments.
 Ontology locks 1.5.5; a 2.0-format file would be unreadable by both. A CI check asserts all
 three builds can open the same file. Move to 2.0 when both ship it.
 
-**D2. Serving: a published DuckDB snapshot.** Airflow copies the `warehouse` and `mart` schemas
+**D2. Serving: a published DuckDB snapshot.** Airflow copies the `data_warehouse_layer` and `data_mart_layer` schemas
 into a new file (`COPY FROM DATABASE`, which keeps comments), renames it atomically into
 `data/serve/`, and Auto Ontology mounts the directory read-only (a single-file mount would pin
 the old inode). Both Auto Ontology services cache the open file, so the refresh task restarts
@@ -111,14 +111,15 @@ Langfuse v4 serves reads from the v2 API only.
 
 ## 4. Layers and naming
 
-One DuckDB file, four schemas. Table names carry the layer.
+One DuckDB file, four schemas named after the dbt layer folders (issue 24), plus `ops` for the
+run log. Table names carry the layer too.
 
 | Layer | Schema | Table name | Built by | Example |
 |---|---|---|---|---|
-| Data lake | `lake` | `<domain>__<table_name>` | Python loader, append-only by `dt` | `shop__orders` |
-| Staging | `staging` | `staging__<domain>__<table_name>` | dbt, view | `staging__shop__orders` |
-| Warehouse | `warehouse` | `dim__<domain>__<table_name>`, `fact__<domain>__<table_name>` | dbt, table or incremental | `fact__sales__order_items` |
-| Mart | `mart` | `rpt__<domain>__<table_name>__<cadence>` | dbt, table | `rpt__finance__revenue__daily` |
+| Data lake | `data_lake_layer` | `<domain>__<table_name>` | Python loader, append-only by `dt` | `shop__orders` |
+| Staging | `data_staging_layer` | `staging__<domain>__<table_name>` | dbt, view | `staging__shop__orders` |
+| Warehouse | `data_warehouse_layer` | `dim__<domain>__<table_name>`, `fact__<domain>__<table_name>` | dbt, table or incremental | `fact__sales__order_items` |
+| Mart | `data_mart_layer` | `rpt__<domain>__<table_name>__<cadence>` | dbt, table | `rpt__finance__revenue__daily` |
 
 Rules (each enforced by a checker):
 - `<domain>` in lake and staging is the **source system** (`shop`, `ledger`, `marketing`,
@@ -143,7 +144,7 @@ Rules (each enforced by a checker):
   `is_`/`has_`; lake columns keep the source's names and staging renames them. The registry is
   `.agents/rules/dbt-naming.yaml`.
 
-Auto Ontology sees `warehouse` and `mart` only. The `ops` domain (pipeline runs, model calls,
+Auto Ontology sees `data_warehouse_layer` and `data_mart_layer` only. The `ops` domain (pipeline runs, model calls,
 labels) goes through the same layers as business data, so the chat can answer questions about
 the platform itself, for example "what did reasoning calls cost last week".
 
@@ -182,7 +183,7 @@ Platform sources, landed daily by the same loader:
  ┌─────────────────────────────────────┐       ┌───────────────────────────────────┐
  │ DAG warehouse_daily                 │       │ frontend :3000, backend, ingest,  │
  │ 1 generate_source -> landing/       │       │ mcp, postgres+pgvector            │
- │ 2 load_lake       -> lake.*         │       └──────┬───────────────▲────────────┘
+ │ 2 load_lake       -> data_lake_layer│       └──────┬───────────────▲────────────┘
  │ 3 dbt build       -> staging..mart  │   model calls│               │ duckdb (read-only)
  │ 4 quality_gate                      │              ▼               │
  │ 5 publish_snapshot ─────────────────┼──────► data/serve/analytics.duckdb
@@ -209,7 +210,8 @@ Platform sources, landed daily by the same loader:
 - **load_lake:** `DELETE WHERE dt = ds` then `INSERT ... FROM read_parquet`. Idempotent.
 - **dbt build:** `BashOperator` calling the dbt v2 binary.
 - **publish_snapshot:** temp file, row counts verified, atomic rename, last 7 kept; only
-  `warehouse` and `mart` reach `data/serve/analytics.duckdb`, comments included (M9).
+  `data_warehouse_layer` and `data_mart_layer` reach `data/serve/analytics.duckdb`, comments
+  included (M9).
 - **refresh_ontology:** restart `auto-ontology` and `ingestion-service` through a socket proxy
   that allows exactly those two restarts (both hold the old file open until then). On start the
   ingestion service ingests the new file and runs one semantic compile pass, which compiles only
@@ -349,7 +351,7 @@ label ──┬─► correct + reference SQL ─────► promoted into t
         ├─► wrong_definition / wrong_filter ─► da- knowledge entry (term -> column, literal)
         │                                     and a proposed ontology correction (reviewed)
         ├─► wrong_grain / wrong_number ──────► dbt issue: model, test or rpt table missing
-        └─► every label ─────────────────────► lake.langfuse__scores -> fact__ops__answer_label
+        └─► every label ─────────────────────► data_lake_layer.langfuse__scores -> fact__ops__answer_label
 ```
 
 - Ontology corrections go through Auto Ontology's own write path for certified definitions

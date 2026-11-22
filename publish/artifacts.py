@@ -5,7 +5,9 @@ import json
 from pathlib import Path
 
 ARTIFACTS = Path("data/artifacts")
-LAYER_SCHEMAS = ("lake", "staging", "warehouse", "mart")
+# Layer -> DuckDB schema: the schema is named after the dbt layer folder (issue 24).
+LAYER_SCHEMAS = {"lake": "data_lake_layer", "staging": "data_staging_layer",
+                 "warehouse": "data_warehouse_layer", "mart": "data_mart_layer"}
 
 
 def day_dir(ds: str, root: Path = ARTIFACTS) -> Path:

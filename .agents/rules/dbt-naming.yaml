@@ -1,7 +1,8 @@
 # Names the dbt checkers accept (check_naming, check_bundle, check_layers read this file).
 # One line per rule is in dbt.md; the reasons are in history/dbt.md.
 
-# Folder under dbt/models/ -> layer. Inside a layer, one folder per table, named after it.
+# Folder under dbt/models/ -> layer. The DuckDB schema has the folder's name (issue 24; `ops` and
+# the serving catalog `analytics` keep theirs). Inside a layer, one folder per table, named after it.
 layers:
   data_lake_layer: lake            # source YAML and doc only; the loader builds the tables
   data_staging_layer: staging

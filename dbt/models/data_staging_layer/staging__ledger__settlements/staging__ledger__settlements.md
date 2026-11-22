@@ -17,7 +17,7 @@ One row per `settlement_id`.
 
 ```
 staging__ledger__settlements
-└── source('lake', 'ledger__settlements')   (lake)
+└── source('lake', 'ledger__settlements')   (data_lake_layer)
     └── data/landing/ledger/settlements/dt=YYYY-MM-DD/part-0.parquet   (landing)
 ```
 

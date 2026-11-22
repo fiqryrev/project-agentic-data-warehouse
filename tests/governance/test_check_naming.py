@@ -114,3 +114,15 @@ def test_yaml_only_column_is_checked_too(tmp_path):
     rel = at("mart", "rpt__sales__orders__daily", "yml")
     write(root, rel, (root / rel).read_text() + "  - name: Total\n    description: x\n")
     assert any("'Total'" in e for e in errors(root))
+
+
+def test_layer_schema_must_be_the_folder_name(tmp_path):
+    from tests.governance.dbt_project import PROJECT_YML
+    root = make_project(tmp_path, {"dbt_project.yml": PROJECT_YML.replace("+schema: data_mart_layer", "+schema: mart")})
+    assert any("models in data_mart_layer/ build into schema 'mart'" in e for e in errors(root))
+
+
+def test_lake_source_must_live_in_data_lake_layer(tmp_path):
+    from tests.governance.dbt_project import LAKE, SOURCES
+    root = make_project(tmp_path, {f"{LAKE}.yml": SOURCES.replace("schema: data_lake_layer", "schema: lake")})
+    assert any("is in schema 'lake'; it lives in schema: data_lake_layer" in e for e in errors(root))

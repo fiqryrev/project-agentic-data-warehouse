@@ -20,8 +20,8 @@ One row per `campaign_id`.
 
 ```
 dim__marketing__campaigns
-└── staging__marketing__campaigns          (staging)
-    └── lake.marketing__campaigns          (lake)
+└── staging__marketing__campaigns          (data_staging_layer)
+    └── data_lake_layer.marketing__campaigns          (data_lake_layer)
 ```
 
 ## Units and Conventions

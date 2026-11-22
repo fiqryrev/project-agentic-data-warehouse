@@ -17,7 +17,7 @@ One row per `product_id` and `updated_at`.
 
 ```
 staging__shop__products
-└── source('lake', 'shop__products')   (lake)
+└── source('lake', 'shop__products')   (data_lake_layer)
     └── data/landing/shop/products/dt=YYYY-MM-DD/part-0.parquet   (landing)
 ```
 

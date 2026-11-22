@@ -25,7 +25,7 @@ On the 3-day CI dataset (`make dbt-ci`): 3 orphan lines out of 2,971.
 ```sql
 select count(*) filter (where product_id >= 9000000) as orphan_lines,
        count(*) as lines
-from lake.shop__order_items;
+from data_lake_layer.shop__order_items;
 ```
 
 ## Terms

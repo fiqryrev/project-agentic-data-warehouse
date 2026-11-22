@@ -3,6 +3,9 @@
 
 Registry: .agents/rules/dbt-naming.yaml (layer folders, domains, cadences, class words).
 
+Schemas: each layer's DuckDB schema has its folder's name: `+schema` in dbt_project.yml equals
+the folder, and lake sources declare `schema: data_lake_layer` (issue 24).
+
 Layout: every file under dbt/models/ is `<layer folder>/<table>/<table>.<sql|yml|md>`, one
 folder per table, the folder named after the table. The lake folder holds no SQL (the loader
 builds those tables); its YAML declares exactly the lake table its folder is named after.
@@ -107,6 +110,15 @@ def model_errors(m: dbtlib.Model) -> list[str]:
     return name_errors(str(m.path), m.name, m.layer)
 
 
+def schema_errors(project: Path) -> list[str]:
+    errors = []
+    for folder, schema in dbtlib.layer_schemas(project).items():
+        if schema != folder:
+            errors.append(f"dbt_project.yml: models in {folder}/ build into schema '{schema}'; "
+                          f"the schema has the folder's name: +schema: {folder}")
+    return errors
+
+
 def lake_errors(project: Path) -> list[str]:
     errors = []
     for t in dbtlib.source_tables(project):
@@ -114,6 +126,9 @@ def lake_errors(project: Path) -> list[str]:
         if t.source != "lake":
             errors.append(f"{where}: source '{t.source}'; the only source is 'lake'")
             continue
+        if t.schema != dbtlib.LAKE_FOLDER:
+            errors.append(f"{where}: lake table '{t.name}' is in schema '{t.schema}'; "
+                          f"it lives in schema: {dbtlib.LAKE_FOLDER}")
         errors += name_errors(where, t.name, "lake")
         expected = Path("models") / dbtlib.LAKE_FOLDER / t.name / f"{t.name}.yml"
         if t.yml_path != expected:
@@ -150,7 +165,7 @@ def column_errors(column: str) -> list[str]:
 
 
 def check(models: list[dbtlib.Model], project: Path = dbtlib.DBT_DIR) -> list[str]:
-    errors = layout_errors(project) + lake_errors(project)
+    errors = layout_errors(project) + schema_errors(project) + lake_errors(project)
     for m in models:
         errors += model_errors(m)
         if m.layer not in dbtlib.LAYERS:

@@ -19,7 +19,7 @@ One row per `customer_id` and `updated_at`.
 
 ```
 staging__shop__customers
-└── source('lake', 'shop__customers')   (lake)
+└── source('lake', 'shop__customers')   (data_lake_layer)
     └── data/landing/shop/customers/dt=YYYY-MM-DD/part-0.parquet   (landing)
 ```
 

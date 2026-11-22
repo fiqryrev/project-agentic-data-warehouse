@@ -67,6 +67,7 @@ class SourceTable:
     name: str
     yml: dict
     yml_path: Path                  # relative to the dbt project
+    schema: str = ""                # the source's `schema:` (dbt defaults it to the source name)
 
 
 class JinjaError(ValueError):
@@ -219,8 +220,17 @@ def source_tables(project: Path = DBT_DIR) -> list[SourceTable]:
         doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         for src in doc.get("sources") or []:
             for table in src.get("tables") or []:
-                out.append(SourceTable(src["name"], table["name"], table, path.relative_to(project)))
+                out.append(SourceTable(src["name"], table["name"], table, path.relative_to(project),
+                                       src.get("schema") or src["name"]))
     return out
+
+
+def layer_schemas(project: Path = DBT_DIR) -> dict[str, str | None]:
+    """{layer folder: its `+schema` in dbt_project.yml}, for the folders dbt builds."""
+    doc = yaml.safe_load((project / "dbt_project.yml").read_text(encoding="utf-8")) or {}
+    models = (doc.get("models") or {}).get(doc.get("name"), {}) or {}
+    return {folder: (models.get(folder) or {}).get("+schema")
+            for folder, layer in LAYER_OF_FOLDER.items() if layer in LAYERS}
 
 
 def load_sources(project: Path = DBT_DIR) -> dict[str, set[str]]:

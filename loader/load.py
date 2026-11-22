@@ -1,6 +1,6 @@
-"""Load landing partitions into the `lake` schema (PLAN sections 4, 6 and 7).
+"""Load landing partitions into the `data_lake_layer` schema (PLAN sections 4, 6 and 7).
 
-One table per source table, `lake.<source>__<table>`, holding every source column plus four
+One table per source table, `data_lake_layer.<source>__<table>`, holding every source column plus four
 audit columns:
     _dt           partition date the row arrived in
     _source_file  landing file, relative to the landing folder
@@ -22,7 +22,7 @@ from pathlib import Path
 
 import duckdb
 
-SCHEMA = "lake"
+SCHEMA = "data_lake_layer"
 AUDIT_COLUMNS = {
     "_dt": ("DATE", "Partition date the row arrived in (landing dt=)."),
     "_source_file": ("VARCHAR", "Landing file the row came from, relative to the landing folder."),

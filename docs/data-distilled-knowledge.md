@@ -18,7 +18,7 @@ Tags: shop, customers, city, casing, defect, data-quality. Source: `.agents/know
 
 ## Meaning
 
-`lake.shop__customers.city` is a city name. 10% of the customer rows written each day (new
+`data_lake_layer.shop__customers.city` is a city name. 10% of the customer rows written each day (new
 customers and the versions of customers who moved) carry the city all upper case or all lower
 case (`JAKARTA`, `bandung`). It is the same city as its title-case spelling; nothing else
 differs. `generator/DEFECTS.md` says "new customers"; the generator samples over every row it
@@ -31,7 +31,7 @@ On the 3-day CI dataset (`make dbt-ci`, 2026-01-01 to 01-03): 208 of 2,088 custo
 ```sql
 select count(*) filter (where city = upper(city) or city = lower(city)) as miscased,
        count(*) as customer_rows
-from lake.shop__customers;
+from data_lake_layer.shop__customers;
 ```
 
 ### Terms
@@ -41,7 +41,7 @@ every warehouse table carry the title-case city as `city_name`.
 
 ### Data quality
 
-Fixed in staging with the `title_case` macro, so filter `city_name` in `staging` and `warehouse`
+Fixed in staging with the `title_case` macro, so filter `city_name` in `data_staging_layer` and `data_warehouse_layer`
 on the title-case value; filter the lake only with `lower(city)`. DuckDB has no `initcap`, though
 `generator/DEFECTS.md` names it as the way to spot the defect; use the query above.
 
@@ -53,7 +53,7 @@ Tags: shop, orders, duplicates, defect, data-quality. Source: `.agents/knowledge
 
 ## Meaning
 
-0.5% of a day's `lake.shop__orders` rows appear twice, identical in every column including
+0.5% of a day's `data_lake_layer.shop__orders` rows appear twice, identical in every column including
 `_dt`. They are one order state written twice, not two events.
 
 ### Counts
@@ -63,7 +63,7 @@ On the 3-day CI dataset (`make dbt-ci`): 12 duplicated rows.
 ```sql
 select count(*) as duplicated_rows
 from (select order_id, updated_at, order_status, _dt
-      from lake.shop__orders group by all having count(*) > 1);
+      from data_lake_layer.shop__orders group by all having count(*) > 1);
 ```
 
 ### Terms
@@ -99,7 +99,7 @@ cannot receive late rows, so the share is below 2%).
 ```sql
 select count(*) filter (where updated_at::date < _dt) as late_rows,
        count(*) as order_rows
-from lake.shop__orders;
+from data_lake_layer.shop__orders;
 ```
 
 ### Terms
@@ -132,7 +132,7 @@ On the 3-day CI dataset (`make dbt-ci`): 3 orphan lines out of 2,971.
 ```sql
 select count(*) filter (where product_id >= 9000000) as orphan_lines,
        count(*) as lines
-from lake.shop__order_items;
+from data_lake_layer.shop__order_items;
 ```
 
 ### Terms
@@ -165,7 +165,7 @@ Generated and loaded 2026-05-31 and 06-01 into a scratch file (`uv run python -m
 
 ```sql
 select _dt, order_status, count(*)
-from lake.shop__orders
+from data_lake_layer.shop__orders
 where order_status in ('shipped', 'in_transit')
 group by all order by all;
 ```

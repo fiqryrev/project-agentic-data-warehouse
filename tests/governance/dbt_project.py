@@ -7,7 +7,7 @@ from pathlib import Path
 SOURCES = """version: 2
 sources:
   - name: lake
-    schema: lake
+    schema: data_lake_layer
     tables:
       - name: shop__orders
         description: '{{ doc("shop__orders") }}'
@@ -118,7 +118,19 @@ STAGING = "models/data_staging_layer/staging__shop__orders/staging__shop__orders
 FACT = "models/data_warehouse_layer/fact__sales__orders/fact__sales__orders"
 MART = "models/data_mart_layer/rpt__sales__orders__daily/rpt__sales__orders__daily"
 
+PROJECT_YML = """name: warehouse
+models:
+  warehouse:
+    data_staging_layer:
+      +schema: data_staging_layer
+    data_warehouse_layer:
+      +schema: data_warehouse_layer
+    data_mart_layer:
+      +schema: data_mart_layer
+"""
+
 FILES = {
+    "dbt_project.yml": PROJECT_YML,
     f"{LAKE}.yml": SOURCES,
     f"{LAKE}.md": doc("shop__orders"),
     f"{STAGING}.sql": STAGING_SQL,

@@ -17,7 +17,7 @@ One row per `refund_id`.
 
 ```
 staging__shop__refunds
-└── source('lake', 'shop__refunds')   (lake)
+└── source('lake', 'shop__refunds')   (data_lake_layer)
     └── data/landing/shop/refunds/dt=YYYY-MM-DD/part-0.parquet   (landing)
 ```
 

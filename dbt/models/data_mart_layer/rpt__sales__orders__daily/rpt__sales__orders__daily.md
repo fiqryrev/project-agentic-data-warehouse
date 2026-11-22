@@ -20,10 +20,10 @@ One row per `order_date`.
 
 ```
 rpt__sales__orders__daily
-├── fact__sales__orders                  (warehouse)
-│   └── staging__shop__orders            (staging)
-└── fact__sales__order_items             (warehouse)
-    └── staging__shop__order_items       (staging)
+├── fact__sales__orders                  (data_warehouse_layer)
+│   └── staging__shop__orders            (data_staging_layer)
+└── fact__sales__order_items             (data_warehouse_layer)
+    └── staging__shop__order_items       (data_staging_layer)
 ```
 
 ## Units and Conventions

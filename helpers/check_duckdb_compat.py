@@ -40,11 +40,11 @@ import json, sys, duckdb
 path, mode = sys.argv[1], sys.argv[2]
 con = duckdb.connect(path, read_only=(mode == "ro"))
 tables = con.execute(
-    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'lake' ORDER BY 1"
+    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'data_lake_layer' ORDER BY 1"
 ).fetchall()
-rows = {t: con.execute(f"SELECT count(*) FROM lake.{t}").fetchone()[0] for (t,) in tables}
+rows = {t: con.execute(f"SELECT count(*) FROM data_lake_layer.{t}").fetchone()[0] for (t,) in tables}
 comment = con.execute(
-    "SELECT comment FROM duckdb_columns() WHERE schema_name = 'lake' "
+    "SELECT comment FROM duckdb_columns() WHERE schema_name = 'data_lake_layer' "
     "AND table_name = 'shop__orders' AND column_name = '_dt'"
 ).fetchone()
 if mode == "rw":
@@ -92,7 +92,7 @@ def build_probe_file(db: Path) -> dict:
     con = duckdb.connect(str(db))
     rows = {k.split(".", 1)[1]: v for k, v in load_day(con, landing, day).items()}
     comment = con.execute(
-        "SELECT comment FROM duckdb_columns() WHERE schema_name = 'lake' "
+        "SELECT comment FROM duckdb_columns() WHERE schema_name = 'data_lake_layer' "
         "AND table_name = 'shop__orders' AND column_name = '_dt'").fetchone()[0]
     con.close()
     return {"version": duckdb.__version__, "rows": dict(sorted(rows.items())), "comment": comment}

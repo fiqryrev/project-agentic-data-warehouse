@@ -24,11 +24,11 @@ def build(tmp_path):
     """A build file with a lake day, a warehouse and a mart table, and the day's artifacts folder."""
     db = tmp_path / "dwh.duckdb"
     con = duckdb.connect(str(db))
-    con.execute("create schema lake; create schema staging; create schema warehouse; create schema mart")
-    con.execute(f"create table lake.shop__orders as select 1 as order_id, date '{DS}' as _dt")
-    con.execute("create table warehouse.fact__sales__orders as select 1 as order_id")
-    con.execute("create table warehouse.fact__sales__refunds (refund_id integer)")
-    con.execute("create table mart.rpt__sales__orders__daily as select 1 as order_count")
+    con.execute("create schema data_lake_layer; create schema data_staging_layer; create schema data_warehouse_layer; create schema data_mart_layer")
+    con.execute(f"create table data_lake_layer.shop__orders as select 1 as order_id, date '{DS}' as _dt")
+    con.execute("create table data_warehouse_layer.fact__sales__orders as select 1 as order_id")
+    con.execute("create table data_warehouse_layer.fact__sales__refunds (refund_id integer)")
+    con.execute("create table data_mart_layer.rpt__sales__orders__daily as select 1 as order_count")
     con.close()
     art = tmp_path / "artifacts"
     (art / DS).mkdir(parents=True)
@@ -54,7 +54,7 @@ def test_gate_passes_with_warnings_and_an_empty_warehouse_table(build):
     write_results(art, results("pass", "warn"))
     code, verdict = gate(db, art)
     assert code == 0 and verdict["status"] == "passed"
-    assert verdict["empty_warehouse_tables"] == ["warehouse.fact__sales__refunds"]
+    assert verdict["empty_warehouse_tables"] == ["data_warehouse_layer.fact__sales__refunds"]
     assert verdict["lake_day_rows"] == 1 and verdict["run_id"] == "run-1"
 
 
@@ -76,7 +76,7 @@ def test_gate_fails_when_the_day_did_not_land(build):
     db, art = build
     write_results(art, results("pass"))
     con = duckdb.connect(str(db))
-    con.execute("delete from lake.shop__orders")
+    con.execute("delete from data_lake_layer.shop__orders")
     con.close()
     code, verdict = gate(db, art)
     assert code == 1 and f"the lake has no row for {DS}" in verdict["problems"]
@@ -86,10 +86,10 @@ def test_gate_fails_on_an_empty_mart(build):
     db, art = build
     write_results(art, results("pass"))
     con = duckdb.connect(str(db))
-    con.execute("delete from mart.rpt__sales__orders__daily")
+    con.execute("delete from data_mart_layer.rpt__sales__orders__daily")
     con.close()
     code, verdict = gate(db, art)
-    assert code == 1 and "empty mart tables: mart.rpt__sales__orders__daily" in verdict["problems"]
+    assert code == 1 and "empty mart tables: data_mart_layer.rpt__sales__orders__daily" in verdict["problems"]
 
 
 def run_log(db):
@@ -165,8 +165,8 @@ def test_record_keeps_snapshot_hash_and_refresh_status(build):
 def test_snapshot_keeps_warehouse_and_mart_with_comments(build):
     db, art = build
     con = duckdb.connect(str(db))
-    con.execute("comment on table mart.rpt__sales__orders__daily is 'Orders per day.'")
-    con.execute("comment on column mart.rpt__sales__orders__daily.order_count is 'Orders that day.'")
+    con.execute("comment on table data_mart_layer.rpt__sales__orders__daily is 'Orders per day.'")
+    con.execute("comment on column data_mart_layer.rpt__sales__orders__daily.order_count is 'Orders that day.'")
     con.close()
     doc = publish(db, art)
     served = art.parent / "serve" / "analytics.duckdb"
@@ -179,10 +179,10 @@ def test_snapshot_keeps_warehouse_and_mart_with_comments(build):
         catalog = con.execute("select current_database()").fetchone()[0]
     finally:
         con.close()
-    assert schemas == {"warehouse", "mart"} and catalog == "analytics"
+    assert schemas == {"data_warehouse_layer", "data_mart_layer"} and catalog == "analytics"
     assert (tcomment, ccomment) == ("Orders per day.", "Orders that day.")
-    assert doc["tables"] == {"mart.rpt__sales__orders__daily": 1, "warehouse.fact__sales__orders": 1,
-                             "warehouse.fact__sales__refunds": 0}
+    assert doc["tables"] == {"data_mart_layer.rpt__sales__orders__daily": 1, "data_warehouse_layer.fact__sales__orders": 1,
+                             "data_warehouse_layer.fact__sales__refunds": 0}
     saved = json.loads((art / DS / "snapshot.json").read_text())
     assert saved["run_id"] == "run-1" and len(saved["snapshot_hash"]) == 64 and len(saved["schema_hash"]) == 64
 
@@ -201,11 +201,11 @@ def test_schema_hash_changes_with_a_column_only(build):
     db, art = build
     first = publish(db, art)["schema_hash"]
     con = duckdb.connect(str(db))
-    con.execute("insert into mart.rpt__sales__orders__daily values (2)")
+    con.execute("insert into data_mart_layer.rpt__sales__orders__daily values (2)")
     con.close()
     assert publish(db, art)["schema_hash"] == first
     con = duckdb.connect(str(db))
-    con.execute("alter table mart.rpt__sales__orders__daily add column unit_count integer")
+    con.execute("alter table data_mart_layer.rpt__sales__orders__daily add column unit_count integer")
     con.close()
     assert publish(db, art)["schema_hash"] != first
 

@@ -58,10 +58,10 @@ def git_commit() -> str:
 
 def layer_rows(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
     out = {}
-    for schema in LAYER_SCHEMAS:
+    for layer, schema in LAYER_SCHEMAS.items():
         names = [r[0] for r in con.execute(
             "select table_name from information_schema.tables where table_schema = ?", [schema]).fetchall()]
-        out[schema] = sum(con.execute(f'select count(*) from "{schema}"."{n}"').fetchone()[0] for n in names)
+        out[layer] = sum(con.execute(f'select count(*) from "{schema}"."{n}"').fetchone()[0] for n in names)
     return out
 
 

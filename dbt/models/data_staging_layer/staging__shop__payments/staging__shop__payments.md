@@ -17,7 +17,7 @@ One row per `payment_id`.
 
 ```
 staging__shop__payments
-└── source('lake', 'shop__payments')   (lake)
+└── source('lake', 'shop__payments')   (data_lake_layer)
     └── data/landing/shop/payments/dt=YYYY-MM-DD/part-0.parquet   (landing)
 ```
 
