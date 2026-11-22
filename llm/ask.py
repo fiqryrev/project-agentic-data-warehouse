@@ -193,19 +193,38 @@ def ask(session: Session, question: str) -> Answer:
         raw_keys=sorted(raw))
 
 
+def owner_of(t: dtm.datetime, answers: list[Answer]) -> Answer | None:
+    """The one answer a call at time t belongs to: among the answers whose padded window holds t,
+    the one that started last before t (else the earliest). The padded windows of back-to-back
+    questions overlap, so a call is never counted for two answers (review on #33)."""
+    holding = [a for a in answers if a.window[0] <= t <= a.window[1]]
+    if not holding:
+        return None
+    started = [a for a in holding if a.started <= t]
+    return max(started, key=lambda a: a.started) if started else min(holding, key=lambda a: a.started)
+
+
 def link_calls(answers: list[Answer], env: dict[str, str], lf: Langfuse) -> None:
-    """Attach to each answer the `auto-ontology` calls made in its window (one question at a time,
-    so the windows do not overlap). One read of each source for all answers."""
+    """Attach to each answer the `auto-ontology` calls made in its window (questions are asked one
+    at a time; a call in two padded windows goes to one answer, `owner_of`). One read of each
+    source for all answers."""
     if not answers:
         return
     since = min(a.window[0] for a in answers)
     until = max(a.window[1] for a in answers)
     logs = spend_logs(f"sk-{env['LITELLM_MASTER_SECRET']}", since, until)
     gens = [g for g in lf.generations(since, until) if generation_key_alias(g) == AO_CALLER]
+    rows: dict[int, list[dict]] = {id(a): [] for a in answers}
+    ids: dict[int, list[str]] = {id(a): [] for a in answers}
+    for r in logs:
+        if (a := owner_of(parse_time(r.get("startTime")), answers)):
+            rows[id(a)].append(r)
+    for g in gens:
+        if (a := owner_of(parse_time(g.get("startTime")), answers)):
+            ids[id(a)].append(g["id"])
     for a in answers:
-        lo, hi = a.window
-        a.calls = calls_summary([r for r in logs if lo <= parse_time(r.get("startTime")) <= hi], AO_CALLER)
-        a.generation_ids = [g["id"] for g in gens if lo <= parse_time(g.get("startTime")) <= hi]
+        a.calls = calls_summary(rows[id(a)], AO_CALLER)
+        a.generation_ids = ids[id(a)]
 
 
 def snapshot_hash(path: Path = SNAPSHOT) -> str | None:

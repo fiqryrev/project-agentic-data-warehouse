@@ -49,6 +49,13 @@ Approved in chat on 2026-11-22, with the fresh-clone test on the existing shared
   OpenRouter (3 vs 4): the chat refuses a different set every run, so the difference between
   providers is smaller than the run-to-run spread. No swap is proposed. Latency is the one stable
   difference (p95 about 1.5 s on OpenRouter against 5.2 to 5.6 s on NVIDIA). The report says so.
+- **Review on #33 (Codex): a call is linked to one answer only.** The padded windows of
+  back-to-back questions overlap (2 s before, 10 s after), so a call could count for two answers;
+  `owner_of` gives each call to the answer that started last before it. Counting every call of a
+  run window once, the first runs cost $0.0315 / $0.0296 (run 1, nvidia / openrouter) and
+  $0.0521 / $0.0100 (run 2) instead of the linked $0.0377 / $0.0388 / $0.0560 / $0.0169; the
+  reports were corrected, the four mart rows of those runs keep the old linked cost. The golden
+  runner's linked cost since M10 was inflated the same way.
 - **Runbook test on the existing volumes** (owner's choice a): the stack was stopped (`make down`),
   the branch cloned fresh into a gitignored folder, the existing `.env` copied (the runbook's own
   instruction for a machine that already ran the stack, since volume passwords are fixed at
@@ -77,8 +84,8 @@ Approved in chat on 2026-11-22, with the fresh-clone test on the existing shared
   `make llm-smoke` -> `PASS`; `make up-ontology`, `make ontology-check` -> `PASS` (718,490,209
   equals the snapshot; 20 calls in the gateway log and Langfuse; no egress). **Done-when met**
   (on the shared volumes, as agreed). The stack was then brought back up from this worktree.
-- Cost of M12's model calls: two comparisons $0.149 (sum of the four rows), checks and smoke
-  under $0.01; OpenRouter's share ($0.056) is billed for real.
+- Cost of M12's model calls: two comparisons $0.123 (every call once; $0.149 linked), checks and smoke
+  under $0.01; OpenRouter's share ($0.040) is billed for real.
 - `uv run pytest -q` -> PASS; every checker in `make checks` -> OK.
 
 ## Open
