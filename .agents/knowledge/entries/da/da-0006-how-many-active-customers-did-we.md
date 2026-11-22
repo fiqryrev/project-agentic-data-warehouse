@@ -1,8 +1,8 @@
 ---
 id: da-0006
-title: "Label wrong_definition: How many active customers did we have on 2026-01-05?"
-tags: [active, customers, have, label, many, wrong-definition]
-paths: [evals/labels/processed.yaml]
+title: "Active customer means one who ordered that day, not a valid customer version"
+tags: [active, customers, orders, scd2, valid_from, label, wrong-definition]
+paths: [evals/labels/processed.yaml, dbt/models/data_warehouse_layer/dim__sales__customers/dim__sales__customers.sql, dbt/models/data_warehouse_layer/fact__sales__orders/fact__sales__orders.sql]
 status: active
 created: 2026-11-22
 last_verified: 2026-11-22

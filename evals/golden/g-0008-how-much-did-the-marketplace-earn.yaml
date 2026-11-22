@@ -1,12 +1,9 @@
 id: g-0008
 question: How much did the marketplace earn from its sellers on 2026-01-05?
-reference_sql: 'SELECT SUM(commission_idr) as total_commission
-
+reference_sql: |
+  SELECT SUM(commission_idr) as total_commission
   FROM data_warehouse_layer.fact__finance__settlements
-
-  WHERE settlement_date >= ''2026-01-05'' AND settlement_date < ''2026-01-06''
-
-  '
+  WHERE settlement_date >= '2026-01-05' AND settlement_date < '2026-01-06'
 kind: scalar
 tolerance_pct: 0.5
 needs_day: '2026-01-06'
