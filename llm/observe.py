@@ -75,6 +75,10 @@ def calls_summary(rows: list[dict], caller: str) -> dict:
 
 # --- Langfuse --------------------------------------------------------------------------------
 
+class LangfuseUnavailable(OSError):
+    """Langfuse answered 5xx: down or starting, the same as unreachable for callers that skip."""
+
+
 class Langfuse:
     """The public API with the project's key pair (`make up-obs` writes both to .env)."""
 
@@ -90,8 +94,8 @@ class Langfuse:
             with urllib.request.urlopen(req, timeout=60) as resp:
                 raw = resp.read()
         except urllib.error.HTTPError as e:
-            raise RuntimeError(f"Langfuse {method} {path.split('?')[0]}: HTTP {e.code} "
-                               f"{e.read().decode('utf-8', 'replace')[:200]}") from None
+            msg = f"Langfuse {method} {path.split('?')[0]}: HTTP {e.code} {e.read().decode('utf-8', 'replace')[:200]}"
+            raise (LangfuseUnavailable if e.code >= 500 else RuntimeError)(msg) from None
         return json.loads(raw) if raw else {}
 
     def pages(self, path: str) -> list[dict]:

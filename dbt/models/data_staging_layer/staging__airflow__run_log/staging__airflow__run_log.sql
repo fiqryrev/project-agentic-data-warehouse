@@ -17,6 +17,7 @@ select
     golden_question_count,
     golden_wrong_count,
     golden_refused_count,
+    telemetry_status,
     recorded_at,
     _dt
 from {{ source('lake', 'airflow__run_log') }}

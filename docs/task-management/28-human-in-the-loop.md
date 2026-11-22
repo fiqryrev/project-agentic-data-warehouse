@@ -71,6 +71,15 @@ Approved in chat on 2026-11-22.
   active customers ...?" was answered from `dim__sales__customers` validity (2,120) where an
   active customer is one who ordered that day (416): `wrong_definition`.
 
+- **Review on #31 (Codex):** a Langfuse 5xx is `LangfuseUnavailable` (an `OSError`), so task 8
+  skips instead of failing while Langfuse starts; `telemetry_status` reaches the lake table,
+  `fact__ops__pipeline_run` and `rpt__ops__pipeline_health__daily`; a label's question is written
+  to `retrieval.yaml` through YAML, so quotes and newlines stay valid.
+- **A telemetry table that changes its columns is recreated, not altered** (the loader never alters
+  a table): `ensure_tables` drops and recreates it, writes `data/landing-telemetry/_reland_from`
+  with the first landed day, and the next full run of task 8 lands every day again from the
+  sources and removes the marker. Adding `telemetry_status` above went through exactly that.
+
 ## Done
 
 - Langfuse `dual`: `/api/public/scores` and `/api/public/traces` answer 200 (404 before); a
@@ -93,6 +102,9 @@ Approved in chat on 2026-11-22.
   `telemetry_status passed`. `rpt__ops__answer_quality__weekly` week 2026-11-16: `label_count 2`,
   `label_correct_count 1`, `label_wrong_definition_count 1`, `reasoning_ok_share_pct 50.0`;
   `fact__ops__answer_label` holds both labels. **Second half of done-when met.**
+- Airflow 2026-01-12 after the review fixes -> task 2 `airflow__run_log: columns changed; recreated`,
+  task 8 landed 2026-11-15 to 11-22 again (1,282 calls, 11 run rows), marker removed; run passed;
+  `rpt__ops__pipeline_health__daily` 2026-01-11 shows `telemetry_status passed`.
 - `uv run pytest -q` -> PASS; every checker in `make checks` -> OK.
 
 ## Open

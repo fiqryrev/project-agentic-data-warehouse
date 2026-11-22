@@ -42,6 +42,8 @@ models:
     description: Golden answers scored wrong.
   - name: golden_refused_count
     description: Golden answers scored refused.
+  - name: telemetry_status
+    description: 'Task 8 outcome: passed, failed, skipped or missing; null before M11.'
   - name: recorded_at
     description: When record_run wrote the row (UTC).
   - name: _dbt_invocation_id

@@ -52,3 +52,8 @@ def test_golden_from_a_correct_label_passes_check_golden(tmp_path):
     assert "reference_sql: |" in path.read_text()
     models = check_golden.layer_models(REPO)
     assert check_golden.check_question(path.relative_to(tmp_path), yaml.safe_load(path.read_text()), models, set()) == []
+
+
+def test_retrieval_line_survives_quotes_and_newlines():
+    line = L.retrieval_line('How many "active"\ncustomers: today?', "da-0099")
+    assert yaml.safe_load(line.replace("  - ", "- ", 1)) == [{"query": 'How many "active" customers: today?', "expect": "da-0099"}]

@@ -73,7 +73,8 @@ TABLES: dict[str, pa.Schema] = {
         ("test_pass_count", pa.int64()), ("test_warn_count", pa.int64()), ("test_fail_count", pa.int64()),
         ("snapshot_hash_code", pa.string()), ("ontology_refresh_status", pa.string()),
         ("golden_status", pa.string()), ("golden_question_count", pa.int64()),
-        ("golden_wrong_count", pa.int64()), ("golden_refused_count", pa.int64()), ("recorded_at", TS),
+        ("golden_wrong_count", pa.int64()), ("golden_refused_count", pa.int64()),
+        ("telemetry_status", pa.string()), ("recorded_at", TS),
     ]),
 }
 
@@ -205,23 +206,38 @@ def write_day(landing: Path, day: dtm.date, rows: dict[str, list[dict]]) -> dict
     return manifest
 
 
-def ensure_tables(con: duckdb.DuckDBPyConnection) -> list[str]:
-    """Create the empty lake tables with their fixed columns when missing, so dbt builds on a
-    file that has never landed telemetry (CI). Returns the tables created."""
+def ensure_tables(con: duckdb.DuckDBPyConnection) -> tuple[list[str], list[str]]:
+    """Create the empty lake tables with their fixed columns when missing, so dbt builds on a file
+    that has never landed telemetry (CI). A table whose columns differ from TABLES (a column was
+    added here) is dropped and recreated: these tables are derived from the gateway, Langfuse and
+    ops.run_log, so the caller re-lands every day (the loader itself never alters a table).
+    Returns (created, rebuilt)."""
     con.execute(f"create schema if not exists {SCHEMA}")
-    made = []
+    made, rebuilt = [], []
     for key, schema in TABLES.items():
         name = key.replace(".", "__")
-        if con.execute("select 1 from information_schema.tables where table_schema = ? and table_name = ?",
-                       [SCHEMA, name]).fetchone():
+        have = [r[0] for r in con.execute(
+            "select column_name from information_schema.columns where table_schema = ? and table_name = ? "
+            "order by ordinal_position", [SCHEMA, name]).fetchall()]
+        want = [*schema.names, "dt", *AUDIT_COLUMNS]
+        if have == want:
             continue
+        if have:
+            con.execute(f"drop table {SCHEMA}.{name}")
+            rebuilt.append(f"{SCHEMA}.{name}")
         empty = pa.Table.from_pylist([], schema=schema)  # noqa: F841 (read by DuckDB below)
         audit = ", ".join(f"null::{typ} as {col}" for col, (typ, _) in AUDIT_COLUMNS.items())
         # `dt` as the loader's tables have it: DuckDB reads the hive folder dt=... as a column.
         con.execute(f"create table {SCHEMA}.{name} as select *, null::date as dt, {audit} from empty limit 0")
         con.execute(f"comment on table {SCHEMA}.{name} is 'Lake copy of the landing source table; append-only by _dt.'")
-        made.append(f"{SCHEMA}.{name}")
-    return made
+        if not have:
+            made.append(f"{SCHEMA}.{name}")
+    return made, rebuilt
+
+
+def first_landed(landing: Path) -> dtm.date | None:
+    days = sorted(p.name.removeprefix("dt=") for p in (landing / "_manifest").glob("dt=*"))
+    return dtm.date.fromisoformat(days[0]) if days else None
 
 
 def last_landed(landing: Path) -> dtm.date | None:
@@ -249,20 +265,31 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--ds", help="the DAG run's date: write data/artifacts/<ds>/telemetry.json")
     ap.add_argument("--run-id", default="manual")
     ap.add_argument("--dbt", help="dbt command to run after loading (the DAG rebuilds the ops models)")
+    ap.add_argument("--since", type=dtm.date.fromisoformat, default=None,
+                    help="re-land from this day (after a telemetry table changed its columns)")
     ap.add_argument("--today", type=dtm.date.fromisoformat, default=None, help="for tests")
     args = ap.parse_args(argv)
     con = duckdb.connect(str(args.db))
     try:
-        made = ensure_tables(con)
+        made, rebuilt = ensure_tables(con)
     finally:
         con.close()
+    marker = args.landing / "_reland_from"         # survives from --init-only (task 2) to task 8
+    if rebuilt and (first := first_landed(args.landing)):
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(first.isoformat() + "\n", encoding="utf-8")
+    for name in rebuilt:
+        print(f"[telemetry] {name}: columns changed; recreated, every landed day is landed again")
     if args.init_only:
-        print(f"[telemetry] {len(made)} empty table(s) created; {len(TABLES) - len(made)} already there")
+        print(f"[telemetry] {len(made)} empty table(s) created, {len(rebuilt)} recreated")
         return 0
     env = read_env()
     lf = Langfuse(env)
     today = args.today or dtm.datetime.now(dtm.UTC).date()
     days = days_to_land(args.landing, today)
+    since = args.since or (dtm.date.fromisoformat(marker.read_text().strip()) if marker.exists() else None)
+    if since:
+        days = [since + dtm.timedelta(days=n) for n in range((today - since).days + 1)]
     try:
         fetched = {d: fetch_day(d, env, lf, args.db) for d in days}
     except OSError as e:
@@ -289,6 +316,7 @@ def main(argv: list[str] | None = None) -> int:
         report(args.ds, args.run_id, "failed", error=str(e)[:300], days=[str(d) for d in days], rows=rows)
         print(f"[telemetry] FAIL: {e}")
         return 1
+    marker.unlink(missing_ok=True)
     report(args.ds, args.run_id, "passed", days=[str(d) for d in days], rows=rows)
     return 0
 

@@ -188,6 +188,12 @@ Auto Ontology without a person approving it.
 """
 
 
+def retrieval_line(question: str | None, did: str) -> str:
+    """One retrieval eval, serialised by YAML so quotes and newlines in a question stay valid."""
+    item = {"query": " ".join((question or "").split())[:120], "expect": did}
+    return "  - " + yaml.safe_dump(item, default_flow_style=True, sort_keys=False, width=1000).strip() + "\n"
+
+
 def dbt_issue_body(label: dict, answer: dict) -> str:
     return (f"A labelled answer says a model, test or report table is missing (PLAN 8.4).\n\n"
             f"- Question: {answer['question']}\n- Verdict: `{label['verdict']}`\n"
@@ -331,7 +337,7 @@ def main(argv: list[str] | None = None) -> int:
             dnext += 1
             files[f".agents/knowledge/entries/da/{did}-{slug(ans['question'])}.md"] = knowledge_entry(
                 did, lab, ans, day, rows, today)
-            evals += f'  - {{query: "{(ans["question"] or "")[:120]}", expect: {did}}}\n'
+            evals += retrieval_line(ans["question"], did)
             item["ref"] = did
         elif out == "issue" and args.open:
             item["ref"] = sh("gh", "issue", "create", "--title", f"dbt: labelled {lab['verdict']}: {(ans['question'] or '')[:60]}",
