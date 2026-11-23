@@ -5,8 +5,9 @@
 - committing or pushing while the target repository is on the default branch, pushing to
   the default branch, or pushing every branch at once;
 - touching the .env file in any way: any command that names it (`grep`, `awk`, `sed`,
-  `source`, `cp`, a `< .env` redirect, ...), except `--env-file .env` for docker compose;
-  `.env.example` is fine;
+  `source`, `cp`, a `< .env` redirect, ...) or a glob or brace pattern the shell expands to it
+  (`.env*`, `.*`, `{.env,x}`), except `--env-file .env` given to docker compose; `.env.example`
+  is fine;
 - `docker compose ... config`, which prints every variable with its value.
 
 A guardrail against mistakes, not a sandbox: a command that never names the file (`grep -r` over
@@ -21,6 +22,7 @@ only.
 """
 from __future__ import annotations
 
+import fnmatch
 import json
 import os
 import re
@@ -38,6 +40,33 @@ ENV_MSG = "never read, print or copy .env; it holds secrets (use .env.example fo
 CONFIG_MSG = "never run `docker compose config`: it prints every secret from .env"
 # A token that is the .env file: `.env`, `./.env`, `dir/.env`, `<.env`, `$(<.env)`, `X=.env`.
 ENV_TOKEN_RE = re.compile(r"(?:^|[/<>=(])\.env\)?$")
+BRACE_RE = re.compile(r"\{([^{}]*,[^{}]*)\}")
+
+
+def _braces(word: str, limit: int = 64) -> list[str]:
+    """Shell brace expansion, enough for `{.env,x}` and `.{env,x}`; at most `limit` words."""
+    m = BRACE_RE.search(word)
+    if not m:
+        return [word]
+    out: list[str] = []
+    for alt in m.group(1).split(","):
+        out += _braces(word[:m.start()] + alt + word[m.end():], limit)
+        if len(out) >= limit:
+            break
+    return out[:limit]
+
+
+def names_env(tok: str) -> bool:
+    """True when the shell would turn this token into the .env path: literally, by brace
+    expansion, or by a glob (`.env*`, `.e?v`, `.[e]nv`, `.*`). A glob reaches a dotfile only when
+    its last part starts with a dot (no `dotglob`), so `*` and `*.md` do not count."""
+    for word in _braces(tok):
+        if ENV_TOKEN_RE.search(word):
+            return True
+        base = re.split(r"[/<>=(]", word)[-1].rstrip(")")
+        if base.startswith(".") and any(c in base for c in "*?[") and fnmatch.fnmatchcase(".env", base):
+            return True
+    return False
 SEGMENT_SPLIT_RE = re.compile(r"&&|\|\||[;|&\n]")
 WRAPPERS = {"sudo", "env", "command", "exec", "nohup", "time", "builtin"}
 # Git global options that take a separate value, and the ones that change the target repo.
@@ -126,13 +155,16 @@ def env_file_reasons(command: str) -> list[str]:
             toks = shlex.split(segment)
         except ValueError:
             toks = segment.split()
-        for i, tok in enumerate(toks):
-            if tok.startswith("--env-file=") or (i and toks[i - 1] == "--env-file"):
-                continue                          # docker compose reads it; nothing is printed
-            if ENV_TOKEN_RE.search(tok) and ENV_MSG not in out:
-                out.append(ENV_MSG)
         words = [os.path.basename(t) for t in _tokens(segment)]
         compose = (words[:1] == ["docker-compose"]) or (words[:1] == ["docker"] and "compose" in words)
+        for i, tok in enumerate(toks):
+            # Compose reads --env-file for interpolation and prints nothing. Other commands with
+            # the same flag (`docker run --env-file .env alpine env`) hand the values to a process
+            # that can print them, so the exemption is Compose only (Codex review on #47).
+            if compose and (tok.startswith("--env-file=") or (i and toks[i - 1] == "--env-file")):
+                continue
+            if names_env(tok) and ENV_MSG not in out:
+                out.append(ENV_MSG)
         if compose and "config" in words[words.index("compose") + 1 if "compose" in words else 1:]:
             if CONFIG_MSG not in out:
                 out.append(CONFIG_MSG)

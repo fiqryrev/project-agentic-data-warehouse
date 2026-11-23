@@ -129,6 +129,9 @@ ENV_READS = [
     "cat .env", "grep KEY .env", "awk -F= '{print $2}' .env", "sed -n p .env", "source .env", ". .env",
     "cp .env /tmp/x", "python3 -c 'import sys; print(sys.stdin.read())' < .env", "cat<.env",
     "echo $(<.env)", "cat ./.env", "cat ../repo/.env", "git status && grep -c = .env",
+    # Codex review on #47: other commands with --env-file, and patterns that expand to .env.
+    "docker run --env-file .env alpine env", "docker run --env-file=.env alpine env",
+    "cat .env*", "cat .e?v", "cat .[e]nv", "cat .*", "cat {.env,x}", "cat .{env,x}", "head ./.en*",
 ]
 COMPOSE_CONFIG = [
     "docker compose -f infra/compose.yml config",
@@ -141,6 +144,7 @@ ALLOWED = [
     "docker compose -f infra/compose.yml --env-file .env --profile core exec airflow-scheduler bash x.sh",
     "docker compose --env-file=.env ps", "make up-core", "make backfill FROM=2026-01-01 TO=2026-01-02",
     "git config user.name", "docker config ls", "uv run pytest -q",
+    "cat *.md", "ls *", "cat .env.ex*", "ls {a,b}.txt", "cat .gitignore",
 ]
 
 
