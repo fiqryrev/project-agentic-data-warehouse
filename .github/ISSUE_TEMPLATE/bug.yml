@@ -1,0 +1,27 @@
+name: Bug
+description: Something in the warehouse, the stack or the harness does not do what it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The command or DAG task, what it did, and the output (no secrets, no home paths).
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should have happened
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: The SQL or command behind any number (rule 5), log lines, the run date or run id.
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: How to tell it is fixed, ideally a test or a check.

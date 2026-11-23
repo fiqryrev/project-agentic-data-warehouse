@@ -107,14 +107,14 @@ Every version is pinned in the repository; the source of each pin is in the last
 | Language and packages | Python, uv | 3.12+ | every job, one locked environment | `pyproject.toml`, `uv.lock` |
 | Storage | DuckDB | 1.5.x (1.5.5 loader, 1.5.4 inside dbt) | the build file and the served snapshot; one file format for every reader | [infra/duckdb-pins.yaml](infra/duckdb-pins.yaml), `check_duckdb_compat` |
 | Transformation | dbt | 2.0.12 | staging, warehouse, mart, tests, docs persisted as comments | `pyproject.toml` |
-| Orchestration | Apache Airflow | 3.3.2, LocalExecutor, Postgres 17.6 | DAG `warehouse_daily`, backfill | [airflow/Dockerfile](airflow/Dockerfile), [infra/compose.yml](infra/compose.yml) |
+| Orchestration | Apache Airflow | 3.4.0, LocalExecutor, Postgres 17.11 | DAG `warehouse_daily`, backfill | [airflow/Dockerfile](airflow/Dockerfile), [infra/compose.yml](infra/compose.yml) |
 | Semantic layer and chat | NVIDIA Auto Ontology | upstream `f3c310c7a279` + 3 overlay patches | catalog, semantic compile, text-to-SQL agent, web UI | [infra/auto-ontology/UPSTREAM_SHA](infra/auto-ontology/UPSTREAM_SHA), [patches/](infra/auto-ontology/patches/) |
 | Auto Ontology store | Postgres with pgvector | pg17 | catalog, embeddings | [infra/compose.yml](infra/compose.yml) |
 | Model gateway | LiteLLM proxy | v1.110.2 | aliases, virtual keys, daily budgets, spend log | [infra/llm-gateway/](infra/llm-gateway/) |
-| Tracing, scores, review | Langfuse (self-hosted) | 4.83.0, with ClickHouse 26.3, Redis 7.4.7, MinIO | traces, scores, annotation queue, datasets, experiments | [infra/compose.yml](infra/compose.yml), [infra/langfuse/](infra/langfuse/) |
-| Edge and isolation | nginx, socket proxy | 1.28, 1.13.1 | the only published door to Auto Ontology; restarts allowed for exactly two containers | [infra/compose.yml](infra/compose.yml) |
+| Tracing, scores, review | Langfuse (self-hosted) | 4.83.0, with ClickHouse 26.10, Redis 7.4.12, MinIO | traces, scores, annotation queue, datasets, experiments | [infra/compose.yml](infra/compose.yml), [infra/langfuse/](infra/langfuse/) |
+| Edge and isolation | nginx, socket proxy | 1.31, 1.13.2 | the only published door to Auto Ontology; restarts allowed for exactly two containers | [infra/compose.yml](infra/compose.yml) |
 | Containers | Docker Compose | profiles `core`, `obs`, `ontology` | start only what the day needs | [infra/compose.yml](infra/compose.yml) |
-| CI | GitHub Actions, gitleaks | | tests, governance checkers, the 3-day dbt build | [.github/workflows/ci.yml](.github/workflows/ci.yml) |
+| CI and supply chain | GitHub Actions, gitleaks, ruff, CodeQL, Dependabot | actions pinned by commit, images by digest | tests, lint and security rules, governance checkers, the 3-day dbt build; weekly patch and minor updates | [.github/workflows/](.github/workflows/), [.github/dependabot.yml](.github/dependabot.yml) |
 | Coding agent | Claude Code, with Codex reviewing PRs | | builds the project under [AGENTS.md](AGENTS.md); harness registry in [.agents/harnesses.yaml](.agents/harnesses.yaml) | [.claude/settings.json](.claude/settings.json) |
 
 Models, all reached through gateway aliases ([infra/llm-gateway/config.yaml](infra/llm-gateway/config.yaml)):
@@ -208,6 +208,7 @@ How the project was built, and why in this order:
 | `helpers/`, `tests/` | governance checkers and tests |
 | `.agents/` | rules, skills, the knowledge base, model prices for the AI usage footer |
 | `docs/` | runbook, generated knowledge docs, run reports, one worknote per issue |
+| [SECURITY.md](SECURITY.md), [CONTRIBUTING.md](CONTRIBUTING.md), [LICENSE](LICENSE), [NOTICE](NOTICE) | security policy, how to contribute, the licence and the Auto Ontology notice |
 
 ## Quickstart
 
@@ -248,6 +249,28 @@ Milestones M0 to M12 of [PLAN.md](PLAN.md) are merged:
 
 Since then: chat refusals fixed ([#35](https://github.com/fiqryrev/project-agentic-data-warehouse/pull/35)) and model calls linked by request id ([#37](https://github.com/fiqryrev/project-agentic-data-warehouse/pull/37)).
 
+## Security
+
+The stack is built for one laptop, and its security model assumes that. The full policy, how to
+report a problem and the accepted risks are in [SECURITY.md](SECURITY.md).
+
+- **Local only.** Every published port binds to `127.0.0.1`. The Auto Ontology containers sit on
+  an internal network with no route out; the LiteLLM gateway is their only way to a model.
+- **Airflow has no login**, by design for a laptop: every visitor of `127.0.0.1:8080` is an admin.
+  Values chosen by whoever triggers a run never reach a shell command.
+- **Secrets** live in the gitignored `.env` (owner-only, mode 600), created by `make env-secrets`.
+  Provider keys reach the gateway only; the Airflow containers never see `.env` and get the four
+  keys their tasks need. Model calls go through per-caller virtual keys with daily budgets.
+- **Coding agents** follow [AGENTS.md](AGENTS.md): a branch per issue, no merge, no reading `.env`.
+  The hooks in `.claude/hooks/` enforce part of that; they are guardrails, not a sandbox. Text
+  from human labels enters the knowledge base only as quoted data.
+- **Supply chain.** Images pinned by digest, GitHub Actions by commit, Python by `uv.lock`;
+  Dependabot proposes patch and minor updates, CodeQL and ruff's security rules scan the code,
+  gitleaks and `check_secrets` scan for keys.
+
+Before exposing any part of it beyond one machine: real Airflow authentication, TLS, and a keyed
+rerank route (or a proxy in front of it).
+
 ## Limits
 
 - **Synthetic data.** The marketplace is generated; its defects are deliberate and documented.
@@ -261,3 +284,9 @@ Since then: chat refusals fixed ([#35](https://github.com/fiqryrev/project-agent
 - **Auto Ontology is patched.** It runs at a pinned commit with three overlay patches applied at
   build time, not a fork.
 - **Small golden set.** Eight questions; it grows from human labels.
+
+## License
+
+[Apache License 2.0](LICENSE). The overlay patches in `infra/auto-ontology/patches/` modify NVIDIA
+Auto Ontology, also Apache-2.0; see [NOTICE](NOTICE). Contributions follow
+[CONTRIBUTING.md](CONTRIBUTING.md).

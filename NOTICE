@@ -1,0 +1,14 @@
+project-agentic-data-warehouse
+Copyright 2026 the project-agentic-data-warehouse authors
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This project builds and runs NVIDIA Auto Ontology (https://github.com/NVIDIA/auto-ontology),
+licensed under the Apache License, Version 2.0. It does not include Auto Ontology's source: the
+pinned commit in infra/auto-ontology/UPSTREAM_SHA is cloned at build time into the gitignored
+infra/auto-ontology/upstream/.
+
+The files in infra/auto-ontology/patches/ are modifications of that source, applied at build time
+and distributed under the Apache License, Version 2.0. Each is a unified diff that names the
+upstream files it changes; its file name says what it changes, and the worknote of the issue that
+added it (docs/task-management/) says why.
