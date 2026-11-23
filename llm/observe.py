@@ -127,7 +127,7 @@ class Langfuse:
             if not cursor:
                 return out
 
-    def export_spans(self, spans: list["Span"]) -> None:
+    def export_spans(self, spans: list[Span]) -> None:
         """Traces go in over OTLP/HTTP (JSON): Langfuse 4.83 runs with
         LANGFUSE_MIGRATION_V4_WRITE_MODE=events_only, where /ingestion takes scores only."""
         doc = self.call("POST", "/api/public/otel/v1/traces", otlp_payload(spans),

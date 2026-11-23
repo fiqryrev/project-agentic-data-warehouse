@@ -23,7 +23,6 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import datetime as dtm
-import json
 import os
 import random
 import sys
@@ -178,7 +177,7 @@ def score_answer(q: Question, ref_cols: list[str], ref_rows: list[tuple],
         return "wrong", "; ".join(f"{label}: {', '.join(ks)}" for label, ks in
                                   (("missing", missing), ("extra", extra), ("duplicate", dupes)) if ks)
     per_key, reasons = [], []
-    for ref, key in zip(ref_rows, ref_keys):
+    for ref, key in zip(ref_rows, ref_keys, strict=True):
         got = ak.numbers_in({k: v for k, v in by_key[key][0].items() if k != col})
         vs = [best([compare(float(e), n, q.tolerance_pct) for n in got])
               for i, e in enumerate(ref) if i != ki and isinstance(e, (int, float))]
@@ -238,7 +237,7 @@ def pick_sample(candidates: list[str], queued: set[str], seed: str, n: int = SAM
     """n answers not yet in the queue, drawn with a seed (the run's date), so a rerun of the same
     day draws the same ones."""
     pool = sorted(set(candidates) - queued)
-    return random.Random(seed).sample(pool, min(n, len(pool)))
+    return random.Random(seed).sample(pool, min(n, len(pool)))  # noqa: S311  seeded sample for review, not a secret
 
 
 def sample_answers(lf: Langfuse, queue_id: str, ds: str, now: dtm.datetime) -> list[str]:
@@ -289,7 +288,7 @@ def ask_and_score(session: ak.Session, env: dict, lf: Langfuse, snapshot: Path, 
         time.sleep(ak.INGEST_WAIT_S)
         ak.link_calls(answers, env, lf)
         results = []
-        for q, a in zip(ready, answers):
+        for q, a in zip(ready, answers, strict=True):
             cols, rows = refs[q.id]
             verdict, reason = score_answer(q, cols, rows, a.rows)
             if a.error:

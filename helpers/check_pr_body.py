@@ -121,7 +121,7 @@ def check_footer(body: str) -> list[str]:
                       "must end the body")
     lines = tail[1:7]
     parsed = {}
-    for label, line in zip(FOOTER_LABELS, lines):
+    for label, line in zip(FOOTER_LABELS, lines, strict=True):     # six of each, checked above
         m = LINE_RES[label].match(line)
         if not m:
             errors.append(f"footer line '{label}' has the wrong shape: {line}")

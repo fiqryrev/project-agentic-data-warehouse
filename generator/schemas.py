@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pyarrow as pa
 
-I, S, D, T = pa.int64(), pa.string(), pa.date32(), pa.timestamp("us")
+I, S, D, T = pa.int64(), pa.string(), pa.date32(), pa.timestamp("us")  # noqa: E741  short Arrow type aliases
 
 
 def _s(*fields: tuple[str, pa.DataType]) -> pa.Schema:

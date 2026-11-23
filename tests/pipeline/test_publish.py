@@ -1,13 +1,12 @@
 """quality_gate and run_recorder (DAG tasks 4 and 9) against a small build file."""
+import datetime as dtm
 import json
 
 import duckdb
 import pytest
 
-import datetime as dtm
-
 from publish import quality_gate, refresh_ontology, run_recorder, snapshot
-from publish.artifacts import failed_nodes, dbt_test_counts
+from publish.artifacts import dbt_test_counts, failed_nodes
 
 DS = "2026-01-02"
 

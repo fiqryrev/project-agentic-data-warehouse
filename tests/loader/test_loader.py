@@ -33,7 +33,7 @@ def con(tmp_path):
 def counts(con):
     tables = con.execute("SELECT table_name FROM information_schema.tables "
                          "WHERE table_schema = 'data_lake_layer' ORDER BY 1").fetchall()
-    return {t: con.execute(f"SELECT _dt, count(*) FROM data_lake_layer.{t} GROUP BY 1 ORDER BY 1").fetchall()
+    return {t: con.execute(f"SELECT _dt, count(*) FROM data_lake_layer.{t} GROUP BY 1 ORDER BY 1").fetchall()  # noqa: S608  identifiers only; values bound with ?
             for (t,) in tables}
 
 

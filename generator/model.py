@@ -10,7 +10,7 @@ import csv
 import datetime as dt
 import hashlib
 import random
-from functools import lru_cache
+from functools import cache, lru_cache
 from pathlib import Path
 
 from generator import config as c
@@ -24,7 +24,7 @@ Rows = list[dict]
 
 def rng(seed: int, *key) -> random.Random:
     digest = hashlib.sha256("|".join(map(str, (seed, *key))).encode()).digest()
-    return random.Random(int.from_bytes(digest[:16], "big"))
+    return random.Random(int.from_bytes(digest[:16], "big"))  # noqa: S311  deterministic synthetic data, not a secret
 
 
 def day_index(day: dt.date) -> int:
@@ -42,7 +42,7 @@ def at(day: dt.date, seconds: int) -> dt.datetime:
     return dt.datetime.combine(day, dt.time()) + dt.timedelta(seconds=seconds)
 
 
-@lru_cache(maxsize=None)
+@cache
 def reference(name: str) -> tuple[dict, ...]:
     with open(REFERENCE / f"{name}.csv", encoding="utf-8", newline="") as fh:
         return tuple(csv.DictReader(fh))

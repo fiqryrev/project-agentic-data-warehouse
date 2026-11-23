@@ -3,8 +3,18 @@ import pytest
 
 from helpers import check_bundle as c
 from helpers import dbtlib
-from tests.governance.dbt_project import (FACT, FACT_YML, LAKE, MART, MART_YML, SECTIONS,
-                                          STAGING_YML, doc, make_project, write)
+from tests.governance.dbt_project import (
+    FACT,
+    FACT_YML,
+    LAKE,
+    MART,
+    MART_YML,
+    SECTIONS,
+    STAGING_YML,
+    doc,
+    make_project,
+    write,
+)
 
 
 def errors(root):
@@ -148,7 +158,7 @@ def test_incremental_filter_and_config_pass(tmp_path):
     root = make_project(tmp_path)
     sql = (root / f"{MART}.sql").read_text()
     write(root, f"{MART}.sql",
-          "{{ config(materialized='incremental') }}\n" + sql.replace(
+          "{{ config(materialized='incremental') }}\n" + sql.replace(  # noqa: S608  identifiers only; values bound with ?
               "group by 1", "{% if is_incremental() %} where order_date > "
               "(select max(order_date) from {{ this }}) {% endif %}\ngroup by 1"))
     assert errors(root) == []

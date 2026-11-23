@@ -33,6 +33,10 @@ jobs:
       - name: tests
         run: uv run pytest -q
 
+      - name: ruff
+        if: success() || failure()
+        run: uv run ruff check .
+
       - name: check_entry_size
         if: success() || failure()
         run: uv run python -m helpers.check_entry_size

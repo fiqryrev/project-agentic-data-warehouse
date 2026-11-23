@@ -131,7 +131,7 @@ def step_over_budget(env: dict) -> bool:
         if first != 200:
             print(f"[llm-smoke] FAIL budget: the first call should pass and spend the budget, got {first}")
             return False
-        for attempt in range(3):              # spend is recorded right after the call returns
+        for attempt in range(3):  # noqa: B007  read after the loop; spend is recorded right after a call
             time.sleep(3)
             status, _, out = chat(key)
             if is_budget_refusal(status, out):

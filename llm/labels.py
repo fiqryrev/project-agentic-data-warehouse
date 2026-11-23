@@ -44,7 +44,8 @@ class _Block(yaml.SafeDumper):
     """Multi-line strings (SQL) as `|` blocks, as the hand-written golden files have them."""
 
 
-_Block.add_representer(str, lambda d, v: d.represent_scalar("tag:yaml.org,2002:str", v, style="|" if "\n" in v else None))
+_Block.add_representer(str, lambda d, v: d.represent_scalar("tag:yaml.org,2002:str", v,
+                                                         style="|" if "\n" in v else None))
 
 TO_GOLDEN, TO_KNOWLEDGE, TO_ISSUE = ("correct",), ("wrong_definition", "wrong_filter"), ("wrong_grain", "wrong_number")
 
@@ -288,7 +289,8 @@ The label-to-change rules of PLAN 8.4, approved with M11 (issue 28); this batch 
 
 def batch_summary(plan: list[dict]) -> str:
     return ("Labels from the Langfuse queue `answer-review` turned into changes (PLAN 8.4, `make label-prs`).\n\n"
-            + "\n".join(f"- `{slug(p['trace_id'], 1)[:12]}` `{sanitize(p['verdict'], 40)}` -> {p['outcome']}" for p in plan))
+            + "\n".join(f"- `{slug(p['trace_id'], 1)[:12]}` `{sanitize(p['verdict'], 40)}` -> {p['outcome']}"
+                        for p in plan))
 
 
 def pr_body(plan: list[dict], checks: list[str], lf_note: str, issue: int) -> str:
@@ -322,7 +324,8 @@ Closes #{issue}
 def open_batch(plan: list[dict], files: dict[str, str], today: str, lf_note: str, base: str = "main") -> str:
     knowledge = [p for p in plan if p["outcome"] == "knowledge"]
     golden = [p for p in plan if p["outcome"] == "golden"]
-    title = f"Labels {today}: {len(knowledge)} knowledge entr{'y' if len(knowledge) == 1 else 'ies'}, {len(golden)} golden question(s)"
+    entries = f"{len(knowledge)} knowledge entr{'y' if len(knowledge) == 1 else 'ies'}"
+    title = f"Labels {today}: {entries}, {len(golden)} golden question(s)"
     body = batch_summary(plan)
     issue_url = sh("gh", "issue", "create", "--title", title, "--body", body, "--label", "documentation")
     issue = int(issue_url.rstrip("/").split("/")[-1])
@@ -406,7 +409,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[label-prs] dry run: {len(plan)} label(s); OPEN=1 to create the pull request")
         return 0
     record = {"labels": processed + [{k: v for k, v in p.items() if k != "note"} for p in plan]}
-    files[PROCESSED.as_posix()] = ("# Labels handled by make label-prs (llm/labels.py); one row per trace and labeller.\n"
+    files[PROCESSED.as_posix()] = ("# Labels handled by make label-prs (llm/labels.py); "
+                                   "one row per trace and labeller.\n"
                                    + yaml.safe_dump(record, sort_keys=False, width=100))
     files[".agents/knowledge/evals/retrieval.yaml"] = evals
     if not any(p["outcome"] in ("golden", "knowledge") for p in plan):

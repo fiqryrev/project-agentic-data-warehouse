@@ -15,7 +15,7 @@ COLUMNS = ("run_date, run_status, test_pass_count, test_warn_count, test_fail_co
 def main(argv: list[str]) -> int:
     con = duckdb.connect(argv[0], read_only=True)
     try:
-        con.sql(f"select {COLUMNS} from ops.run_log order by run_date").show(max_rows=400, max_width=200)
+        con.sql(f"select {COLUMNS} from ops.run_log order by run_date").show(max_rows=400, max_width=200)  # noqa: S608  identifiers only; values bound with ?
     finally:
         con.close()
     return 0

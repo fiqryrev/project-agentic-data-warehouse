@@ -42,7 +42,7 @@ def tables(con: duckdb.DuckDBPyConnection, catalog: str) -> dict[str, int]:
     names = con.execute(
         "select schema_name, table_name from duckdb_tables() where database_name = ? "
         "and schema_name in (select unnest(?)) order by 1, 2", [catalog, list(SERVED_SCHEMAS)]).fetchall()
-    return {f"{s}.{t}": con.execute(f'select count(*) from "{catalog}"."{s}"."{t}"').fetchone()[0]
+    return {f"{s}.{t}": con.execute(f'select count(*) from "{catalog}"."{s}"."{t}"').fetchone()[0]  # noqa: S608  identifiers only; values bound with ?
             for s, t in names}
 
 

@@ -25,7 +25,7 @@ design; `docs/m0-findings.md` holds the verified versions and commands.
 | `infra/auto-ontology/` | `UPSTREAM_SHA`, overlay `patches/`, bootstrap (clone into gitignored `upstream/`), edge proxy |
 | `llm/` | `ask` client, golden runner (task 7), `telemetry` (task 8), `labels`, `compare` (providers), `observe`, checks |
 | `evals/golden/`, `evals/labels/` | golden questions with reference SQL (`README.md`); labels already turned into PRs |
-| `Makefile` | `make test`, `make checks`, `make generate`, `make load`, `make dbt-build`, `make dbt-ci`, `make up-core`, `make backfill`, `make run-log`, `make up-obs`, `make llm-smoke`, `make up-ontology`, `make ontology-check`, `make ask`, `make golden`, `make label-prs`, `make compare-providers` |
+| `Makefile` | `make test`, `make lint`, `make checks`, `make generate`, `make load`, `make dbt-build`, `make dbt-ci`, `make up-core`, `make backfill`, `make run-log`, `make up-obs`, `make llm-smoke`, `make up-ontology`, `make ontology-check`, `make ask`, `make golden`, `make label-prs`, `make compare-providers` |
 | `.agents/rules/` | one line per rule; the story behind each in `.agents/rules/history/` |
 | `.agents/skills/` | working procedures, loaded on use (`.claude/skills` points here) |
 | `.agents/knowledge/` | distilled knowledge: `entries/{de,da}/`, `evals/`, generated `index/` (`helpers/kb.py`) |
@@ -121,6 +121,7 @@ The PostToolUse hook logs every tool call the same way. Logs are gitignored.
 | Check | Command |
 |---|---|
 | tests | `uv run pytest -q` |
+| lint and security rules | `uv run ruff check .` (`make lint`) |
 | entry size | `uv run python -m helpers.check_entry_size` |
 | harness parity | `uv run python -m helpers.check_harness_parity` |
 | secrets and home paths | `uv run python -m helpers.check_secrets` (and gitleaks in CI) |

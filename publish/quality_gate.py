@@ -20,21 +20,21 @@ from pathlib import Path
 
 import duckdb
 
-from publish.artifacts import ARTIFACTS, LAYER_SCHEMAS, day_dir, failed_nodes, read_json, dbt_test_counts, write_json
+from publish.artifacts import ARTIFACTS, LAYER_SCHEMAS, day_dir, dbt_test_counts, failed_nodes, read_json, write_json
 
 
 def table_rows(con: duckdb.DuckDBPyConnection, schema: str) -> dict[str, int]:
     names = [r[0] for r in con.execute(
         "select table_name from information_schema.tables where table_schema = ? "
         "order by table_name", [schema]).fetchall()]
-    return {n: con.execute(f'select count(*) from "{schema}"."{n}"').fetchone()[0] for n in names}
+    return {n: con.execute(f'select count(*) from "{schema}"."{n}"').fetchone()[0] for n in names}  # noqa: S608  identifiers only; values bound with ?
 
 
 def lake_day_rows(con: duckdb.DuckDBPyConnection, ds: str) -> int:
     total = 0
     lake = LAYER_SCHEMAS["lake"]
     for name in table_rows(con, lake):
-        total += con.execute(f'select count(*) from {lake}."{name}" where _dt = ?::date', [ds]).fetchone()[0]
+        total += con.execute(f'select count(*) from {lake}."{name}" where _dt = ?::date', [ds]).fetchone()[0]  # noqa: S608  identifiers only; values bound with ?
     return total
 
 

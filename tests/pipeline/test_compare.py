@@ -15,8 +15,9 @@ def result(qid, verdict, cost):
 
 
 def test_candidates_are_gateway_alias_pairs_in_the_gateway_config():
-    import yaml
     from pathlib import Path
+
+    import yaml
     cfg = yaml.safe_load((Path(__file__).resolve().parents[2] / "infra/llm-gateway/config.yaml").read_text())
     aliases = {m["model_name"] for m in cfg["model_list"]}
     assert c.CANDIDATES[c.DEFAULT] == ("openai/adw-reasoning", "openai/adw-non-reasoning")

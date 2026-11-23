@@ -53,7 +53,7 @@ def write(entry: dict, directory: Path | None = None) -> Path:
 
 def entry(session, role, action, tool, args, result, status) -> dict:
     return {
-        "ts": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+        "ts": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
         "session": session or "manual",
         "role": one_line(role) or "agent",
         "action": one_line(action),

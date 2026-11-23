@@ -75,7 +75,8 @@ def generations(lf: Langfuse, since: dtm.datetime, until: dtm.datetime) -> list[
     out, cursor = [], None
     while True:
         page = lf.call("GET", "/api/public/v2/observations?type=GENERATION&limit=50&fields=core,basic,io,metadata"
-                       f"&fromStartTime={iso(since)}&toStartTime={iso(until)}" + (f"&cursor={cursor}" if cursor else ""))
+                       f"&fromStartTime={iso(since)}&toStartTime={iso(until)}"
+                       + (f"&cursor={cursor}" if cursor else ""))
         out += page.get("data") or []
         cursor = (page.get("meta") or {}).get("cursor")
         if not cursor:
