@@ -38,3 +38,24 @@ def test_dependabot_proposes_patch_and_minor_only():
             assert {"dependency-name": "duckdb", "update-types": ["version-update:semver-minor"]} in ignores
     pins = yaml.safe_load((REPO / "infra" / "duckdb-pins.yaml").read_text(encoding="utf-8"))
     assert pins["loader"].endswith(",<1.6")        # the minor ignore above is what keeps this true
+
+
+def test_makefile_checks_and_ci_run_the_same_checkers():
+    """M3: the checkers are listed by hand twice (one CI step each, so a failure names its
+    checker); this keeps the two lists equal. check_worknote and check_pr_body run in CI only."""
+    makefile = (REPO / "Makefile").read_text(encoding="utf-8")
+    block = makefile.split("\nchecks:\n", 1)[1].split("\n\n", 1)[0]
+    in_make = re.findall(r"uv run python -m helpers\.(check_\w+)", block)
+    ci = (REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    in_ci = [c for c in re.findall(r"uv run python -m helpers\.(check_\w+)", ci)
+             if c not in ("check_worknote", "check_pr_body")]
+    assert in_make and in_make == in_ci, (in_make, in_ci)
+
+
+def test_runtime_dependencies_have_a_major_upper_bound():
+    """M4: uv.lock pins installs; the bounds keep a re-lock from crossing a major version."""
+    import tomllib
+    project = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    assert project["version"] != "0.0.0"
+    for dep in project["dependencies"]:
+        assert "<" in dep, dep

@@ -118,7 +118,7 @@ golden:
 label-prs:
 	uv run python -m llm.labels $(if $(OPEN),--open,) $(if $(BASE),--base $(BASE),)
 
-# The golden set once per candidate provider; report in docs/runs/ (llm/compare.py, PLAN 8.6).
+# The golden set once per candidate provider; report in data/runs/ (gitignored; llm/compare.py, PLAN 8.6).
 ALIASES ?= nvidia,openrouter
 compare-providers:
 	uv run python -m llm.compare --aliases $(ALIASES)

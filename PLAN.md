@@ -399,7 +399,7 @@ As built in M12: a candidate is a pair of gateway aliases for Auto Ontology's re
 non-reasoning roles (`CANDIDATES` in `llm/compare.py`); only the backend is restarted on the pair,
 embeddings stay fixed, and the default pair is restored afterwards. Each candidate's run is a
 Langfuse experiment on dataset `golden` (OTLP `langfuse.experiment.*` attributes); the report goes
-to `docs/runs/`, the mart is `rpt__ops__provider_comparison__snapshot`. The first two runs
+to `data/runs/` (gitignored; a report worth citing is copied to `docs/runs/`), the mart is `rpt__ops__provider_comparison__snapshot`. The first two runs
 disagreed (the chat's refusals vary more than the providers), so no swap was proposed. The local
 runbook is `docs/runbook.md`.
 

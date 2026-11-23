@@ -44,3 +44,12 @@ def test_experiment_attrs_tie_an_answer_to_the_dataset_item():
                            result("g-1", "wrong", 0.0), "span1")
     assert a["langfuse.experiment.name"] == "compare-x-openrouter" and a["langfuse.experiment.item.id"] == "golden-g-1"
     assert a["langfuse.experiment.dataset.id"] == "ds1" and a["langfuse.experiment.item.root_observation_id"] == "span1"
+
+
+def test_reports_go_to_the_gitignored_data_folder():
+    """M5 (#58): run reports are working output; one worth citing is copied to docs/runs/."""
+    import subprocess
+
+    from llm import compare
+    assert compare.REPORTS.as_posix() == "data/runs"
+    assert subprocess.run(["git", "check-ignore", "-q", "data/runs/x.md"]).returncode == 0

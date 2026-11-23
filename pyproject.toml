@@ -1,12 +1,12 @@
 [project]
 name = "project-agentic-data-warehouse"
-version = "0.0.0"
+version = "0.1.0"
 description = "Local data warehouse feeding NVIDIA Auto Ontology, with an agent harness"
 requires-python = ">=3.12"
 dependencies = [
     "duckdb>=1.5.5,<1.6",
-    "pyarrow>=26.0.1",
-    "pyyaml>=6",
+    "pyarrow>=26.0.1,<27",
+    "pyyaml>=6,<7",
 ]
 
 [dependency-groups]

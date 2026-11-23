@@ -2,7 +2,7 @@
 
 Provider comparison on the golden set: for each run of `make compare-providers` and each candidate
 provider, accuracy, cost per correct answer and p95 latency of Auto Ontology on the same snapshot
-(PLAN 8.6). A provider swap is proposed only with this table (or its report in `docs/runs/`) in
+(PLAN 8.6). A provider swap is proposed only with this table (or its report from `data/runs/`, copied to `docs/runs/`) in
 the pull request.
 
 ## Potential Analyses
