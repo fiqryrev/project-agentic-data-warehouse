@@ -123,3 +123,56 @@ def test_activity_log_from_hook(tmp_path, monkeypatch):
     assert run.returncode == 0
     rec = json.loads((tmp_path / ".agent-activity-logs" / "abc.jsonl").read_text())
     assert rec["tool"] == "Bash" and rec["args"] == "git status" and rec["status"] == "ok"
+
+
+ENV_READS = [
+    "cat .env", "grep KEY .env", "awk -F= '{print $2}' .env", "sed -n p .env", "source .env", ". .env",
+    "cp .env /tmp/x", "python3 -c 'import sys; print(sys.stdin.read())' < .env", "cat<.env",
+    "echo $(<.env)", "cat ./.env", "cat ../repo/.env", "git status && grep -c = .env",
+    # Codex review on #47: other commands with --env-file, and patterns that expand to .env.
+    "docker run --env-file .env alpine env", "docker run --env-file=.env alpine env",
+    "cat .env*", "cat .e?v", "cat .[e]nv", "cat .*", "cat {.env,x}", "cat .{env,x}", "head ./.en*",
+]
+COMPOSE_CONFIG = [
+    "docker compose -f infra/compose.yml config",
+    "docker compose -f infra/compose.yml --env-file .env --profile core config",
+    "docker-compose config", "env X=1 docker compose config",
+]
+ALLOWED = [
+    "cat .env.example", "grep -n SECRET .env.example", "grep -n FOO .envrc",
+    "docker compose -f infra/compose.yml --env-file .env --profile core up -d --build --wait",
+    "docker compose -f infra/compose.yml --env-file .env --profile core exec airflow-scheduler bash x.sh",
+    "docker compose --env-file=.env ps", "make up-core", "make backfill FROM=2026-01-01 TO=2026-01-02",
+    "git config user.name", "docker config ls", "uv run pytest -q",
+    "cat *.md", "ls *", "cat .env.ex*", "ls {a,b}.txt", "cat .gitignore",
+]
+
+
+def test_bash_guard_blocks_every_way_to_read_dot_env():
+    """S10 (security review 2026-11-23): naming the file is enough, whatever the command."""
+    for cmd in ENV_READS:
+        assert guard_bash.ENV_MSG in guard_bash.reasons(cmd, "/wt", ON_ISSUE), cmd
+    for cmd in COMPOSE_CONFIG:
+        assert guard_bash.CONFIG_MSG in guard_bash.reasons(cmd, "/wt", ON_ISSUE), cmd
+
+
+def test_bash_guard_allows_env_example_and_compose_env_file():
+    for cmd in ALLOWED:
+        assert guard_bash.reasons(cmd, "/wt", ON_ISSUE) == [], cmd
+
+
+def test_make_targets_that_pass_the_env_file_stay_allowed():
+    """The Makefile's compose lines (`--env-file .env`) must pass the guard as written there."""
+    import re
+    text = (REPO / "Makefile").read_text(encoding="utf-8")
+    lines = [ln.strip() for ln in text.splitlines() if re.match(r"^[A-Z]+ = docker compose", ln)]
+    assert lines
+    for ln in lines:
+        cmd = ln.split("=", 1)[1].strip() + " up -d"
+        assert guard_bash.reasons(cmd, "/wt", ON_ISSUE) == [], cmd
+
+
+def test_bash_guard_blocks_dot_env_from_the_hook_process():
+    run = run_hook(REPO / ".claude/hooks/guard_bash.py",
+                   {"tool_input": {"command": "grep SECRET .env"}, "cwd": str(REPO)})
+    assert run.returncode == 2 and ".env" in run.stderr

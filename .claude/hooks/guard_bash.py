@@ -4,7 +4,15 @@
 - merging a PR (never merge unless the owner names the PR; the owner runs it);
 - committing or pushing while the target repository is on the default branch, pushing to
   the default branch, or pushing every branch at once;
-- printing the .env file.
+- touching the .env file in any way: any command that names it (`grep`, `awk`, `sed`,
+  `source`, `cp`, a `< .env` redirect, ...) or a glob or brace pattern the shell expands to it
+  (`.env*`, `.*`, `{.env,x}`), except `--env-file .env` given to docker compose; `.env.example`
+  is fine;
+- `docker compose ... config`, which prints every variable with its value.
+
+A guardrail against mistakes, not a sandbox: a command that never names the file (`grep -r` over
+the repository, a script that opens it) still reads it. The `Read(./.env)` deny rule in
+`.claude/settings.json` covers the Read tool.
 
 The target repository is the one Git itself would pick: the hook follows `cd <dir>` inside
 the command and Git's global options (`-C <dir>`, `--git-dir`, `--work-tree`), so
@@ -14,6 +22,7 @@ only.
 """
 from __future__ import annotations
 
+import fnmatch
 import json
 import os
 import re
@@ -26,9 +35,38 @@ DEFAULT_BRANCHES = ("main", "master")
 RULES = [
     (re.compile(r"\bgh\b[^;&|\n]*\bpr\s+merge\b"),
      "never merge: only the owner merges, and only a PR they name"),
-    (re.compile(r"\b(?:cat|less|more|head|tail|bat|nl|strings)\b[^;&|\n]*\s\.env(?:\s|$)"),
-     "never print .env; it holds secrets"),
 ]
+ENV_MSG = "never read, print or copy .env; it holds secrets (use .env.example for key names)"
+CONFIG_MSG = "never run `docker compose config`: it prints every secret from .env"
+# A token that is the .env file: `.env`, `./.env`, `dir/.env`, `<.env`, `$(<.env)`, `X=.env`.
+ENV_TOKEN_RE = re.compile(r"(?:^|[/<>=(])\.env\)?$")
+BRACE_RE = re.compile(r"\{([^{}]*,[^{}]*)\}")
+
+
+def _braces(word: str, limit: int = 64) -> list[str]:
+    """Shell brace expansion, enough for `{.env,x}` and `.{env,x}`; at most `limit` words."""
+    m = BRACE_RE.search(word)
+    if not m:
+        return [word]
+    out: list[str] = []
+    for alt in m.group(1).split(","):
+        out += _braces(word[:m.start()] + alt + word[m.end():], limit)
+        if len(out) >= limit:
+            break
+    return out[:limit]
+
+
+def names_env(tok: str) -> bool:
+    """True when the shell would turn this token into the .env path: literally, by brace
+    expansion, or by a glob (`.env*`, `.e?v`, `.[e]nv`, `.*`). A glob reaches a dotfile only when
+    its last part starts with a dot (no `dotglob`), so `*` and `*.md` do not count."""
+    for word in _braces(tok):
+        if ENV_TOKEN_RE.search(word):
+            return True
+        base = re.split(r"[/<>=(]", word)[-1].rstrip(")")
+        if base.startswith(".") and any(c in base for c in "*?[") and fnmatch.fnmatchcase(".env", base):
+            return True
+    return False
 SEGMENT_SPLIT_RE = re.compile(r"&&|\|\||[;|&\n]")
 WRAPPERS = {"sudo", "env", "command", "exec", "nohup", "time", "builtin"}
 # Git global options that take a separate value, and the ones that change the target repo.
@@ -109,9 +147,33 @@ def pushes_default(args: list[str]) -> bool:
     return False
 
 
+def env_file_reasons(command: str) -> list[str]:
+    """Reasons for a command that names the .env file, or asks compose to print its config."""
+    out: list[str] = []
+    for segment in SEGMENT_SPLIT_RE.split(command):
+        try:
+            toks = shlex.split(segment)
+        except ValueError:
+            toks = segment.split()
+        words = [os.path.basename(t) for t in _tokens(segment)]
+        compose = (words[:1] == ["docker-compose"]) or (words[:1] == ["docker"] and "compose" in words)
+        for i, tok in enumerate(toks):
+            # Compose reads --env-file for interpolation and prints nothing. Other commands with
+            # the same flag (`docker run --env-file .env alpine env`) hand the values to a process
+            # that can print them, so the exemption is Compose only (Codex review on #47).
+            if compose and (tok.startswith("--env-file=") or (i and toks[i - 1] == "--env-file")):
+                continue
+            if names_env(tok) and ENV_MSG not in out:
+                out.append(ENV_MSG)
+        if compose and "config" in words[words.index("compose") + 1 if "compose" in words else 1:]:
+            if CONFIG_MSG not in out:
+                out.append(CONFIG_MSG)
+    return out
+
+
 def reasons(command: str, cwd: str | None = None,
             branch_of: Callable[[str | None, tuple[str, ...]], str] = current_branch) -> list[str]:
-    out = [msg for rx, msg in RULES if rx.search(command)]
+    out = [msg for rx, msg in RULES if rx.search(command)] + env_file_reasons(command)
     for here, git_globals, sub, args in git_calls(command, cwd):
         if sub not in ("commit", "push"):
             continue
