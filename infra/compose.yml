@@ -239,7 +239,7 @@ services:
 
   langfuse-minio:
     # Chainguard publishes no version tags; pinned by digest (M0).
-    image: cgr.dev/chainguard/minio@sha256:548147b5fc95a67e3e45285dff7e0e50326c3eb1977c6218039461771156c5e7
+    image: cgr.dev/chainguard/minio@sha256:304e0bbeb70a9aa0c40ff26d5a9c0a24296019c6d326ba8b75214fb73441d6e9
     profiles: [obs]
     restart: unless-stopped
     entrypoint: sh
