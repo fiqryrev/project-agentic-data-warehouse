@@ -53,3 +53,21 @@ def test_reports_go_to_the_gitignored_data_folder():
     from llm import compare
     assert compare.REPORTS.as_posix() == "data/runs"
     assert subprocess.run(["git", "check-ignore", "-q", "data/runs/x.md"]).returncode == 0
+
+
+def test_every_cited_run_report_is_in_git():
+    """Codex review on #61: worknotes and reports cite runs by id (`compare-20261122T1238`), and a
+    figure must keep its source (rule 5). Any cited run id has its report in docs/runs/."""
+    import re
+    import subprocess
+    from pathlib import Path
+    repo = Path(__file__).resolve().parents[2]
+    files = subprocess.run(["git", "ls-files", "*.md"], cwd=repo, capture_output=True, text=True,
+                           check=True).stdout.split()
+    cited = set()
+    for f in files:
+        if not (repo / f).is_file():
+            continue
+        cited |= set(re.findall(r"\b((?:compare|refusals)-\d{8}(?:T\d{4})?)\b", (repo / f).read_text(encoding="utf-8")))
+    missing = sorted(c for c in cited if not (repo / "docs" / "runs" / f"{c}.md").exists())
+    assert cited and not missing, missing
