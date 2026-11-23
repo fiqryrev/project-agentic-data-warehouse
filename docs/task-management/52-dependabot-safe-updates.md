@@ -34,10 +34,18 @@ Approved in chat on 2026-11-23:
 - **DuckDB: minors ignored too.** The loader, dbt and Auto Ontology must open one file
   (`infra/duckdb-pins.yaml`, `loader: ">=1.5.5,<1.6"`), so DuckDB moves only by hand, with the pins
   and `check_duckdb_compat`. A test keeps the ignore and the pin's upper bound together.
-- **Exempt by author and branch**, both: `dependabot[bot]` as the PR's user and a head branch
-  starting `dependabot/` (`helpers/govlib.py`, `dependabot_pr`). A person cannot open a PR as the
+- **Exempt by author, branch and update type**, all three: `dependabot[bot]` as the PR's user, a
+  head branch starting `dependabot/`, and non-major commits (next point; `helpers/govlib.py`,
+  `dependabot_pr`). A person cannot open a PR as the
   bot, and a person's PR on a look-alike branch is still checked. Only when the body comes from the
   PR event: `--body-file` (an agent checking its own draft) is never skipped.
+- **Majors are never exempt, security updates included** (Codex review on #53): the
+  update-type filter in `dependabot.yml` does not apply to security updates, so a vulnerability
+  fixed only by a major version would still arrive as a Dependabot PR. `dependabot_pr` reads
+  `base.sha..head.sha` from the PR event and exempts the PR only when every commit carries
+  Dependabot's `update-type` metadata and none is `version-update:semver-major` (checked on #48:
+  `semver-minor`; #50: `semver-major`). A major, or a commit someone pushed onto Dependabot's
+  branch, gets the full checks, so it needs an issue, a worknote and a PR body like any change.
 - **Every other check still runs** on a Dependabot PR (tests, the other checkers, dbt, gitleaks,
   CodeQL), and the owner still reviews and merges. Rule 8 in `.agents/rules/core.md`, its history
   and the AGENTS.md Worknote section say so.

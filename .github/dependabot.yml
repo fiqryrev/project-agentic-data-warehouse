@@ -6,8 +6,10 @@
 # the first run proposed DuckDB 2.0, whose file dbt and Auto Ontology cannot open, and Postgres 19,
 # which does not start on the existing data volumes. CI never starts the stack, so a green
 # Dependabot PR says nothing about a major image upgrade.
-# The governance checks that need an issue and a worknote skip Dependabot's PRs
-# (helpers/govlib.py, dependabot_pr); tests, dbt, gitleaks and CodeQL still run.
+# The governance checks that need an issue and a worknote skip Dependabot's patch and minor PRs
+# (helpers/govlib.py, dependabot_pr, reads the update-type in its commits); tests, dbt, gitleaks
+# and CodeQL still run. Security updates ignore the majors filter below, so a major security fix
+# still gets the full checks and an issue.
 version: 2
 updates:
   - package-ecosystem: uv            # pyproject.toml and uv.lock

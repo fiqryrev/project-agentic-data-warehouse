@@ -70,26 +70,60 @@ def test_cli_on_a_real_branch_without_worknote(tmp_path):
     assert run.returncode == 0, run.stdout + run.stderr
 
 
-# --- Dependabot PRs (#52) ---------------------------------------------------------------------
+# --- Dependabot PRs (#52; majors stay on the issue path, Codex review on #53) -------------------
 
-def write_event(tmp_path, login, ref, body=""):
-    import json
-    path = tmp_path / "event.json"
-    path.write_text(json.dumps({"pull_request": {"user": {"login": login}, "head": {"ref": ref}, "body": body}}))
-    return str(path)
+MINOR = "Bump x\n\n---\nupdated-dependencies:\n- dependency-name: x\n  update-type: version-update:semver-minor\n...\n"
+MAJOR = MINOR.replace("semver-minor", "semver-major")
+PATCH_AND_MAJOR = MINOR.replace("- dependency-name: x\n  update-type: version-update:semver-minor\n",
+                                "- dependency-name: x\n  update-type: version-update:semver-patch\n"
+                                "- dependency-name: y\n  update-type: version-update:semver-major\n")
 
 
-def test_dependabot_pr_is_recognised_by_author_and_branch():
+def dependabot_repo(tmp_path, *messages):
+    """A git repository with a base commit and one commit per message; returns (repo, base, head)."""
+    repo = tmp_path / "repo"
+    repo.mkdir(parents=True)
+    git = lambda *a: subprocess.run(["git", *a], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()  # noqa: E731
+    git("init", "-q", "-b", "main")
+    git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "base")
+    base = git("rev-parse", "HEAD")
+    for m in messages:
+        git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", m)
+    return repo, base, git("rev-parse", "HEAD")
+
+
+def event(login, ref, base, head, body=""):
+    return {"user": {"login": login}, "head": {"ref": ref, "sha": head}, "base": {"sha": base}, "body": body}
+
+
+def test_dependabot_pr_needs_its_author_branch_and_non_major_commits(tmp_path):
     from helpers.govlib import dependabot_pr
-    ev = lambda login, ref: {"user": {"login": login}, "head": {"ref": ref}}  # noqa: E731
-    assert dependabot_pr(ev("dependabot[bot]", "dependabot/uv/python-7955d6e631"))
-    assert not dependabot_pr(ev("dependabot[bot]", "52-dependabot-safe-updates"))   # not its branch
-    assert not dependabot_pr(ev("someone", "dependabot/uv/python-1"))              # a person on a look-alike branch
-    assert not dependabot_pr({})
+    repo, base, head = dependabot_repo(tmp_path, MINOR)
+    assert dependabot_pr(event("dependabot[bot]", "dependabot/uv/python-1", base, head), repo)
+    assert not dependabot_pr(event("dependabot[bot]", "52-dependabot-safe-updates", base, head), repo)
+    assert not dependabot_pr(event("someone", "dependabot/uv/python-1", base, head), repo)
+    assert not dependabot_pr({}, repo)
 
 
-def test_worknote_check_skips_a_dependabot_pr_only(tmp_path, monkeypatch):
-    monkeypatch.setenv("GITHUB_EVENT_PATH", write_event(tmp_path, "dependabot[bot]", "dependabot/docker/airflow/x"))
-    assert c.main(["--base", "HEAD", "--branch", "dependabot/docker/airflow/x"]) == 0
-    monkeypatch.setenv("GITHUB_EVENT_PATH", write_event(tmp_path, "someone", "dependabot/docker/airflow/x"))
-    assert c.main(["--base", "HEAD", "--branch", "dependabot/docker/airflow/x"]) == 1
+def test_dependabot_major_or_foreign_commit_is_not_exempt(tmp_path):
+    """Security updates ignore the majors filter in dependabot.yml, so the check reads the commits."""
+    from helpers.govlib import dependabot_pr
+    for i, messages in enumerate(((MAJOR,), (PATCH_AND_MAJOR,), (MINOR, "docs: worknote"), ())):
+        repo, base, head = dependabot_repo(tmp_path / str(i), *messages)
+        assert not dependabot_pr(event("dependabot[bot]", "dependabot/uv/python-1", base, head), repo), messages
+    assert not dependabot_pr(event("dependabot[bot]", "dependabot/uv/python-1", "0" * 40, "1" * 40), tmp_path)
+
+
+def test_worknote_check_skips_a_minor_dependabot_pr_only(tmp_path, monkeypatch):
+    import json
+
+    from helpers import govlib
+    for i, (login, messages, expected) in enumerate((("dependabot[bot]", (MINOR,), 0), ("someone", (MINOR,), 1),
+                                                     ("dependabot[bot]", (MAJOR,), 1))):
+        repo, base, head = dependabot_repo(tmp_path / str(i), *messages)
+        monkeypatch.setattr(govlib, "REPO", repo)
+        monkeypatch.chdir(repo)                 # changed_files runs git in the working directory
+        path = tmp_path / f"event{i}.json"
+        path.write_text(json.dumps({"pull_request": event(login, "dependabot/docker/airflow/x", base, head)}))
+        monkeypatch.setenv("GITHUB_EVENT_PATH", str(path))
+        assert c.main(["--base", base, "--head", head, "--branch", "dependabot/docker/airflow/x"]) == expected, login

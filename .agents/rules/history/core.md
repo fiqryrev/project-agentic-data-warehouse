@@ -10,7 +10,7 @@ Each entry: rule number, date added, the reason. Read on demand; not loaded by d
 - 6, 2026-11-21: commits, pushes and PRs are outward-facing; `.claude/settings.json` puts them under `ask`.
 - 7, 2026-11-21: filtering on a misspelled or retired value returns zero rows that look like a real answer.
 - 8, 2026-11-21: the worknote is where "why" survives; the footer makes the coding agent's cost visible per PR (PLAN 8.7).
-- 8, 2026-11-23: Dependabot cannot open an issue or write a worknote and footer, so its first PRs (#48 to #51) could never pass; the owner exempted its own PRs, limited to patch and minor updates (#52).
+- 8, 2026-11-23: Dependabot cannot open an issue or write a worknote and footer, so its first PRs (#48 to #51) could never pass; the owner exempted its own patch and minor PRs (#52); a major one, security updates included, takes the issue path.
 - 9, 2026-11-21: an unticked test-plan line hides whether it ran; a token says what happened.
 - 10, 2026-11-21: the activity log lets a later session see what was decided and called.
 - 11, 2026-11-21: keys for NVIDIA, OpenRouter and Langfuse are personal; `.env` is gitignored and denied to reads.
