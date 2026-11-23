@@ -5,7 +5,8 @@
 name: wh
 
 x-airflow: &airflow
-  image: wh-airflow:3.3.2
+  # Built here from airflow/Dockerfile, which pins the Airflow version; the name claims none (#55).
+  image: wh-airflow:local
   build:
     context: ..
     dockerfile: airflow/Dockerfile
