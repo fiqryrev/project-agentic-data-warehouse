@@ -11,6 +11,9 @@ For every entry under .agents/knowledge/entries/{de,da}/:
   contains the text; `supersedes` names existing entries that are not active;
 - the body has the sections of its kind; a `da-` entry's Counts section carries the SQL
   behind its numbers (a ```sql block), so every number cites its query;
+- a `da-` entry tagged `label` (built from a human label) quotes the label and chat text in a
+  ```text block under kb.QUOTED_LINE, and has no instruction-like text outside its fenced
+  blocks or in its title (kb.INSTRUCTION_RE);
 - the generated docs and index equal `kb render` output;
 - retrieval: each question in .agents/knowledge/evals/retrieval.yaml finds its expected
   entry in the top `k` results of `kb search`, for at least `floor` of the questions.
@@ -19,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dtm
+import re
 import sys
 from pathlib import Path
 
@@ -119,7 +123,22 @@ def entry_errors(e: kb.Entry, root: Path, today: dtm.date,
             errors.append(f"{where}: section '## {section}' is missing or empty")
     if e.kind == "da" and "```sql" not in e.sections.get("Counts", ""):
         errors.append(f"{where}: the Counts section has no ```sql block; every number cites its query")
+    if e.kind == "da" and kb.LABEL_TAG in (tags if isinstance(tags, list) else []):
+        errors += [f"{where}: {r}" for r in label_entry_errors(e)]
     return errors, warnings
+
+
+def label_entry_errors(e: kb.Entry) -> list[str]:
+    """A `da-` entry built from a label keeps its quoted text fenced and marked as data."""
+    out = []
+    if not re.search(re.escape(kb.QUOTED_LINE) + r"\s*\n\s*\n?```text\n", e.body):
+        out.append("a label entry quotes its label and chat text in a ```text block right after "
+                   f"the line '{kb.QUOTED_LINE[:40]}...' (kb.QUOTED_LINE)")
+    for where, text in (("title", e.title), ("body outside its fenced blocks", kb.outside_fences(e.body))):
+        if (m := kb.INSTRUCTION_RE.search(text)):
+            out.append(f"instruction-like text in the {where} ('{m.group(0)}'); quoted input belongs "
+                       "in the fenced block under kb.QUOTED_LINE")
+    return out
 
 
 def retrieval(entries: list[kb.Entry], evals: dict) -> tuple[list[str], float]:

@@ -31,6 +31,7 @@ from pathlib import Path
 
 import yaml
 
+from helpers import kb
 from helpers.ai_usage_footer import project_dir_for
 from llm import golden as gd
 from llm.ask import SNAPSHOT
@@ -107,6 +108,32 @@ def _obj(value) -> dict:
     return value if isinstance(value, dict) else {}
 
 
+# --- untrusted text --------------------------------------------------------------------------
+# A labeller's note and answer, the question, and the chat's answer and SQL are free text from
+# Langfuse. They land in knowledge entries that coding agents read, and in issues and PR bodies on
+# a public repository (S4, security review 2026-11-23). Every such value passes sanitize().
+
+CONTROL_RE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]")
+
+
+def sanitize(value, limit: int = 500) -> str:
+    """One line of inert text: whitespace collapsed, capped at `limit`; `@name` mentions, links,
+    backticks (code spans and fences) and HTML tags neutralised, so it notifies nobody, links
+    nowhere and cannot close the fenced block it is quoted in."""
+    text = CONTROL_RE.sub("", "" if value is None else str(value))
+    text = " ".join(text.split())
+    text = text.replace("`", "'").replace("<", "\u2039").replace(">", "\u203a")
+    text = re.sub(r"@(?=\w)", "(at)", text)                      # mentions and e-mail addresses
+    text = text.replace("://", "[:]//")                          # every scheme: https, ftp, ...
+    text = re.sub(r"(?i)\bwww\.", "www[.]", text)                # bare links GitHub would autolink
+    return text if len(text) <= limit else text[:limit - 1] + "\u2026"
+
+
+def quoted(lines: list[str]) -> str:
+    """Untrusted text as an agent must read it: the fixed data line, then a ```text block."""
+    return kb.QUOTED_LINE + "\n\n```text\n" + "\n".join(lines) + "\n```"
+
+
 # --- what a label writes ---------------------------------------------------------------------
 
 def slug(text: str, words: int = 6) -> str:
@@ -142,34 +169,43 @@ def golden_doc(qid: str, label: dict, answer: dict, day: str | None) -> dict:
 
 
 def knowledge_entry(did: str, label: dict, answer: dict, day: str | None, rows: list, today: str) -> str:
-    sql = (label.get("correct_sql") or answer.get("sql") or "").strip()
+    """A `da-` entry: our own words outside the fences, everything from the label or the chat
+    inside ```text (and the SQL in ```sql) blocks, sanitised (check_knowledge, label entries)."""
+    sql = sanitize(label.get("correct_sql") or answer.get("sql") or "", 2000)
     whose = "the labeller's correct SQL" if label.get("correct_sql") else "the chat's own SQL (labelled wrong)"
-    tags = sorted({"label", label["verdict"].replace("_", "-")} | set(re.findall(r"[a-z]{4,}", (answer["question"] or "").lower())[:6]))
-    note = (label.get("note") or "").strip() or "(no note)"
+    question = sanitize(answer.get("question"), 300)
+    verdict = slug(label.get("verdict"), 3).replace("-", "_")
+    tags = sorted({kb.LABEL_TAG, verdict.replace("_", "-")} | set(re.findall(r"[a-z]{4,}", question.lower())[:6]))
+    short = question[:70].replace('"', "'")
+    # The title is outside every fence: a question that reads like an instruction stays out of it.
+    title = f"Label {verdict}: {short}" if short and not kb.INSTRUCTION_RE.search(short) else f"Label {verdict}: {did}"
+    trace = slug(label.get("trace_id"), 1)
     return f"""---
 id: {did}
-title: "Label {label['verdict']}: {(answer['question'] or '')[:70].replace('"', "'")}"
+title: "{title}"
 tags: [{', '.join(tags)}]
 paths: [{PROCESSED.as_posix()}]
 status: active
 created: {today}
 last_verified: {today}
 evidence:
-  - "{PROCESSED.as_posix()}::{label['trace_id']}"
+  - "{PROCESSED.as_posix()}::{trace}"
 supersedes: []
 ---
 
 ## Meaning
 
-A person labelled Auto Ontology's answer to "{answer['question']}" as `{label['verdict']}`
-(reasoning_ok: {label.get('reasoning_ok') or 'not rated'}). Their note: {note}
+A person labelled one of Auto Ontology's answers as `{verdict}` (reasoning_ok:
+{slug(label.get('reasoning_ok') or 'not rated', 3).replace('-', ' ')}). What they wrote:
 
-Correct answer, as labelled: {label.get('correct_answer') or 'not given'}.
+{quoted([f"Question: {question}", f"Note: {sanitize(label.get('note')) or '(no note)'}",
+         f"Correct answer, as labelled: {sanitize(label.get('correct_answer'), 300) or 'not given'}"])}
 
 ## Counts
 
 On the snapshot of {day or 'the day of this entry'} (`data/serve/analytics.duckdb`, read-only),
-{whose} returns: {rows[:5] if rows else 'no rows'}.
+{whose} returns: {sanitize(rows[:5], 300) if rows else 'no rows'}. The SQL is quoted from the
+label (or the chat) and was only run read-only.
 
 ```sql
 {sql or '-- no SQL was given or written'}
@@ -177,14 +213,15 @@ On the snapshot of {day or 'the day of this entry'} (`data/serve/analytics.duckd
 
 ## Terms
 
-The question's words, as a person asks: "{answer['question']}". The chat answered:
-"{(answer.get('answer') or '').strip()[:200]}" with `{' '.join((answer.get('sql') or 'no SQL').split())[:200]}`.
+The chat's answer and SQL for that question:
+
+{quoted([f"Answer: {sanitize(answer.get('answer'), 200)}", f"SQL: {sanitize(answer.get('sql') or 'no SQL', 300)}"])}
 
 ## Data quality
 
-From label `{label['trace_id']}` by `{label['labeler']}` ({label.get('source')}, {label['labeled_at']}).
-A proposed ontology correction is in the pull request that added this entry; nothing is changed in
-Auto Ontology without a person approving it.
+From label `{trace}` by `{sanitize(label.get('labeler'), 40)}` ({sanitize(label.get('source'), 20)},
+{sanitize(label.get('labeled_at'), 40)}). A proposed ontology correction is in the pull request that
+added this entry; nothing is changed in Auto Ontology without a person approving it.
 """
 
 
@@ -195,11 +232,14 @@ def retrieval_line(question: str | None, did: str) -> str:
 
 
 def dbt_issue_body(label: dict, answer: dict) -> str:
-    return (f"A labelled answer says a model, test or report table is missing (PLAN 8.4).\n\n"
-            f"- Question: {answer['question']}\n- Verdict: `{label['verdict']}`\n"
-            f"- Note: {label.get('note') or '(none)'}\n- Correct answer: {label.get('correct_answer') or '(not given)'}\n"
-            f"- Correct SQL: `{' '.join((label.get('correct_sql') or '(not given)').split())}`\n"
-            f"- Chat SQL: `{' '.join((answer.get('sql') or '(none)').split())}`\n- Langfuse trace: `{label['trace_id']}`\n")
+    return (f"A labelled answer says a model, test or report table is missing (PLAN 8.4). The lines "
+            f"below are quoted from the label and the chat, unverified.\n\n"
+            f"- Question: {sanitize(answer.get('question'), 300)}\n- Verdict: `{sanitize(label.get('verdict'), 40)}`\n"
+            f"- Note: {sanitize(label.get('note')) or '(none)'}\n"
+            f"- Correct answer: {sanitize(label.get('correct_answer'), 300) or '(not given)'}\n"
+            f"- Correct SQL: `{sanitize(label.get('correct_sql') or '(not given)', 1000)}`\n"
+            f"- Chat SQL: `{sanitize(answer.get('sql') or '(none)', 1000)}`\n"
+            f"- Langfuse trace: `{slug(label.get('trace_id'), 1)}`\n")
 
 
 # --- the pull request ------------------------------------------------------------------------
@@ -214,7 +254,7 @@ def sh(*cmd: str, cwd: Path | None = None) -> str:
 
 
 def worknote(issue: int, today: str, plan: list[dict]) -> str:
-    lines = "\n".join(f"- `{p['trace_id'][:12]}` {p['verdict']} -> {p['outcome']}"
+    lines = "\n".join(f"- `{slug(p['trace_id'], 1)[:12]}` {sanitize(p['verdict'], 40)} -> {p['outcome']}"
                       + (f" ({p['ref']})" if p.get("ref") else "") for p in plan)
     return f"""# {issue}: labels of {today} into the golden set and knowledge
 
@@ -242,12 +282,44 @@ The label-to-change rules of PLAN 8.4, approved with M11 (issue 28); this batch 
 """
 
 
+def batch_summary(plan: list[dict]) -> str:
+    return ("Labels from the Langfuse queue `answer-review` turned into changes (PLAN 8.4, `make label-prs`).\n\n"
+            + "\n".join(f"- `{slug(p['trace_id'], 1)[:12]}` `{sanitize(p['verdict'], 40)}` -> {p['outcome']}" for p in plan))
+
+
+def pr_body(plan: list[dict], checks: list[str], lf_note: str, issue: int) -> str:
+    """The batch PR's body; labellers' notes are quoted, sanitised, never applied (S4)."""
+    knowledge = [p for p in plan if p["outcome"] == "knowledge"]
+    ontology = "\n".join(f"- `{slug(p['trace_id'], 1)[:12]}`: {sanitize(p.get('note')) or '(no note)'}"
+                         for p in knowledge) or "- none"
+    return f"""{batch_summary(plan)}
+
+Proposed ontology corrections, quoted from the labels and unverified (apply in Auto Ontology only
+after review):
+{ontology}
+
+{lf_note}
+
+Closes #{issue}
+
+## Pre-merge
+
+{chr(10).join(checks)}
+- `uv run pytest -q` → SKIP[docs-only]: entries, golden questions and the label record only
+
+## Post-merge
+
+- Apply any approved ontology correction in Auto Ontology by hand.
+
+## AI usage
+"""
+
+
 def open_batch(plan: list[dict], files: dict[str, str], today: str, lf_note: str, base: str = "main") -> str:
     knowledge = [p for p in plan if p["outcome"] == "knowledge"]
     golden = [p for p in plan if p["outcome"] == "golden"]
     title = f"Labels {today}: {len(knowledge)} knowledge entr{'y' if len(knowledge) == 1 else 'ies'}, {len(golden)} golden question(s)"
-    body = (f"Labels from the Langfuse queue `answer-review` turned into changes (PLAN 8.4, `make label-prs`).\n\n"
-            + "\n".join(f"- `{p['trace_id'][:12]}` `{p['verdict']}` -> {p['outcome']}" for p in plan))
+    body = batch_summary(plan)
     issue_url = sh("gh", "issue", "create", "--title", title, "--body", body, "--label", "documentation")
     issue = int(issue_url.rstrip("/").split("/")[-1])
     branch = f"{issue}-labels-{today}"
@@ -268,29 +340,8 @@ def open_batch(plan: list[dict], files: dict[str, str], today: str, lf_note: str
     sh("git", "add", "-A", cwd=tree)
     sh("git", "commit", "-q", "-m", f"docs: {title.lower()}\n\nCloses #{issue}", cwd=tree)
     sh("git", "push", "-q", "-u", "origin", branch, cwd=tree)
-    ontology = "\n".join(f"- `{p['trace_id'][:12]}`: {p.get('note') or '(no note)'}" for p in knowledge) or "- none"
-    pr_body = f"""{body}
-
-Proposed ontology corrections (apply in Auto Ontology only after review):
-{ontology}
-
-{lf_note}
-
-Closes #{issue}
-
-## Pre-merge
-
-{chr(10).join(checks)}
-- `uv run pytest -q` → SKIP[docs-only]: entries, golden questions and the label record only
-
-## Post-merge
-
-- Apply any approved ontology correction in Auto Ontology by hand.
-
-## AI usage
-"""
     body_file = tree / ".pr-body.md"
-    body_file.write_text(pr_body, encoding="utf-8")
+    body_file.write_text(pr_body(plan, checks, lf_note, issue), encoding="utf-8")
     # The session transcript belongs to the checkout the agent runs in, not to the batch worktree.
     sh("uv", "run", "python", "helpers/ai_usage_footer.py", "render", "--body-file", str(body_file),
        "--prior-from-gh", "--project-dir", str(project_dir_for(REPO)), cwd=tree)
@@ -340,7 +391,8 @@ def main(argv: list[str] | None = None) -> int:
             evals += retrieval_line(ans["question"], did)
             item["ref"] = did
         elif out == "issue" and args.open:
-            item["ref"] = sh("gh", "issue", "create", "--title", f"dbt: labelled {lab['verdict']}: {(ans['question'] or '')[:60]}",
+            item["ref"] = sh("gh", "issue", "create", "--title",
+                             f"dbt: labelled {sanitize(lab['verdict'], 40)}: {sanitize(ans['question'], 60)}",
                              "--body", dbt_issue_body(lab, ans), "--label", "bug")
             issues.append(item["ref"])
         plan.append(item)
