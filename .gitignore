@@ -241,3 +241,5 @@ dbt/.user.yml
 
 # Auto Ontology clone at the pinned SHA (infra/auto-ontology/bootstrap.sh)
 infra/auto-ontology/upstream/
+# Personal notes, never committed
+.notes/

@@ -40,6 +40,14 @@ PY = "uv run --no-sync python -m"
 OPS_MODELS = ("staging__gateway__spend_logs+ staging__langfuse__scores+ staging__langfuse__answers+ "
               "staging__airflow__run_log+")
 START = pendulum.parse(os.environ.get("WAREHOUSE_START_DATE", "2026-01-01"), tz="UTC")
+# Templated values that are not a date never go into a command line: the shell reads them from the
+# task's environment, always double-quoted ("$RUN_ID"). A run id is chosen by whoever triggers the
+# run, and the UI gives every visitor admin (infra/compose.yml), so it is free text here.
+RUN_ENV = {"RUN_ID": "{{ run_id }}"}
+# conf {"golden": false} skips task 7 (airflow/backfill.sh). Rendered so the result can only be
+# "true" or "false", whatever text the conf holds.
+GOLDEN_FLAG = ("{{ 'false' if (dag_run.conf.get('golden', true) | string | lower) in ('false', '0', 'no') "
+               "else 'true' }}")
 
 with DAG(
     dag_id="warehouse_daily",
@@ -71,39 +79,50 @@ with DAG(
     )
     quality_gate = BashOperator(
         task_id="quality_gate",
-        bash_command=f"{PY} publish.quality_gate --ds {{{{ ds }}}} --db {BUILD_DB} --run-id '{{{{ run_id }}}}'",
+        bash_command=f'{PY} publish.quality_gate --ds {{{{ ds }}}} --db {BUILD_DB} --run-id "$RUN_ID"',
+        env=RUN_ENV,
+        append_env=True,
     )
     publish_snapshot = BashOperator(
         task_id="publish_snapshot",
-        bash_command=f"{PY} publish.snapshot --ds {{{{ ds }}}} --db {BUILD_DB} --run-id '{{{{ run_id }}}}'",
+        bash_command=f'{PY} publish.snapshot --ds {{{{ ds }}}} --db {BUILD_DB} --run-id "$RUN_ID"',
+        env=RUN_ENV,
+        append_env=True,
     )
     refresh_ontology = BashOperator(
         task_id="refresh_ontology",
-        bash_command=f"{PY} publish.refresh_ontology --ds {{{{ ds }}}} --run-id '{{{{ run_id }}}}'",
+        bash_command=f'{PY} publish.refresh_ontology --ds {{{{ ds }}}} --run-id "$RUN_ID"',
+        env=RUN_ENV,
+        append_env=True,
         skip_on_exit_code=99,            # ontology profile not running
     )
     # A wrong answer must not hold the next day's data: the data tasks above keep depends_on_past,
     # tasks 7 and 9 do not (a failed record_run would otherwise stall every later run).
     golden_questions = BashOperator(
         task_id="golden_questions",
-        bash_command=(f"{PY} llm.golden --ds {{{{ ds }}}} --run-id '{{{{ run_id }}}}' "
-                      "--enabled {{ dag_run.conf.get('golden', true) | string | lower }}"),
+        bash_command=f'{PY} llm.golden --ds {{{{ ds }}}} --run-id "$RUN_ID" --enabled "$GOLDEN_ENABLED"',
+        env={**RUN_ENV, "GOLDEN_ENABLED": GOLDEN_FLAG},
+        append_env=True,
         skip_on_exit_code=99,            # Auto Ontology not reachable, or disabled for this run
         depends_on_past=False,
     )
     land_llm_telemetry = BashOperator(
         task_id="land_llm_telemetry",
         bash_command=(
-            f"{PY} llm.telemetry --db {BUILD_DB} --ds {{{{ ds }}}} --run-id '{{{{ run_id }}}}' "
+            f'{PY} llm.telemetry --db {BUILD_DB} --ds {{{{ ds }}}} --run-id "$RUN_ID" '
             f"--dbt 'uv run --no-sync dbt build --profiles-dir . --target prod --select {OPS_MODELS}'"
         ),
+        env=RUN_ENV,
+        append_env=True,
         trigger_rule=TriggerRule.ALL_DONE,   # a wrong golden answer is telemetry too
         skip_on_exit_code=99,                # gateway or Langfuse not reachable
         depends_on_past=False,
     )
     record_run = BashOperator(
         task_id="record_run",
-        bash_command=f"{PY} publish.run_recorder --ds {{{{ ds }}}} --db {BUILD_DB} --run-id '{{{{ run_id }}}}'",
+        bash_command=f'{PY} publish.run_recorder --ds {{{{ ds }}}} --db {BUILD_DB} --run-id "$RUN_ID"',
+        env=RUN_ENV,
+        append_env=True,
         trigger_rule=TriggerRule.ALL_DONE,
         depends_on_past=False,
     )

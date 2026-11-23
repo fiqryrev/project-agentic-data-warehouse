@@ -14,6 +14,8 @@ dbt = [
     "dbt==2.0.12",
 ]
 dev = [
+    # Renders the DAG's templates in tests with the engine Airflow uses (tests/pipeline).
+    "jinja2>=3.1,<4",
     "pytest>=8",
 ]
 

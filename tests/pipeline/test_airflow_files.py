@@ -55,7 +55,8 @@ def test_golden_is_skippable_and_never_holds_the_next_day():
     tasks = {ast.literal_eval(kw["task_id"]): kw for kw in call_kwargs(dag_tree(), "BashOperator")}
     golden = tasks["golden_questions"]
     assert ast.literal_eval(golden["skip_on_exit_code"]) == 99
-    assert "llm.golden" in ast.unparse(golden["bash_command"]) and "dag_run.conf" in ast.unparse(golden["bash_command"])
+    assert "llm.golden" in ast.unparse(golden["bash_command"]) and "GOLDEN_ENABLED" in ast.unparse(golden["bash_command"])
+    assert "GOLDEN_FLAG" in ast.unparse(golden["env"]) and ast.literal_eval(golden["append_env"]) is True
     for name in ("golden_questions", "record_run"):
         assert ast.literal_eval(tasks[name]["depends_on_past"]) is False, name
 
@@ -137,3 +138,145 @@ def test_runtime_imports_are_project_dependencies():
     deps = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))["project"]["dependencies"]
     names = {d.split(">")[0].split("=")[0].split("<")[0].strip().lower() for d in deps}
     assert {"duckdb", "pyyaml"} <= names
+
+
+def dag_constants() -> dict:
+    """The DAG's module-level string constants (RUN_ENV, GOLDEN_FLAG, PY, ...)."""
+    out = {}
+    for node in dag_tree().body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            try:
+                out[node.targets[0].id] = ast.literal_eval(node.value)
+            except ValueError:
+                pass
+    return out
+
+
+def test_no_free_text_template_reaches_a_command_line():
+    """S1 (security review 2026-11-23): conf and run id are chosen by whoever triggers a run; they
+    reach the shell only through the task environment, double-quoted."""
+    consts = dag_constants()
+    for kw in call_kwargs(dag_tree(), "BashOperator"):
+        cmd = ast.unparse(kw["bash_command"])
+        name = ast.literal_eval(kw["task_id"])
+        assert "dag_run" not in cmd and "run_id" not in cmd and "conf" not in cmd, name
+        if "--run-id" in cmd:
+            assert '--run-id "$RUN_ID"' in cmd, name
+            assert "RUN_ENV" in ast.unparse(kw["env"]) and ast.literal_eval(kw["append_env"]) is True, name
+    assert consts["RUN_ENV"] == {"RUN_ID": "{{ run_id }}"}
+    for value in consts.values():
+        if isinstance(value, str) and "{{" in value:
+            assert "{{ ds }}" in value or value in (consts["GOLDEN_FLAG"], "{{ run_id }}"), value
+
+
+def render(template: str, conf: dict) -> str:
+    """Render like Airflow: a sandboxed Jinja environment with StrictUndefined."""
+    import types
+
+    import jinja2.sandbox
+    env = jinja2.sandbox.SandboxedEnvironment(undefined=jinja2.StrictUndefined)
+    return env.from_string(template).render(dag_run=types.SimpleNamespace(conf=conf))
+
+
+def test_golden_flag_renders_only_true_or_false():
+    flag = dag_constants()["GOLDEN_FLAG"]
+    assert render(flag, {}) == "true"                         # scheduled runs ask
+    assert render(flag, {"golden": False}) == "false"         # airflow/backfill.sh
+    for off in ("false", "False", "0", "no", 0):
+        assert render(flag, {"golden": off}) == "false", off
+    for hostile in ("x; touch /tmp/pwned", "$(touch /tmp/pwned)", "`id`", "true' && id #", "\nid"):
+        assert render(flag, {"golden": hostile}) == "true", hostile
+
+
+def test_golden_runner_reads_the_flag_as_a_boolean():
+    from llm.golden import enabled
+    assert enabled("true") and enabled("x; touch /tmp/pwned")
+    assert not enabled("false") and not enabled(" FALSE ") and not enabled("0") and not enabled("no")
+
+
+def test_backfill_turns_golden_off_with_a_boolean():
+    text = (REPO / "airflow" / "backfill.sh").read_text(encoding="utf-8")
+    assert """conf='{"golden": false}'""" in text
+
+
+# --- S2 and S9 (security review 2026-11-23) ------------------------------------------------------
+
+COMPOSE = yaml.safe_load((REPO / "infra" / "compose.yml").read_text(encoding="utf-8"))
+AIRFLOW_SERVICES = [n for n, s in COMPOSE["services"].items() if "core" in s["profiles"] and n != "airflow-db"]
+TASK_KEYS = {"LANGFUSE_PROJECT_PUBLIC_SECRET", "LANGFUSE_PROJECT_SECRET", "LITELLM_MASTER_SECRET", "AO_ADMIN_SECRET"}
+
+
+def test_airflow_containers_never_see_dot_env():
+    """The repository is mounted at /opt/wh; .env is masked so provider keys stay in the gateway."""
+    assert AIRFLOW_SERVICES
+    for name in AIRFLOW_SERVICES:
+        vols = COMPOSE["services"][name]["volumes"]
+        assert "/dev/null:/opt/wh/.env:ro" in vols, name
+        for v in vols:
+            src, _, target = v.partition(":")
+            assert not src.rstrip("/").endswith(".env") or src == "/dev/null", (name, v)
+            # The repository mount comes before the mask, so the mask wins.
+            if target.startswith("/opt/wh:") or target == "/opt/wh":
+                assert vols.index(v) < vols.index("/dev/null:/opt/wh/.env:ro"), name
+
+
+def load_bootstrap():
+    spec = importlib.util.spec_from_file_location("gw_bootstrap", REPO / "infra" / "llm-gateway" / "bootstrap.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_airflow_gets_exactly_the_task_keys_and_no_provider_key():
+    bootstrap = load_bootstrap()
+    for name in AIRFLOW_SERVICES:
+        env = COMPOSE["services"][name]["environment"]
+        keys = {k for k in env if (k.endswith("_SECRET") or k.endswith("_KEY") or k.startswith("GATEWAY_KEY"))
+                and not k.startswith("AIRFLOW__")}          # Airflow's own JWT secret
+        assert keys == TASK_KEYS, (name, keys)
+        for k in TASK_KEYS:
+            assert env[k] == "${" + k + ":-}", k
+        assert not set(env) & set(bootstrap.PROVIDER_KEYS), name
+
+
+def test_read_env_prefers_the_environment(tmp_path, monkeypatch):
+    from llm.observe import read_env
+    f = tmp_path / ".env"
+    f.write_text("A_SECRET=from-file\nB_SECRET=file-only\nC_SECRET=file-c\n")
+    monkeypatch.setenv("A_SECRET", "from-env")
+    monkeypatch.setenv("C_SECRET", "")                      # empty does not hide the file's value
+    env = read_env(f)
+    assert env["A_SECRET"] == "from-env" and env["B_SECRET"] == "file-only" and env["C_SECRET"] == "file-c"
+    monkeypatch.setenv("D_SECRET", "env-only")
+    assert read_env(tmp_path / "missing.env")["D_SECRET"] == "env-only"   # inside Airflow: no file
+
+
+def test_env_secrets_writes_owner_only(tmp_path):
+    mod = load_env_secrets()
+    example = tmp_path / ".env.example"
+    example.write_text("A_SECRET=\n")
+    env = tmp_path / ".env"
+    mod.fill(env, example)
+    assert env.stat().st_mode & 0o777 == 0o600
+    env.chmod(0o644)                                        # an older .env is narrowed on the next write
+    env.write_text("A_SECRET=\n")
+    mod.fill(env, example)
+    assert env.stat().st_mode & 0o777 == 0o600
+
+
+def test_gateway_bootstrap_writes_owner_only(tmp_path):
+    bootstrap = load_bootstrap()
+    env = tmp_path / ".env"
+    bootstrap.set_env(env, "GATEWAY_KEY_X", "v")
+    assert env.stat().st_mode & 0o777 == 0o600
+    env.chmod(0o644)
+    bootstrap.set_env(env, "GATEWAY_KEY_X", "w")
+    assert env.stat().st_mode & 0o777 == 0o600 and bootstrap.read_env(env)["GATEWAY_KEY_X"] == "w"
+
+
+def test_redis_password_is_not_an_argument():
+    redis = COMPOSE["services"]["langfuse-redis"]
+    args = " ".join(redis["command"]) + " " + " ".join(redis["healthcheck"]["test"])
+    assert "REDIS_SECRET" not in args and "-a" not in redis["healthcheck"]["test"]
+    assert "--requirepass" not in args and "redis-server -" in args and "docker-entrypoint.sh" in args
+    assert redis["environment"]["REDISCLI_AUTH"] == "${REDIS_SECRET}"

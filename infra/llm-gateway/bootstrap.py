@@ -10,6 +10,7 @@ budgets only, never key values. Needs only the standard library and PyYAML.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
@@ -33,6 +34,14 @@ def read_env(path: Path) -> dict[str, str]:
     return out
 
 
+def write_private(path: Path, text: str) -> None:
+    """Write `text` readable by the owner only (0600), also when the file already exists."""
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.fchmod(fd, 0o600)                # an existing file keeps its mode on open; narrow it first
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(text)
+
+
 def set_env(path: Path, key: str, value: str) -> None:
     lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
     for i, line in enumerate(lines):
@@ -41,7 +50,7 @@ def set_env(path: Path, key: str, value: str) -> None:
             break
     else:
         lines.append(f"{key}={value}")
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_private(path, "\n".join(lines) + "\n")
 
 
 def key_request(caller: dict, duration: str) -> dict:
