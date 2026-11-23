@@ -21,6 +21,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from helpers import envfile
+
 GATEWAY = "http://127.0.0.1:4000"
 LANGFUSE = "http://127.0.0.1:3001"
 MODEL = "openai/adw-or-chat"
@@ -29,12 +31,8 @@ TINY_BUDGET_USD = 0.000001
 
 
 def read_env(path: Path = Path(".env")) -> dict[str, str]:
-    out = {}
-    for line in path.read_text(encoding="utf-8").splitlines() if path.exists() else []:
-        if "=" in line and not line.lstrip().startswith("#"):
-            key, _, value = line.partition("=")
-            out[key.strip()] = value.strip()
-    return out
+    """The file only (helpers/envfile.py): the smoke test runs on the host against `.env`."""
+    return envfile.read_file(path)
 
 
 def http(method: str, url: str, headers: dict, body: dict | None = None,

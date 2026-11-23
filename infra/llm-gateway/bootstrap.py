@@ -10,7 +10,6 @@ budgets only, never key values. Needs only the standard library and PyYAML.
 from __future__ import annotations
 
 import json
-import os
 import sys
 import urllib.error
 import urllib.request
@@ -20,37 +19,21 @@ import yaml
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
+sys.path.insert(0, str(REPO))       # run as a script; helpers/ is at the repository root
+from helpers import envfile  # noqa: E402
+
 BUDGETS = HERE / "budgets.yaml"
 GATEWAY = "http://127.0.0.1:4000"
 PROVIDER_KEYS = ("NVIDIA_API_KEY", "OPENROUTER_API_KEY")
 
 
 def read_env(path: Path) -> dict[str, str]:
-    out = {}
-    for line in path.read_text(encoding="utf-8").splitlines() if path.exists() else []:
-        if "=" in line and not line.lstrip().startswith("#"):
-            key, _, value = line.partition("=")
-            out[key.strip()] = value.strip()
-    return out
-
-
-def write_private(path: Path, text: str) -> None:
-    """Write `text` readable by the owner only (0600), also when the file already exists."""
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    os.fchmod(fd, 0o600)                # an existing file keeps its mode on open; narrow it first
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        f.write(text)
+    """The file only: `check-keys` and `keys` run on the host against `.env` itself."""
+    return envfile.read_file(path)
 
 
 def set_env(path: Path, key: str, value: str) -> None:
-    lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
-    for i, line in enumerate(lines):
-        if line.split("=", 1)[0].strip() == key:
-            lines[i] = f"{key}={value}"
-            break
-    else:
-        lines.append(f"{key}={value}")
-    write_private(path, "\n".join(lines) + "\n")
+    envfile.set_key(path, key, value)
 
 
 def key_request(caller: dict, duration: str) -> dict:
