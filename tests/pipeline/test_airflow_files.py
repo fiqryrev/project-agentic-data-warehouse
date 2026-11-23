@@ -107,9 +107,20 @@ def test_compose_takes_every_password_from_env():
 
 
 def test_dockerfile_pins_airflow_and_uv():
+    """The shape of the pins, not their versions: Dependabot raises a version and its digest
+    together, and a test naming 3.3.2 would fail every such PR (#55)."""
+    import re
     text = (REPO / "airflow" / "Dockerfile").read_text(encoding="utf-8")
-    assert "FROM apache/airflow:3.3.2-python3.12@sha256:" in text
-    assert "ghcr.io/astral-sh/uv:0.11.8@sha256:" in text and "--frozen" in text
+    assert re.search(r"^FROM apache/airflow:\d+\.\d+\.\d+-python3\.12@sha256:[0-9a-f]{64}$", text, re.M)
+    assert re.search(r"--from=ghcr\.io/astral-sh/uv:\d+\.\d+\.\d+@sha256:[0-9a-f]{64} ", text)
+    assert "--frozen" in text
+
+
+def test_airflow_image_name_claims_no_version():
+    """Built from airflow/Dockerfile, so its name follows no tag Dependabot could move (#55)."""
+    doc = yaml.safe_load((REPO / "infra" / "compose.yml").read_text(encoding="utf-8"))
+    names = {svc["image"] for svc in doc["services"].values() if svc.get("build", {}).get("dockerfile") == "airflow/Dockerfile"}
+    assert names == {"wh-airflow:local"}
 
 
 def test_every_dockerfile_base_is_pinned_by_digest():
