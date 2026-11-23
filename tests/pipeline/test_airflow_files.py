@@ -90,6 +90,10 @@ def test_compose_binds_ports_to_localhost_and_pins_images():
             assert port.startswith("127.0.0.1:"), (name, port)
         image = svc["image"]
         assert (":" in image or "@sha256:" in image) and ":latest" not in image, (name, image)
+        # A pulled image is pinned by digest (S8, security review 2026-11-23); an image built
+        # here (`build:`) is named by its own tag and pins its base in the Dockerfile.
+        if "build" not in svc:
+            assert "@sha256:" in image, (name, image)
     assert "airflow/Dockerfile" in doc["services"]["airflow-scheduler"]["build"]["dockerfile"]
 
 
@@ -104,8 +108,21 @@ def test_compose_takes_every_password_from_env():
 
 def test_dockerfile_pins_airflow_and_uv():
     text = (REPO / "airflow" / "Dockerfile").read_text(encoding="utf-8")
-    assert "FROM apache/airflow:3.3.2-python3.12" in text
-    assert "ghcr.io/astral-sh/uv:0.11.8" in text and "--frozen" in text
+    assert "FROM apache/airflow:3.3.2-python3.12@sha256:" in text
+    assert "ghcr.io/astral-sh/uv:0.11.8@sha256:" in text and "--frozen" in text
+
+
+def test_every_dockerfile_base_is_pinned_by_digest():
+    """S8: FROM and COPY --from name a digest, so a re-pushed tag cannot change the build."""
+    import re
+    files = [p for p in REPO.rglob("Dockerfile*") if "upstream" not in p.parts and ".venv" not in p.parts]
+    assert files
+    for f in files:
+        for line in f.read_text(encoding="utf-8").splitlines():
+            m = re.match(r"\s*(?:FROM\s+(?:--\S+\s+)*(\S+)|COPY\s+.*--from=(\S+))", line, re.I)
+            if m:
+                ref = m.group(1) or m.group(2)
+                assert re.search(r"@sha256:[0-9a-f]{64}$", ref), (f.name, line.strip())
 
 
 def load_env_secrets():
