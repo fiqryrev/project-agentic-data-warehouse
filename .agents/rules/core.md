@@ -7,7 +7,7 @@
 5. Every number cites its query: a figure in a PR, worknote or answer names the SQL or command behind it.
 6. Ask before commit, push, PR or issue changes; one approval covers one action.
 7. Verify a literal before filtering on it: profile the column (`GROUP BY`) or cite a `da-` entry verified within 90 days.
-8. Every PR touches its issue's worknote and ends with the `## AI usage` footer rendered by the helper.
+8. Every PR touches its issue's worknote and ends with the `## AI usage` footer rendered by the helper; Dependabot's own patch and minor PRs are exempt (#52).
 9. Every pre-merge item ends in `→ PASS`, `→ FAIL: reason` or `→ SKIP[rule]: reason`.
 10. Log each decision point and external call with `helpers/log_agent_action.py`.
 11. Secrets live only in the gitignored `.env`; never print or commit it.

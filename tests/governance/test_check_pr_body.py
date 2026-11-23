@@ -67,3 +67,21 @@ def test_text_after_footer_fails():
 def test_model_line_needs_effort():
     bad = body("good.md").replace("claude-haiku-5-5 (effort low)", "claude-haiku-5-5")
     assert any("Model Name" in e for e in c.check(bad))
+
+
+def test_pr_body_check_skips_a_minor_dependabot_pr_only(tmp_path, monkeypatch):
+    """#52: Dependabot cannot write the sections or the footer; a person's body, the bot on another
+    branch and a major update (Codex review on #53) are still checked."""
+    import json
+
+    from helpers import govlib
+    from tests.governance.test_check_worknote import MAJOR, MINOR, dependabot_repo, event
+    cases = (("dependabot[bot]", "dependabot/uv/python-1", MINOR, 0), ("someone", "dependabot/uv/python-1", MINOR, 1),
+             ("dependabot[bot]", "7-feature", MINOR, 1), ("dependabot[bot]", "dependabot/uv/python-1", MAJOR, 1))
+    for i, (login, ref, message, expected) in enumerate(cases):
+        repo, base, head = dependabot_repo(tmp_path / str(i), message)
+        monkeypatch.setattr(govlib, "REPO", repo)
+        path = tmp_path / f"event{i}.json"
+        path.write_text(json.dumps({"pull_request": event(login, ref, base, head, "Bumps duckdb.")}))
+        monkeypatch.setenv("GITHUB_EVENT_PATH", str(path))
+        assert c.main([]) == expected, (login, ref, message[-40:])

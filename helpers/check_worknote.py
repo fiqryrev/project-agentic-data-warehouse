@@ -15,9 +15,9 @@ import re
 import sys
 
 try:
-    from helpers.govlib import changed_files, pr_body, report
+    from helpers.govlib import changed_files, dependabot_pr, pr_body, report
 except ModuleNotFoundError:
-    from govlib import changed_files, pr_body, report  # type: ignore
+    from govlib import changed_files, dependabot_pr, pr_body, report  # type: ignore
 
 NAME = "check_worknote"
 WORKNOTE_DIR = "docs/task-management"
@@ -52,6 +52,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--branch", default=os.environ.get("GITHUB_HEAD_REF"))
     ap.add_argument("--body-file")
     args = ap.parse_args(argv)
+    if not args.body_file and dependabot_pr():
+        print(f"[{NAME}] Dependabot PR: no issue, worknote or footer to check; skipped (#52)")
+        return 0
     issue = issue_number(pr_body(args.body_file), args.branch)
     return report(NAME, check(changed_files(args.base, args.head), issue))
 
