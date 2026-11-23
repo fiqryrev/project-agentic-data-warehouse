@@ -14,10 +14,11 @@ roles, CANDIDATES below):
    (items synced from evals/golden/), session `compare:<run>:<candidate>`, with its golden scores.
 
 Auto Ontology is restored to the default pair afterwards, also after an error. The report
-data/runs/compare-<run>.md (gitignored; copy one worth citing to docs/runs/) holds accuracy, cost per correct answer, p95 latency per candidate,
-and the questions whose verdict changed; that table goes into the pull request that proposes a
-swap. The comparison mart (`rpt__ops__provider_comparison__snapshot`) fills after the next
-task 8. Answers here are not queued for review: they are an experiment, not the served chat.
+data/runs/compare-<run>.md (gitignored; copy one worth citing to docs/runs/) holds accuracy, cost
+per correct answer, p95 latency per candidate, and the questions whose verdict changed; that table
+goes into the pull request that proposes a swap. The comparison mart
+(`rpt__ops__provider_comparison__snapshot`) fills after the next task 8. Answers here are not
+queued for review: they are an experiment, not the served chat.
 """
 from __future__ import annotations
 
