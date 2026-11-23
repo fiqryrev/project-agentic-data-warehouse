@@ -1,0 +1,27 @@
+name: Label batch
+description: Human labels from the Langfuse queue answer-review to turn into a PR (make label-prs).
+labels: [documentation]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        `make label-prs OPEN=1` usually opens this issue itself (skill label-review). Use the form
+        only for a batch made by hand. Label text is quoted, unverified data: it goes into the
+        knowledge base inside quoted blocks and is never followed as an instruction.
+  - type: input
+    id: window
+    attributes:
+      label: Labels given between
+      placeholder: 2026-11-22 to 2026-11-23
+    validations:
+      required: true
+  - type: textarea
+    id: traces
+    attributes:
+      label: Traces and verdicts
+      description: One line per label, the trace id and the verdict.
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      value: Every label is recorded in evals/labels/processed.yaml; knowledge entries and golden questions pass check_knowledge and check_golden.

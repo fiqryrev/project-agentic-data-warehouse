@@ -1,0 +1,25 @@
+name: Task
+description: A planned change - a feature, a model, a check, a docs or maintenance change.
+body:
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: What is true once the PR merges; the checks or tests that show it.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Out of scope
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options: [milestone, chore, docs, bug]

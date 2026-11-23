@@ -1,7 +1,8 @@
 [project]
 name = "project-agentic-data-warehouse"
 version = "0.1.0"
-description = "Local data warehouse feeding NVIDIA Auto Ontology, with an agent harness"
+description = "End-to-end agentic data warehouse on one laptop: DuckDB, dbt, Airflow, NVIDIA Auto Ontology, LiteLLM and Langfuse, built by coding agents under CI-enforced rules"
+license = "Apache-2.0"
 requires-python = ">=3.12"
 dependencies = [
     "duckdb>=1.5.5,<1.6",
