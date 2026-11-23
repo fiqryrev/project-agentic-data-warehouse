@@ -4,7 +4,7 @@ version = "0.0.0"
 description = "Local data warehouse feeding NVIDIA Auto Ontology, with an agent harness"
 requires-python = ">=3.12"
 dependencies = [
-    "duckdb>=1.5.5,<1.6",
+    "duckdb>=1.5.5,<2.1",
     "pyarrow>=26.0.1",
     "pyyaml>=6",
 ]
