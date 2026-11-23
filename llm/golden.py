@@ -372,6 +372,11 @@ def run(ds: str, run_id: str, dirs: list[Path], snapshot: Path, artifacts: Path)
     return 1 if status == "failed" else 0
 
 
+def enabled(flag: str) -> bool:
+    """--enabled as the DAG passes it (conf "golden"): only false, 0 or no turn task 7 off."""
+    return flag.strip().lower() not in ("false", "0", "no")
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--ds", required=True)
@@ -379,7 +384,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--enabled", default="true", help="false skips (the backfill asks only on its last day)")
     ap.add_argument("--snapshot", type=Path, default=ak.SNAPSHOT)
     args = ap.parse_args(argv)
-    if args.enabled.strip().lower() in ("false", "0", "no"):
+    if not enabled(args.enabled):
         write_json(day_dir(args.ds, ARTIFACTS) / "golden.json",
                    report_doc(args.ds, args.run_id, "skipped", reason="disabled for this run"))
         print("[golden] disabled for this run; skipped")

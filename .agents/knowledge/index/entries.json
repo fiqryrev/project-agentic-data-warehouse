@@ -292,6 +292,28 @@
       "status": "active",
       "last_verified": "2026-11-22",
       "file": ".agents/knowledge/entries/de/de-0008-calculation-only.md"
+    },
+    {
+      "id": "de-0009",
+      "kind": "engineering",
+      "title": "Free text from a DAG run reaches the shell only through the task environment",
+      "tags": [
+        "airflow",
+        "security",
+        "bash",
+        "jinja",
+        "conf",
+        "run_id",
+        "shell-injection",
+        "dag"
+      ],
+      "paths": [
+        "airflow/dags/warehouse_daily.py",
+        "tests/pipeline/test_airflow_files.py"
+      ],
+      "status": "active",
+      "last_verified": "2026-11-23",
+      "file": ".agents/knowledge/entries/de/de-0009-free-text-dag-run-reaches-shell-only-through-task.md"
     }
   ]
 }

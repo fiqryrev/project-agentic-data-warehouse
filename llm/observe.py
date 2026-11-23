@@ -2,7 +2,7 @@
 
 Shared by the `ask` client, the golden runner and ontology-check. Addresses default to the host
 (127.0.0.1); inside the Airflow containers `GATEWAY_URL` and `LANGFUSE_URL` point at the services.
-Keys come from `.env` (`read_env`); nothing here prints one.
+Keys come from the environment or `.env` (`read_env`); nothing here prints one.
 """
 from __future__ import annotations
 
@@ -22,11 +22,15 @@ QUEUE = "answer-review"                 # infra/langfuse/scores.yaml
 
 
 def read_env(path: Path = Path(".env")) -> dict[str, str]:
+    """Keys from the process environment first, then from `.env`. Inside Airflow `.env` is hidden
+    and compose passes only the keys the tasks need (infra/compose.yml, x-airflow); on the host the
+    `make` targets read the file. An empty variable does not hide a value in the file."""
     out = {}
     for line in path.read_text(encoding="utf-8").splitlines() if path.exists() else []:
         if "=" in line and not line.lstrip().startswith("#"):
             key, _, value = line.partition("=")
             out[key.strip()] = value.strip()
+    out.update({k: v for k, v in os.environ.items() if v})
     return out
 
 
