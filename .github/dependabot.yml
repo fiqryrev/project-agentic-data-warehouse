@@ -1,6 +1,13 @@
 # Dependency update PRs (S7, security review 2026-11-23). Weekly and grouped, so a normal week is
 # a few PRs, not one per package. Every PR goes through the same CI and the owner merges it.
 # Pins stay pins: Dependabot raises the version and the digest together.
+#
+# Patch and minor updates only (#52). A major version is a planned change with its own issue:
+# the first run proposed DuckDB 2.0, whose file dbt and Auto Ontology cannot open, and Postgres 19,
+# which does not start on the existing data volumes. CI never starts the stack, so a green
+# Dependabot PR says nothing about a major image upgrade.
+# The governance checks that need an issue and a worknote skip Dependabot's PRs
+# (helpers/govlib.py, dependabot_pr); tests, dbt, gitleaks and CodeQL still run.
 version: 2
 updates:
   - package-ecosystem: uv            # pyproject.toml and uv.lock
@@ -10,6 +17,13 @@ updates:
     groups:
       python:
         patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+      # The loader, dbt and Auto Ontology open one file: DuckDB moves only with
+      # infra/duckdb-pins.yaml and check_duckdb_compat, by hand.
+      - dependency-name: duckdb
+        update-types: ["version-update:semver-minor"]
     open-pull-requests-limit: 3
 
   - package-ecosystem: docker        # airflow/Dockerfile (base image and uv)
@@ -19,6 +33,9 @@ updates:
     groups:
       airflow-image:
         patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: docker-compose  # infra/compose.yml (every pulled image)
     directory: /infra
@@ -27,6 +44,9 @@ updates:
     groups:
       compose-images:
         patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 3
 
   - package-ecosystem: github-actions  # .github/workflows (SHA pins with a version comment)
@@ -36,3 +56,6 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

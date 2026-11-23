@@ -18,6 +18,19 @@ def pr_event() -> dict:
         return json.load(fh).get("pull_request") or {}
 
 
+DEPENDABOT = "dependabot[bot]"
+
+
+def dependabot_pr(event: dict | None = None) -> bool:
+    """True for a pull request Dependabot opened on its own branch. It cannot open an issue or
+    write a worknote and a footer, so check_worknote and check_pr_body skip it (owner decision,
+    #52); every other check still runs, and the owner reviews and merges it."""
+    event = pr_event() if event is None else event
+    login = ((event.get("user") or {}).get("login") or "")
+    ref = ((event.get("head") or {}).get("ref") or "")
+    return login == DEPENDABOT and ref.startswith("dependabot/")
+
+
 def pr_body(body_file: str | None) -> str | None:
     if body_file:
         return Path(body_file).read_text(encoding="utf-8")

@@ -67,3 +67,15 @@ def test_text_after_footer_fails():
 def test_model_line_needs_effort():
     bad = body("good.md").replace("claude-haiku-5-5 (effort low)", "claude-haiku-5-5")
     assert any("Model Name" in e for e in c.check(bad))
+
+
+def test_pr_body_check_skips_a_dependabot_pr_only(tmp_path, monkeypatch):
+    """#52: Dependabot cannot write the sections or the footer; a person's empty body still fails."""
+    import json
+    event = tmp_path / "event.json"
+    for login, ref, expected in (("dependabot[bot]", "dependabot/uv/python-1", 0), ("someone", "dependabot/uv/python-1", 1),
+                                 ("dependabot[bot]", "7-feature", 1)):
+        event.write_text(json.dumps({"pull_request": {"user": {"login": login}, "head": {"ref": ref},
+                                                      "body": "Bumps duckdb."}}))
+        monkeypatch.setenv("GITHUB_EVENT_PATH", str(event))
+        assert c.main([]) == expected, (login, ref)

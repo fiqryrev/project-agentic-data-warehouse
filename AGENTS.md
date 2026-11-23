@@ -71,6 +71,8 @@ All rules, one line each: `.agents/rules/core.md`.
 `docs/task-management/<issue>-<slug>.md`, touched by every PR of that issue
 (`check_worknote`). Sections: Goal, Plan (as approved), Decisions (with reasons), Done
 (commands run and their results), Open (what is left, follow-ups).
+Dependabot's PRs (patch and minor updates) skip the worknote and footer checks; every other
+check runs, and the owner merges them. A major upgrade is its own issue.
 
 ## PR body
 

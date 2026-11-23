@@ -18,10 +18,10 @@ import sys
 
 try:
     from helpers.ai_usage_footer import FOOTER_LABELS, HEADING_RE, WATERMARK_RE
-    from helpers.govlib import pr_body, report
+    from helpers.govlib import dependabot_pr, pr_body, report
 except ModuleNotFoundError:  # run as a script from helpers/
     from ai_usage_footer import FOOTER_LABELS, HEADING_RE, WATERMARK_RE  # type: ignore
-    from govlib import pr_body, report  # type: ignore
+    from govlib import dependabot_pr, pr_body, report  # type: ignore
 
 NAME = "check_pr_body"
 NUM = r"\d{1,3}(?:,\d{3})*"
@@ -159,6 +159,9 @@ def main(argv: list[str] | None = None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--body-file")
     args = ap.parse_args(argv)
+    if not args.body_file and dependabot_pr():
+        print(f"[{NAME}] Dependabot PR: no issue, worknote or footer to check; skipped (#52)")
+        return 0
     body = pr_body(args.body_file)
     if body is None:
         print(f"[{NAME}] no PR body (not a pull_request event and no --body-file); skipped")

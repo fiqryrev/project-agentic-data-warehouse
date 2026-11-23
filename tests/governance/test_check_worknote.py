@@ -68,3 +68,28 @@ def test_cli_on_a_real_branch_without_worknote(tmp_path):
     run = subprocess.run([sys.executable, str(script), "--base", "main", "--body-file", str(body)],
                          cwd=tmp_path, capture_output=True, text=True)
     assert run.returncode == 0, run.stdout + run.stderr
+
+
+# --- Dependabot PRs (#52) ---------------------------------------------------------------------
+
+def write_event(tmp_path, login, ref, body=""):
+    import json
+    path = tmp_path / "event.json"
+    path.write_text(json.dumps({"pull_request": {"user": {"login": login}, "head": {"ref": ref}, "body": body}}))
+    return str(path)
+
+
+def test_dependabot_pr_is_recognised_by_author_and_branch():
+    from helpers.govlib import dependabot_pr
+    ev = lambda login, ref: {"user": {"login": login}, "head": {"ref": ref}}  # noqa: E731
+    assert dependabot_pr(ev("dependabot[bot]", "dependabot/uv/python-7955d6e631"))
+    assert not dependabot_pr(ev("dependabot[bot]", "52-dependabot-safe-updates"))   # not its branch
+    assert not dependabot_pr(ev("someone", "dependabot/uv/python-1"))              # a person on a look-alike branch
+    assert not dependabot_pr({})
+
+
+def test_worknote_check_skips_a_dependabot_pr_only(tmp_path, monkeypatch):
+    monkeypatch.setenv("GITHUB_EVENT_PATH", write_event(tmp_path, "dependabot[bot]", "dependabot/docker/airflow/x"))
+    assert c.main(["--base", "HEAD", "--branch", "dependabot/docker/airflow/x"]) == 0
+    monkeypatch.setenv("GITHUB_EVENT_PATH", write_event(tmp_path, "someone", "dependabot/docker/airflow/x"))
+    assert c.main(["--base", "HEAD", "--branch", "dependabot/docker/airflow/x"]) == 1
