@@ -76,7 +76,8 @@ Airflow runs it all once a day as DAG `warehouse_daily`
   ([infra/llm-gateway/budgets.yaml](infra/llm-gateway/budgets.yaml)).
 - **Auto Ontology** runs at a pinned upstream commit plus three small overlay patches
   ([infra/auto-ontology/patches/](infra/auto-ontology/patches/)): read DuckDB comments, ask for
-  SQL-only answers, tag every model call with the answer it serves.
+  SQL-only answers, tag every model call with the answer it serves; a fourth adds the Apache-2.0
+  change notice to every file the others modify.
 
 ### The feedback loop
 
@@ -108,7 +109,7 @@ Every version is pinned in the repository; the source of each pin is in the last
 | Storage | DuckDB | 1.5.x (1.5.5 loader, 1.5.4 inside dbt) | the build file and the served snapshot; one file format for every reader | [infra/duckdb-pins.yaml](infra/duckdb-pins.yaml), `check_duckdb_compat` |
 | Transformation | dbt | 2.0.12 | staging, warehouse, mart, tests, docs persisted as comments | `pyproject.toml` |
 | Orchestration | Apache Airflow | 3.4.0, LocalExecutor, Postgres 17.11 | DAG `warehouse_daily`, backfill | [airflow/Dockerfile](airflow/Dockerfile), [infra/compose.yml](infra/compose.yml) |
-| Semantic layer and chat | NVIDIA Auto Ontology | upstream `f3c310c7a279` + 3 overlay patches | catalog, semantic compile, text-to-SQL agent, web UI | [infra/auto-ontology/UPSTREAM_SHA](infra/auto-ontology/UPSTREAM_SHA), [patches/](infra/auto-ontology/patches/) |
+| Semantic layer and chat | NVIDIA Auto Ontology | upstream `f3c310c7a279` + 3 overlay patches and a change-notice patch | catalog, semantic compile, text-to-SQL agent, web UI | [infra/auto-ontology/UPSTREAM_SHA](infra/auto-ontology/UPSTREAM_SHA), [patches/](infra/auto-ontology/patches/) |
 | Auto Ontology store | Postgres with pgvector | pg17 | catalog, embeddings | [infra/compose.yml](infra/compose.yml) |
 | Model gateway | LiteLLM proxy | v1.110.2 | aliases, virtual keys, daily budgets, spend log | [infra/llm-gateway/](infra/llm-gateway/) |
 | Tracing, scores, review | Langfuse (self-hosted) | 4.83.0, with ClickHouse 26.10, Redis 7.4.12, MinIO | traces, scores, annotation queue, datasets, experiments | [infra/compose.yml](infra/compose.yml), [infra/langfuse/](infra/langfuse/) |
@@ -176,7 +177,7 @@ How the project was built, and why in this order:
    before tuning anything. That is how the main cause of refused answers was found from the
    traces alone, then fixed and measured (5 of 21 to 0 of 21).
 7. **Consume upstream, don't fork it.** Auto Ontology runs at a pinned commit with small overlay
-   patches applied at build time, so an upgrade is a new SHA plus a re-check of three patches.
+   patches applied at build time, so an upgrade is a new SHA plus a re-check of four patches.
 8. **Local first, cheap to move later.** Everything runs on one laptop behind 127.0.0.1;
    [PLAN.md](PLAN.md) section 12 lists what keeps a later move to hosting cheap.
 
@@ -281,8 +282,8 @@ rerank route (or a proxy in front of it).
   for these risks and what must change before exposing anything.
 - **Estimated NVIDIA prices.** LiteLLM has no price for the NVIDIA model, so the gateway uses the
   OpenRouter list price of the same model; OpenRouter costs are billed for real.
-- **Auto Ontology is patched.** It runs at a pinned commit with three overlay patches applied at
-  build time, not a fork.
+- **Auto Ontology is patched.** It runs at a pinned commit with three overlay patches (and one that
+  marks the files they change) applied at build time, not a fork.
 - **Small golden set.** Eight questions; it grows from human labels.
 
 ## License

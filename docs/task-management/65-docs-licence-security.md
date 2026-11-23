@@ -23,6 +23,15 @@ chat: **Apache-2.0** (D2) and setting the suggested description and topics with 
   `UPSTREAM_SHA`), and that `infra/auto-ontology/patches/` are modifications of it under
   Apache-2.0, as section 4(b) asks. The patches carry no header text, so the notice says where
   the "what" and "why" are (file name, diff, worknote) rather than claiming each patch states it.
+- **Per-file change notices, patch 0004** (Codex review on #66): Apache-2.0 section 4(b) asks
+  that every modified file carries a prominent notice that it was changed, and a repository NOTICE
+  does not do that. `0004-change-notices.patch`, applied last, adds a three-line comment to each of
+  the 8 files patches 0001 to 0003 modify or add, naming the patch and where this repository's
+  patches are, below NVIDIA's SPDX header, which stays unchanged (section 4(c)). A separate patch
+  keeps 0001 to 0003 byte for byte as tested. Generated from a scratch clone at `UPSTREAM_SHA` with
+  0001 to 0003 applied; then all four applied in order on a clean checkout, as `bootstrap.sh`
+  does, and the 8 files compile. `test_every_patched_file_carries_a_change_notice` fails if a file
+  touched by a functional patch has no notice, or if 0004 removes a line.
 - **README Security section** (D3), before Limits, linking `SECURITY.md`: local only, Airflow
   without login, where secrets live, what agents may do, supply chain, and what must change
   before exposing anything. It restates `SECURITY.md` in brief; the policy and the accepted risks
@@ -43,14 +52,18 @@ chat: **Apache-2.0** (D2) and setting the suggested description and topics with 
 - The bootstrap clones `https://github.com/NVIDIA/auto-ontology.git` (`infra/auto-ontology/bootstrap.sh`),
   the URL in NOTICE.
 - The issue templates parse as YAML.
+- Scratch clone at `f3c310c7`: patches 0001 to 0004 apply in order with `git apply`; 8 files carry
+  the notice; `python3 -m py_compile` on them passes.
 - `uv run pytest -q`: PASS. `make lint`: PASS. `make checks`: PASS.
 
 ## Open
 
-- After the PR opens: `gh repo edit` with the description and topics (owner approved), and check
-  that GitHub detects the licence.
+- After merge: check that GitHub detects the licence (it reads `LICENSE` from `main`). The
+  description and nine topics were set with `gh repo edit` once #66 opened.
 - OWNER (from phase 1 to 3, still open): required status checks on `main` with "require branches
   to be up to date"; Dependabot alerts, Dependabot security updates and private vulnerability
   reporting (the issue template's security link needs it); auto-delete head branches, remove
   merged branches, disable merge commits; S11, a noreply commit email.
+- OWNER: `make up-ontology` rebuilds Auto Ontology with patch 0004 on the next start (comments only;
+  no behaviour change).
 - Knowledge: no new lesson.

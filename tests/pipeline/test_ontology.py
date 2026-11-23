@@ -26,8 +26,9 @@ def test_overlay_patches_are_small_and_targeted():
     patches = sorted((AO_DIR / "patches").glob("*.patch"))
     assert [p.name for p in patches] == ["0001-duckdb-connector-reads-comments.patch",
                                          "0002-chat-api-calculation-only.patch",
-                                         "0003-request-id-tags-model-calls.patch"]
-    first, second, third = (p.read_text() for p in patches)
+                                         "0003-request-id-tags-model-calls.patch",
+                                         "0004-change-notices.patch"]
+    first, second, third, _ = (p.read_text() for p in patches)
     assert re.findall(r"^\+\+\+ b/(.+)$", first, re.M) == ["auto_ontology/connectors/duckdb.py"]
     assert "duckdb_tables()" in first and "duckdb_columns()" in first and "AS description" in first
     # 0002 (issue 34): the chat API passes calculation_only through to the text-to-SQL agent.
@@ -40,6 +41,20 @@ def test_overlay_patches_are_small_and_targeted():
     assert {"auto_ontology/utils/request_tags.py", "auto_ontology/utils/llm_invoke.py",
             "auto_ontology/utils/embedding.py", "auto_ontology/utils/rerank.py"} <= set(touched)
     assert "x-litellm-tags" in third and "set_request_id(request_id)" in third
+
+
+def test_every_patched_file_carries_a_change_notice():
+    """Apache-2.0 section 4(b), Codex review on #66: every file the functional patches modify or add
+    gets a notice that it was changed (0004, applied last), below NVIDIA's own header, which stays."""
+    patches = sorted((AO_DIR / "patches").glob("*.patch"))
+    functional, notices = patches[:-1], patches[-1].read_text()
+    touched = {f for p in functional for f in re.findall(r"^\+\+\+ b/(.+)$", p.read_text(), re.M)}
+    noticed = set(re.findall(r"^\+\+\+ b/(.+)$", notices, re.M))
+    assert touched and touched == noticed, (touched - noticed, noticed - touched)
+    added = [ln for ln in notices.splitlines() if ln.startswith("+") and not ln.startswith("+++")]
+    assert all("project-agentic-data-warehouse" in ln or "Apache License" in ln or "applied at build" in ln
+               for ln in added), added
+    assert not [ln for ln in notices.splitlines() if ln.startswith("-") and not ln.startswith("---")]
 
 
 def test_auto_ontology_has_no_way_out_but_the_gateway():
