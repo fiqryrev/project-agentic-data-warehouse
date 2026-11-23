@@ -56,7 +56,7 @@ x-airflow: &airflow
 
 services:
   airflow-db:
-    image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+    image: postgres:19.0-alpine@sha256:8b0ff4cdf221f0c53d7fcda681d3b461be725c492cd881c5ec9c0ad25023f188
     profiles: [core]
     restart: unless-stopped
     environment:
@@ -108,7 +108,7 @@ services:
 
   # --- obs profile (M8): LiteLLM gateway and Langfuse v4; versions from docs/m0-findings.md ---
   obs-db:
-    image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+    image: postgres:19.0-alpine@sha256:8b0ff4cdf221f0c53d7fcda681d3b461be725c492cd881c5ec9c0ad25023f188
     profiles: [obs]
     restart: unless-stopped
     environment:
@@ -218,7 +218,7 @@ services:
       - "127.0.0.1:3001:3000"
 
   langfuse-clickhouse:
-    image: clickhouse/clickhouse-server:26.3.62.3@sha256:de3e47c64078aa196dae2349e048fc98ba81947f651f5c20e06e46baea8ae40a
+    image: clickhouse/clickhouse-server:26.10.4.207@sha256:4f491abc44d9f4a1747c033c35ddd5bc385521305d85ca8251ba0824ff597035
     profiles: [obs]
     restart: unless-stopped
     user: "101:101"
@@ -238,7 +238,7 @@ services:
 
   langfuse-minio:
     # Chainguard publishes no version tags; pinned by digest (M0).
-    image: cgr.dev/chainguard/minio@sha256:e9cf6b99c226e9539ed0f14b6f00e37b07da153c7ba1f4f8709c807574b471ec
+    image: cgr.dev/chainguard/minio@sha256:548147b5fc95a67e3e45285dff7e0e50326c3eb1977c6218039461771156c5e7
     profiles: [obs]
     restart: unless-stopped
     entrypoint: sh
@@ -255,7 +255,7 @@ services:
       retries: 15
 
   langfuse-redis:
-    image: redis:7.4.7@sha256:976ab0f0939b78c06d802bcd3bea44c5142ea9a756a57b861e08819817f768c8
+    image: redis:8.10.3@sha256:1f88291b4c57bdf249f02eb085a8669889b2d2954e91d4de5118a5da6b78dd53
     profiles: [obs]
     restart: unless-stopped
     # The password is in the environment, never in an argument, so it is not in the process list
@@ -425,7 +425,7 @@ services:
         condition: service_completed_successfully
 
   ao-edge:
-    image: nginx:1.28-alpine@sha256:a8b39bd9cf0f83869a2162827a0caf6137ddf759d50a171451b335cecc87d236
+    image: nginx:1.31-alpine@sha256:fb4658584bd9a916ffb6f6e365f97c25cfdb2923801f551ea08356e695f14ff7
     profiles: [ontology]
     restart: unless-stopped
     networks: [default, ontology]
@@ -439,7 +439,7 @@ services:
 
   # Airflow's refresh_ontology may restart exactly two containers and nothing else (PLAN 6).
   docker-proxy:
-    image: wollomatic/socket-proxy:1.13.1@sha256:3935b709275e4ec35d6ed5a5c4a1f0d01ed31eec5e7234efc3357ecd47689002
+    image: wollomatic/socket-proxy:1.13.2@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848
     profiles: [ontology]
     restart: unless-stopped
     networks: [default]
