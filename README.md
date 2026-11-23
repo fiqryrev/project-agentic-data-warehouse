@@ -252,6 +252,10 @@ Since then: chat refusals fixed ([#35](https://github.com/fiqryrev/project-agent
 
 - **Synthetic data.** The marketplace is generated; its defects are deliberate and documented.
 - **Local only.** One laptop, ports on 127.0.0.1; no hosting, no multi-user setup.
+- **Some local doors are open on purpose.** Airflow has no login and the gateway's rerank route
+  takes no key (LiteLLM OSS cannot key a pass-through route), so any local process can trigger a
+  run or spend the NVIDIA key through rerank. Accepted for a laptop; see [SECURITY.md](SECURITY.md)
+  for these risks and what must change before exposing anything.
 - **Estimated NVIDIA prices.** LiteLLM has no price for the NVIDIA model, so the gateway uses the
   OpenRouter list price of the same model; OpenRouter costs are billed for real.
 - **Auto Ontology is patched.** It runs at a pinned commit with three overlay patches applied at

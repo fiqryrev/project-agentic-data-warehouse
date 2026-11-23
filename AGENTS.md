@@ -33,7 +33,7 @@ design; `docs/m0-findings.md` holds the verified versions and commands.
 | `.agents/toolbelt.md` | every CLI and server: owner, access, reason, review date |
 | `.agents/ai-usage/model-pricing.yaml` | list prices per token class for the PR footer |
 | `.claude/settings.json` | permissions (deny > ask > allow) and the three hooks |
-| `.claude/hooks/` | `guard_bash.py`, `guard_write.py` |
+| `.claude/hooks/` | `guard_bash.py`, `guard_write.py`: guardrails against mistakes, not a sandbox |
 | `helpers/` | `check_*.py` checkers, `ai_usage_footer.py`, `log_agent_action.py` |
 | `tests/governance/` | one pytest file per checker, with bad fixtures |
 | `docs/task-management/` | one worknote per issue: `<issue>-<slug>.md` |

@@ -53,6 +53,8 @@ general_settings:
     # gets 403 here and `allowed_passthrough_routes` is Enterprise-only (M8), so the route takes no
     # key (M9, approved): it is reachable only on the private networks and 127.0.0.1, and the
     # gateway still logs and traces each call, without a caller.
+    # Accepted risk (owner, 2026-11-23, issue #44; SECURITY.md): any process on 127.0.0.1 or the wh
+    # network can spend the NVIDIA key here. Key the route (or put a proxy in front) before exposing it.
     - path: /nvidia/rerank-8b/reranking
       target: https://ai.api.nvidia.com/v1/retrieval/nvidia/nemotron-3.5-rerank-8b/reranking
       headers:
