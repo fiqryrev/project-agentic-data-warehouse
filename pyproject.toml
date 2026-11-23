@@ -17,6 +17,7 @@ dev = [
     # Renders the DAG's templates in tests with the engine Airflow uses (tests/pipeline).
     "jinja2>=3.1,<4",
     "pytest>=8",
+    "ruff>=0.15,<0.16",
 ]
 
 [tool.uv]
@@ -25,3 +26,25 @@ package = false
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["infra/auto-ontology/upstream", ".worktrees", ".claude/worktrees", "data"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+# S603/S607: subprocess calls take a list of arguments, never a shell, and run our own tools
+# (git, gh, uv, docker); S607 only says they come from PATH. Reviewed in M1 (#59).
+ignore = ["S603", "S607"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests assert, use throwaway passwords and temp paths, and hold long fixture rows (E501).
+"tests/**" = ["S101", "S105", "S106", "S108", "E501"]
+# HTTP clients of our own services (gateway, Langfuse, Auto Ontology, the socket proxy): every URL
+# is an http(s) address from a constant or an environment variable, never from data (S310).
+"infra/llm-gateway/bootstrap.py" = ["S310"]
+"llm/ask.py" = ["S310"]
+"llm/gateway_smoke.py" = ["S310"]
+"llm/observe.py" = ["S310"]
+"publish/refresh_ontology.py" = ["S310"]

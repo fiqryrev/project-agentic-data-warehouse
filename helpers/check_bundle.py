@@ -36,7 +36,7 @@ _BLOCK = re.compile(r"\{%-?\s*docs\s+(\w+)\s*-?%\}(.*?)\{%-?\s*enddocs\s*-?%\}",
 
 
 def doc_ref(name: str) -> re.Pattern:
-    return re.compile(r"""\s*\{\{\s*doc\(\s*['"]%s['"]\s*\)\s*\}\}\s*""" % re.escape(name))
+    return re.compile(r"""\s*\{\{\s*doc\(\s*['"]""" + re.escape(name) + r"""['"]\s*\)\s*\}\}\s*""")
 
 
 def doc_errors(text: str, name: str) -> list[str]:
@@ -56,7 +56,7 @@ def doc_errors(text: str, name: str) -> list[str]:
     chunks = re.split(r"^## +(.+?) *$", body, flags=re.M)
     if not chunks[0].strip() or chunks[0].lstrip().startswith("#"):
         errors.append("no opening paragraph before the first section")
-    sections = dict(zip(chunks[1::2], chunks[2::2]))
+    sections = dict(zip(chunks[1::2], chunks[2::2], strict=True))   # re.split gives 1 + 2n parts
     found = [s for s in chunks[1::2] if s in DOC_SECTIONS]
     missing = [s for s in DOC_SECTIONS if s not in sections]
     if missing:

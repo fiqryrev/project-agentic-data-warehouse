@@ -27,10 +27,8 @@ from pathlib import Path
 
 import duckdb
 
-from llm.ask import (AskError, Session, chat, numbers_in, sign_in,  # noqa: F401 (tests use them)
-                     wait_for_compile)
-from llm.observe import (Langfuse, caller_of, generation_key_alias, read_env,  # noqa: F401
-                         spend_logs)
+from llm.ask import AskError, Session, chat, numbers_in, sign_in, wait_for_compile  # noqa: F401 (tests use them)
+from llm.observe import Langfuse, caller_of, generation_key_alias, read_env, spend_logs  # noqa: F401
 
 SNAPSHOT = Path("data/serve/analytics.duckdb")
 CALLER = "auto-ontology"
@@ -66,10 +64,12 @@ def egress_blocked(container: str) -> tuple[bool, str]:
             "s = socket.socket(); s.settimeout(5)\n"
             "try:\n    s.connect(('1.1.1.1', 443)); out = 'internet reachable'\n"
             "except OSError as e:\n    out = 'internet unreachable'\n"
-            "try:\n    urllib.request.urlopen('http://llm-gateway:4000/health/liveliness', timeout=5); out += ', gateway reachable'\n"
+            "try:\n    urllib.request.urlopen('http://llm-gateway:4000/health/liveliness', timeout=5); "
+            "out += ', gateway reachable'\n"
             "except Exception:\n    out += ', gateway unreachable'\n"
             "print(out)")
-    res = subprocess.run(["docker", "exec", container, "python", "-c", code], capture_output=True, text=True, timeout=60)
+    res = subprocess.run(["docker", "exec", container, "python", "-c", code],
+                         capture_output=True, text=True, timeout=60)
     out = res.stdout.strip()
     return out == "internet unreachable, gateway reachable", out or res.stderr.strip()[:120]
 
@@ -91,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:
     question = f"What was the net revenue on {args.day}?"
     expected = expected_net_revenue(args.day)
     started = dtm.datetime.now(dtm.UTC)
-    for attempt in range(1, args.attempts + 1):
+    for attempt in range(1, args.attempts + 1):  # noqa: B007  read after the loop
         answer = ask(session, question)
         matched = answer_matches(answer, expected)
         if matched:

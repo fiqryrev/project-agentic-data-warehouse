@@ -6,10 +6,14 @@ LANDING ?= data/landing
 # Manual loads and dbt-build use the development file; only Airflow writes data/build/ (AGENTS.md, Data access).
 DB    ?= data/dev/dwh.duckdb
 
-.PHONY: test checks generate load dbt-build dbt-ci env-secrets up-core down-core backfill run-log up-obs down-obs llm-smoke down up-ontology down-ontology ontology-check ask golden label-prs compare-providers
+.PHONY: test lint checks generate load dbt-build dbt-ci env-secrets up-core down-core backfill run-log up-obs down-obs llm-smoke down up-ontology down-ontology ontology-check ask golden label-prs compare-providers
 
 test:
 	uv run pytest -q
+
+# Lint and security rules (pyproject.toml, [tool.ruff]); CI runs the same.
+lint:
+	uv run ruff check .
 
 checks:
 	uv run python -m helpers.check_entry_size

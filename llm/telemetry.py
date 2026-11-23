@@ -186,11 +186,11 @@ def run_log_rows(build_db: Path | None, since: dtm.datetime, until: dtm.datetime
         if not have:
             return []
         select = ", ".join(c if c in have else f"null as {c}" for c in cols)
-        rows = con.execute(f"select {select} from ops.run_log where recorded_at between ? and ?",
+        rows = con.execute(f"select {select} from ops.run_log where recorded_at between ? and ?",  # noqa: S608  identifiers only; values bound with ?
                            [since.replace(tzinfo=None), until.replace(tzinfo=None)]).fetchall()
     finally:
         con.close()
-    return [dict(zip(cols, r)) for r in rows]
+    return [dict(zip(cols, r, strict=True)) for r in rows]
 
 
 # --- landing and loading ---------------------------------------------------------------------
@@ -233,7 +233,7 @@ def ensure_tables(con: duckdb.DuckDBPyConnection) -> tuple[list[str], list[str]]
         empty = pa.Table.from_pylist([], schema=schema)  # noqa: F841 (read by DuckDB below)
         audit = ", ".join(f"null::{typ} as {col}" for col, (typ, _) in AUDIT_COLUMNS.items())
         # `dt` as the loader's tables have it: DuckDB reads the hive folder dt=... as a column.
-        con.execute(f"create table {SCHEMA}.{name} as select *, null::date as dt, {audit} from empty limit 0")
+        con.execute(f"create table {SCHEMA}.{name} as select *, null::date as dt, {audit} from empty limit 0")  # noqa: S608  identifiers only; values bound with ?
         con.execute(f"comment on table {SCHEMA}.{name} is 'Lake copy of the landing source table; append-only by _dt.'")
         if not have:
             made.append(f"{SCHEMA}.{name}")

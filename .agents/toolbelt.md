@@ -8,6 +8,7 @@ Every CLI and server an agent may use. Review each line by its date; remove what
 | `gh` | owner | read; issue and PR writes under `ask`; `gh pr merge` denied | issues, PRs, CI status | 2027-02-21 |
 | `uv` | owner | run | Python env, tests, helpers | 2027-02-21 |
 | `pytest` | owner | run | governance tests in `tests/governance/` | 2027-02-21 |
+| `ruff` | owner | run (`make lint`, CI) | lint and security rules (`E F I B UP S`) from `pyproject.toml` | 2027-05-23 |
 | `python3` | owner | run | hooks and helpers (standard library for hooks) | 2027-02-21 |
 | GitHub Actions | owner | CI only | blocking checks in `.github/workflows/ci.yml` | 2027-02-21 |
 | `duckdb` (Python) | owner | run; agents read the serving snapshot read-only (M9) | loader writes `data_lake_layer`; pins in `infra/duckdb-pins.yaml` | 2027-02-22 |

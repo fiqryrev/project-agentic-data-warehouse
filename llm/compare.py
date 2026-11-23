@@ -93,7 +93,8 @@ def experiment_attrs(run: str, cand: str, pair: tuple[str, str], dataset_id: str
                      r: gd.Result, root_id: str) -> dict:
     return {"langfuse.experiment.id": f"{run}-{cand}", "langfuse.experiment.name": f"{run}-{cand}",
             "langfuse.experiment.description": f"golden set with Auto Ontology on {pair[0]} / {pair[1]}",
-            "langfuse.experiment.metadata": {"candidate": cand, "reasoning_model": pair[0], "non_reasoning_model": pair[1]},
+            "langfuse.experiment.metadata": {"candidate": cand, "reasoning_model": pair[0],
+                                             "non_reasoning_model": pair[1]},
             "langfuse.experiment.dataset.id": dataset_id, "langfuse.experiment.item.id": item_id,
             "langfuse.experiment.item.expected_output": {"rows": r.expected},
             "langfuse.experiment.item.root_observation_id": root_id}
@@ -121,7 +122,8 @@ def summarise(results: list[gd.Result], latencies: list[float]) -> dict:
 def report(run: str, day: str | None, rows: dict[str, dict], verdicts: dict[str, dict[str, str]],
            pairs: dict[str, tuple[str, str]]) -> str:
     cands = list(rows)
-    head = ("| Candidate | Aliases | Asked | Correct | Wrong | Refused | Accuracy | Cost | Cost per correct | p95 latency |\n"
+    head = ("| Candidate | Aliases | Asked | Correct | Wrong | Refused | Accuracy | Cost | Cost per correct "
+            "| p95 latency |\n"
             "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n")
     body = "".join(
         f"| {c} | `{pairs[c][0]}`, `{pairs[c][1]}` | {s['asked']} | {s['correct']} | {s['wrong']} | {s['refused']} | "
@@ -194,7 +196,8 @@ def main(argv: list[str] | None = None) -> int:
                 extra = {**gd.answer_extra(r), "comparison_run": run, "candidate": cand,
                          "reasoning_model": pair[0], "non_reasoning_model": pair[1]}
                 root, chat = ak.answer_spans(r.answer, session_id=sid, snapshot=snap, extra=extra,
-                                             tags=["job:compare", f"candidate:{cand}", f"golden:{r.q.id}", f"verdict:{r.verdict}"])
+                                             tags=["job:compare", f"candidate:{cand}", f"golden:{r.q.id}",
+                                                   f"verdict:{r.verdict}"])
                 root.attrs.update(experiment_attrs(run, cand, pair, dataset_id, items[r.q.id], r, root.span_id))
                 spans += [root, chat]
                 scores += gd.score_events(r, configs)

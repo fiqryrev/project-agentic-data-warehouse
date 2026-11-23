@@ -29,8 +29,17 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from llm.observe import (Langfuse, Span, calls_summary, generation_key_alias, iso, new_trace_id,
-                         parse_time, read_env, spend_logs)
+from llm.observe import (
+    Langfuse,
+    Span,
+    calls_summary,
+    generation_key_alias,
+    iso,
+    new_trace_id,
+    parse_time,
+    read_env,
+    spend_logs,
+)
 
 # APP_URL: the only origin Auto Ontology's auth trusts. From a container the edge is reached by
 # its service name (AO_URL) while Host and Origin still say localhost:3000.
@@ -292,7 +301,8 @@ def trace_attrs(*, name: str, session_id: str | None, tags: list[str], input, ou
 def answer_spans(a: Answer, *, session_id: str | None, tags: list[str], snapshot: str | None,
                  extra: dict | None = None) -> list[Span]:
     """One answer trace `ask` (root span) and its chat span."""
-    link = {"method": a.link_method, "caller": AO_CALLER, "request_tag": request_tag(a), "window_start": iso(a.window[0]),
+    link = {"method": a.link_method, "caller": AO_CALLER, "request_tag": request_tag(a),
+            "window_start": iso(a.window[0]),
             "window_end": iso(a.window[1]), **a.calls, "generation_ids": a.generation_ids,
             "note": ("request_id: every call carried the answer's tag answer:<trace id> (overlay "
                      "patch 0003); caller_key+time_window: no tagged call, so calls of the "

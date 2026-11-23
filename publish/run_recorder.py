@@ -20,7 +20,7 @@ from pathlib import Path
 
 import duckdb
 
-from publish.artifacts import ARTIFACTS, LAYER_SCHEMAS, day_dir, read_json, dbt_test_counts
+from publish.artifacts import ARTIFACTS, LAYER_SCHEMAS, day_dir, dbt_test_counts, read_json
 
 DDL = """
 create schema if not exists ops;
@@ -67,7 +67,7 @@ def layer_rows(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
     for layer, schema in LAYER_SCHEMAS.items():
         names = [r[0] for r in con.execute(
             "select table_name from information_schema.tables where table_schema = ?", [schema]).fetchall()]
-        out[layer] = sum(con.execute(f'select count(*) from "{schema}"."{n}"').fetchone()[0] for n in names)
+        out[layer] = sum(con.execute(f'select count(*) from "{schema}"."{n}"').fetchone()[0] for n in names)  # noqa: S608  identifiers only; values bound with ?
     return out
 
 
@@ -145,7 +145,7 @@ def record(db: Path, ds: str, run_id: str, artifacts: Path = ARTIFACTS) -> dict:
         }
         con.execute("begin")
         con.execute("delete from ops.run_log where run_date = ?::date", [ds])
-        con.execute(f"insert into ops.run_log ({', '.join(row)}) values ({', '.join('?' * len(row))})",
+        con.execute(f"insert into ops.run_log ({', '.join(row)}) values ({', '.join('?' * len(row))})",  # noqa: S608  identifiers only; values bound with ?
                     list(row.values()))
         con.execute("commit")
     finally:

@@ -91,7 +91,7 @@ def test_lake_table_declared_elsewhere_fails(tmp_path):
 def test_bad_column_fails(tmp_path, column, expect):
     root = make_project(tmp_path)
     write(root, at("warehouse", "fact__sales__payments"),
-          f"select order_id, 1 as {column}, {{{{ dbt_audit_columns() }}}} "
+          f"select order_id, 1 as {column}, {{{{ dbt_audit_columns() }}}} "  # noqa: S608  identifiers only; values bound with ?
           f"from {{{{ ref('staging__shop__orders') }}}}")
     errs = errors(root)
     assert any(expect in e for e in errs), errs

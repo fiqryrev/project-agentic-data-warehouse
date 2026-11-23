@@ -99,7 +99,7 @@ def _table_columns(con, name: str) -> list[tuple[str, str]] | None:
 
 def _create(con, name: str, src: str) -> None:
     audit = ", ".join(f"NULL::{typ} AS {col}" for col, (typ, _) in AUDIT_COLUMNS.items())
-    con.execute(f"CREATE TABLE {SCHEMA}.{name} AS SELECT *, {audit} FROM {src} LIMIT 0")
+    con.execute(f"CREATE TABLE {SCHEMA}.{name} AS SELECT *, {audit} FROM {src} LIMIT 0")  # noqa: S608  identifiers only; values bound with ?
     con.execute(f"COMMENT ON TABLE {SCHEMA}.{name} IS "
                 f"{_sql_str('Lake copy of the landing source table; append-only by _dt.')}")
     for col, (_, text) in AUDIT_COLUMNS.items():
@@ -112,7 +112,7 @@ def load_day(con: duckdb.DuckDBPyConnection, landing: Path, day: dt.date,
     landing = Path(landing)
     manifest, batch = read_manifest(landing, day)
     files = verify_files(landing, day, manifest)
-    loaded_at = loaded_at or dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
+    loaded_at = loaded_at or dt.datetime.now(dt.UTC).replace(tzinfo=None)
     counts: dict[str, int] = {}
     con.execute("BEGIN TRANSACTION")
     try:
@@ -120,7 +120,7 @@ def load_day(con: duckdb.DuckDBPyConnection, landing: Path, day: dt.date,
         for source, table, path, expected in files:
             name = lake_table(source, table)
             src = f"read_parquet({_sql_str(str(path))})"
-            incoming = _columns(con, f"SELECT * FROM {src}")
+            incoming = _columns(con, f"SELECT * FROM {src}")  # noqa: S608  identifiers only; values bound with ?
             existing = _table_columns(con, name)
             if existing is None:
                 _create(con, name, src)
@@ -134,13 +134,13 @@ def load_day(con: duckdb.DuckDBPyConnection, landing: Path, day: dt.date,
                         f"the table (new or changed: {added}; missing: {gone}); change the "
                         "table on purpose, the loader will not")
             cols = ", ".join(c for c, _ in incoming)
-            con.execute(f"DELETE FROM {SCHEMA}.{name} WHERE _dt = ?", [day])
+            con.execute(f"DELETE FROM {SCHEMA}.{name} WHERE _dt = ?", [day])  # noqa: S608  identifiers only; values bound with ?
             con.execute(
-                f"INSERT INTO {SCHEMA}.{name} ({cols}, {', '.join(AUDIT_COLUMNS)}) "
+                f"INSERT INTO {SCHEMA}.{name} ({cols}, {', '.join(AUDIT_COLUMNS)}) "  # noqa: S608  identifiers only; values bound with ?
                 f"SELECT {cols}, ?::DATE, ?, ?::TIMESTAMP, ? FROM {src}",
                 [day, path.relative_to(landing).as_posix(), loaded_at, batch],
             )
-            got = con.execute(f"SELECT count(*) FROM {SCHEMA}.{name} WHERE _dt = ?",
+            got = con.execute(f"SELECT count(*) FROM {SCHEMA}.{name} WHERE _dt = ?",  # noqa: S608  identifiers only; values bound with ?
                               [day]).fetchone()[0]
             if got != expected:
                 raise LoadError(f"{SCHEMA}.{name}: {got} rows for {day}, manifest says {expected}")

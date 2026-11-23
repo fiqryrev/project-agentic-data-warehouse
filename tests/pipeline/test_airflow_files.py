@@ -27,7 +27,7 @@ def test_dag_runs_one_day_at_a_time_in_order():
     assert ast.literal_eval(dag["catchup"]) is True
     assert ast.literal_eval(dag["max_active_runs"]) == 1
     assert ast.literal_eval(dag["is_paused_upon_creation"]) is True
-    defaults = {ast.literal_eval(k): v for k, v in zip(dag["default_args"].keys, dag["default_args"].values)}
+    defaults = {ast.literal_eval(k): v for k, v in zip(dag["default_args"].keys, dag["default_args"].values, strict=True)}
     assert ast.literal_eval(defaults["depends_on_past"]) is True
 
 
