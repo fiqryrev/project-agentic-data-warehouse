@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+      actions: read               # needed to upload results if the repository is ever private
       security-events: write      # upload the results; nothing else
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0

@@ -33,6 +33,10 @@ Approved in chat on 2026-11-23 with phase 2 (issues #42, #43, #44):
 - **CodeQL does not block merges by itself**; it reports to code scanning. `build-mode: none`
   (Python needs no build). It runs on PRs, on `main` and weekly. codeql-action v4.39.4, the
   current major, pinned by SHA like the other actions.
+- **CodeQL job also has `actions: read`** (Codex review on #45): GitHub needs it to upload
+  results in a private repository. This one is public and the first analysis uploaded without it
+  (`refs/pull/45/merge`, 2026-11-23T05:31:34Z); the read-only grant keeps the scan working if the
+  visibility ever changes.
 - **SECURITY.md lists the accepted risks** decided so far: Airflow without login, the master
   secret in the Airflow tasks (#40), and the keyless rerank route (owner, 2026-11-23, for #44).
   #44 then only touches the README, the gateway comment and the guard, so the two PRs do not
