@@ -85,7 +85,7 @@ must print `PASS`. The chat UI is http://localhost:3000 (use `localhost`, not 12
 | `make golden DS=<day>` | the golden set, scored against reference SQL (DAG task 7 does this daily) |
 | `make backfill FROM=<d> TO=<d>` | more days; golden questions are asked on the last one only |
 | `make label-prs` / `OPEN=1` | labels from the Langfuse queue into golden questions, `da-` entries, dbt issues (skill `label-review`) |
-| `make compare-providers ALIASES=nvidia,openrouter` | the golden set once per provider; report in `docs/runs/` |
+| `make compare-providers ALIASES=nvidia,openrouter` | the golden set once per provider; report in `data/runs/` (copy one worth citing to `docs/runs/`) |
 | `make dbt-ci` | the 3-day build CI runs |
 | `make test`, `make checks` | the tests and the governance checkers CI runs |
 

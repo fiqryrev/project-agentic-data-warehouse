@@ -14,7 +14,7 @@ roles, CANDIDATES below):
    (items synced from evals/golden/), session `compare:<run>:<candidate>`, with its golden scores.
 
 Auto Ontology is restored to the default pair afterwards, also after an error. The report
-docs/runs/compare-<run>.md holds accuracy, cost per correct answer, p95 latency per candidate,
+data/runs/compare-<run>.md (gitignored; copy one worth citing to docs/runs/) holds accuracy, cost per correct answer, p95 latency per candidate,
 and the questions whose verdict changed; that table goes into the pull request that proposes a
 swap. The comparison mart (`rpt__ops__provider_comparison__snapshot`) fills after the next
 task 8. Answers here are not queued for review: they are an experiment, not the served chat.
@@ -40,7 +40,9 @@ CANDIDATES = {
 }
 DEFAULT = "nvidia"
 DATASET = "golden"
-REPORTS = Path("docs/runs")
+# Run reports are working output, not source: data/ is gitignored. Copy a report worth citing to
+# docs/runs/ and link it from the README or a worknote (M5, #58).
+REPORTS = Path("data/runs")
 COMPOSE = ["docker", "compose", "-f", "infra/compose.yml", "--env-file", ".env", "--profile", "ontology"]
 CORRECT = ("exact_match", "within_tolerance")
 

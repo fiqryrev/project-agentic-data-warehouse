@@ -44,3 +44,30 @@ def test_experiment_attrs_tie_an_answer_to_the_dataset_item():
                            result("g-1", "wrong", 0.0), "span1")
     assert a["langfuse.experiment.name"] == "compare-x-openrouter" and a["langfuse.experiment.item.id"] == "golden-g-1"
     assert a["langfuse.experiment.dataset.id"] == "ds1" and a["langfuse.experiment.item.root_observation_id"] == "span1"
+
+
+def test_reports_go_to_the_gitignored_data_folder():
+    """M5 (#58): run reports are working output; one worth citing is copied to docs/runs/."""
+    import subprocess
+
+    from llm import compare
+    assert compare.REPORTS.as_posix() == "data/runs"
+    assert subprocess.run(["git", "check-ignore", "-q", "data/runs/x.md"]).returncode == 0
+
+
+def test_every_cited_run_report_is_in_git():
+    """Codex review on #61: worknotes and reports cite runs by id (`compare-20261122T1238`), and a
+    figure must keep its source (rule 5). Any cited run id has its report in docs/runs/."""
+    import re
+    import subprocess
+    from pathlib import Path
+    repo = Path(__file__).resolve().parents[2]
+    files = subprocess.run(["git", "ls-files", "*.md"], cwd=repo, capture_output=True, text=True,
+                           check=True).stdout.split()
+    cited = set()
+    for f in files:
+        if not (repo / f).is_file():
+            continue
+        cited |= set(re.findall(r"\b((?:compare|refusals)-\d{8}(?:T\d{4})?)\b", (repo / f).read_text(encoding="utf-8")))
+    missing = sorted(c for c in cited if not (repo / "docs" / "runs" / f"{c}.md").exists())
+    assert cited and not missing, missing
