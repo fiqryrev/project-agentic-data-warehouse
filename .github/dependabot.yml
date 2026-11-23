@@ -1,0 +1,38 @@
+# Dependency update PRs (S7, security review 2026-11-23). Weekly and grouped, so a normal week is
+# a few PRs, not one per package. Every PR goes through the same CI and the owner merges it.
+# Pins stay pins: Dependabot raises the version and the digest together.
+version: 2
+updates:
+  - package-ecosystem: uv            # pyproject.toml and uv.lock
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      python:
+        patterns: ["*"]
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: docker        # airflow/Dockerfile (base image and uv)
+    directory: /airflow
+    schedule:
+      interval: weekly
+    groups:
+      airflow-image:
+        patterns: ["*"]
+
+  - package-ecosystem: docker-compose  # infra/compose.yml (every pulled image)
+    directory: /infra
+    schedule:
+      interval: weekly
+    groups:
+      compose-images:
+        patterns: ["*"]
+    open-pull-requests-limit: 3
+
+  - package-ecosystem: github-actions  # .github/workflows (SHA pins with a version comment)
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

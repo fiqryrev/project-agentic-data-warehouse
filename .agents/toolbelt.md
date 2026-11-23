@@ -20,5 +20,7 @@ Every CLI and server an agent may use. Review each line by its date; remove what
 | Langfuse 4.83.0 | owner | UI on 127.0.0.1:3001; read API with the project keys in `.env` | traces, tokens and cost per call | 2027-02-22 |
 | Auto Ontology (`f3c310c7a279` + overlay patches) | owner | UI on 127.0.0.1:3000 with the admin login in `.env`; agents read answers, never the backend port | ontology, text-to-SQL chat over the snapshot (`infra/auto-ontology/`) | 2027-02-22 |
 | gitleaks | owner | CI only | secret scan beside `check_secrets` | 2027-02-21 |
+| CodeQL | owner | CI only (`.github/workflows/codeql.yml`), read-only token plus `security-events: write` | static analysis of the Python code into code scanning alerts | 2027-05-23 |
+| Dependabot | owner | opens PRs only (`.github/dependabot.yml`); the owner merges | weekly grouped updates: uv, Docker images, GitHub Actions | 2027-05-23 |
 
 Version pins verified in M0 are in `docs/m0-findings.md` ("Version pins found").

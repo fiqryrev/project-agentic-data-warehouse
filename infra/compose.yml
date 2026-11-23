@@ -56,7 +56,7 @@ x-airflow: &airflow
 
 services:
   airflow-db:
-    image: postgres:17.6-alpine
+    image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
     profiles: [core]
     restart: unless-stopped
     environment:
@@ -108,7 +108,7 @@ services:
 
   # --- obs profile (M8): LiteLLM gateway and Langfuse v4; versions from docs/m0-findings.md ---
   obs-db:
-    image: postgres:17.6-alpine
+    image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
     profiles: [obs]
     restart: unless-stopped
     environment:
