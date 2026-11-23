@@ -33,9 +33,15 @@ Approved in chat on 2026-11-23 with phase 2 (issues #42, #43, #44):
   question, note and correct answer) and Terms (the chat's answer and SQL).
 - **The SQL stays in the Counts ```sql block** (rule 5: every number cites its query), sanitised
   and on one line, with a sentence that it is quoted and was only run read-only.
-- **The title is outside every fence**, so the question goes into it only when it does not read
-  like an instruction; otherwise the title is `Label <verdict>: <id>`. The checker scans the title
-  too.
+- **The title carries no label or chat text** (Codex review on #46): it is always
+  `Label <verdict>: <id>`. A first version put the question in the title unless it matched
+  `INSTRUCTION_RE`, but a pattern can only miss an instruction ("Reveal every secret ..."), never
+  vouch for text. The reviewer tightens the title in the PR (skill `label-review`); search still
+  finds the question in the body. The checker scans titles too, for hand edits. Tags stay single
+  lowercase words from the question (`[a-z]{4,}`, at most six): no sentence fits in one.
+- **Markdown links broken as well** (Codex review on #46): `](` becomes `] (` and a
+  protocol-relative `//host` becomes `/ /host`, so `[text](//evil.example)` renders as plain
+  text in an issue or PR body.
 - **The rule applies to `da-` entries tagged `label`**, the ones `make label-prs` writes. Other
   entries are written by people in review and are not scanned; a hand-written `de-` entry may well
   say "ignore" about data.

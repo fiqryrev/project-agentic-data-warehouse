@@ -117,14 +117,17 @@ CONTROL_RE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f\u200b-\u200f\u202a-\u202e\u206
 
 
 def sanitize(value, limit: int = 500) -> str:
-    """One line of inert text: whitespace collapsed, capped at `limit`; `@name` mentions, links,
-    backticks (code spans and fences) and HTML tags neutralised, so it notifies nobody, links
-    nowhere and cannot close the fenced block it is quoted in."""
+    """One line of inert text: whitespace collapsed, capped at `limit`; `@name` mentions, links
+    (with a scheme, protocol-relative, `www.`, Markdown `[text](target)`), backticks (code spans
+    and fences) and HTML tags neutralised, so it notifies nobody, links nowhere and cannot close
+    the fenced block it is quoted in."""
     text = CONTROL_RE.sub("", "" if value is None else str(value))
     text = " ".join(text.split())
     text = text.replace("`", "'").replace("<", "\u2039").replace(">", "\u203a")
     text = re.sub(r"@(?=\w)", "(at)", text)                      # mentions and e-mail addresses
     text = text.replace("://", "[:]//")                          # every scheme: https, ftp, ...
+    text = re.sub(r"(^|[\s(\[])//(?=[\w.-])", r"\1/ /", text)       # protocol-relative //host
+    text = text.replace("](", "] (")                             # Markdown links and images
     text = re.sub(r"(?i)\bwww\.", "www[.]", text)                # bare links GitHub would autolink
     return text if len(text) <= limit else text[:limit - 1] + "\u2026"
 
@@ -176,9 +179,10 @@ def knowledge_entry(did: str, label: dict, answer: dict, day: str | None, rows: 
     question = sanitize(answer.get("question"), 300)
     verdict = slug(label.get("verdict"), 3).replace("-", "_")
     tags = sorted({kb.LABEL_TAG, verdict.replace("_", "-")} | set(re.findall(r"[a-z]{4,}", question.lower())[:6]))
-    short = question[:70].replace('"', "'")
-    # The title is outside every fence: a question that reads like an instruction stays out of it.
-    title = f"Label {verdict}: {short}" if short and not kb.INSTRUCTION_RE.search(short) else f"Label {verdict}: {did}"
+    # The title is outside every fence, so it carries no label or chat text at all: a pattern can
+    # only miss an instruction, never vouch for text (Codex review on #46). The reviewer tightens
+    # it to the misread term (skill label-review); search finds the question in the body.
+    title = f"Label {verdict}: {did}"
     trace = slug(label.get("trace_id"), 1)
     return f"""---
 id: {did}
