@@ -75,9 +75,10 @@ def test_pr_body_check_skips_a_minor_dependabot_pr_only(tmp_path, monkeypatch):
     import json
 
     from helpers import govlib
-    from tests.governance.test_check_worknote import MAJOR, MINOR, dependabot_repo, event
+    from tests.governance.test_check_worknote import DIGEST, MAJOR, MINOR, dependabot_repo, event
     cases = (("dependabot[bot]", "dependabot/uv/python-1", MINOR, 0), ("someone", "dependabot/uv/python-1", MINOR, 1),
-             ("dependabot[bot]", "7-feature", MINOR, 1), ("dependabot[bot]", "dependabot/uv/python-1", MAJOR, 1))
+             ("dependabot[bot]", "7-feature", MINOR, 1), ("dependabot[bot]", "dependabot/uv/python-1", MAJOR, 1),
+             ("dependabot[bot]", "dependabot/docker_compose/infra/x", DIGEST, 0))
     for i, (login, ref, message, expected) in enumerate(cases):
         repo, base, head = dependabot_repo(tmp_path / str(i), message)
         monkeypatch.setattr(govlib, "REPO", repo)

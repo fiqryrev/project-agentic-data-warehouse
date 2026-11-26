@@ -77,6 +77,11 @@ MAJOR = MINOR.replace("semver-minor", "semver-major")
 PATCH_AND_MAJOR = MINOR.replace("- dependency-name: x\n  update-type: version-update:semver-minor\n",
                                 "- dependency-name: x\n  update-type: version-update:semver-patch\n"
                                 "- dependency-name: y\n  update-type: version-update:semver-major\n")
+# #69: an image pinned by digest only has no version to compare, so Dependabot writes no update-type
+SHA = "304e0bbeb70a9aa0c40ff26d5a9c0a24296019c6d326ba8b75214fb73441d6e9"
+DIGEST = ("Bump x\n\n---\nupdated-dependencies:\n- dependency-name: x\n  dependency-version: " + SHA
+          + "\n  dependency-type: direct:production\n  dependency-group: compose-images\n...\n")
+DIGEST_AND_TAG = DIGEST.replace("...\n", "- dependency-name: y\n  dependency-version: 2.0.0\n...\n")
 
 
 def dependabot_repo(tmp_path, *messages):
@@ -105,6 +110,25 @@ def test_dependabot_pr_needs_its_author_branch_and_non_major_commits(tmp_path):
     assert not dependabot_pr({}, repo)
 
 
+def test_dependabot_digest_only_update_is_exempt(tmp_path):
+    """#69: digest bumps carry dependency-version digests and no update-type."""
+    from helpers.govlib import dependabot_pr
+    for i, messages in enumerate(((DIGEST,), (DIGEST.replace(SHA, "sha256:" + SHA),), (DIGEST, MINOR))):
+        repo, base, head = dependabot_repo(tmp_path / str(i), *messages)
+        assert dependabot_pr(event("dependabot[bot]", "dependabot/docker_compose/infra/x", base, head), repo), messages
+
+
+def test_dependabot_commit_without_type_or_digest_is_not_exempt(tmp_path):
+    """No update-type is only safe when every version is a digest; a pushed commit still blocks."""
+    from helpers.govlib import dependabot_pr
+    no_versions = "Bump x\n\n---\nupdated-dependencies:\n- dependency-name: x\n...\n"
+    short = DIGEST.replace(SHA, SHA[:7])
+    bare = "dependency-version: " + SHA + "\n"
+    for i, messages in enumerate(((DIGEST_AND_TAG,), (no_versions,), (short,), (bare,), (DIGEST, "docs: worknote"))):
+        repo, base, head = dependabot_repo(tmp_path / str(i), *messages)
+        assert not dependabot_pr(event("dependabot[bot]", "dependabot/docker_compose/infra/x", base, head), repo), messages
+
+
 def test_dependabot_major_or_foreign_commit_is_not_exempt(tmp_path):
     """Security updates ignore the majors filter in dependabot.yml, so the check reads the commits."""
     from helpers.govlib import dependabot_pr
@@ -119,7 +143,8 @@ def test_worknote_check_skips_a_minor_dependabot_pr_only(tmp_path, monkeypatch):
 
     from helpers import govlib
     for i, (login, messages, expected) in enumerate((("dependabot[bot]", (MINOR,), 0), ("someone", (MINOR,), 1),
-                                                     ("dependabot[bot]", (MAJOR,), 1))):
+                                                     ("dependabot[bot]", (MAJOR,), 1),
+                                                     ("dependabot[bot]", (DIGEST,), 0))):
         repo, base, head = dependabot_repo(tmp_path / str(i), *messages)
         monkeypatch.setattr(govlib, "REPO", repo)
         monkeypatch.chdir(repo)                 # changed_files runs git in the working directory
