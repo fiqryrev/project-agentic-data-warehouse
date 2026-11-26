@@ -82,6 +82,15 @@ SHA = "304e0bbeb70a9aa0c40ff26d5a9c0a24296019c6d326ba8b75214fb73441d6e9"
 DIGEST = ("Bump x\n\n---\nupdated-dependencies:\n- dependency-name: x\n  dependency-version: " + SHA
           + "\n  dependency-type: direct:production\n  dependency-group: compose-images\n...\n")
 DIGEST_AND_TAG = DIGEST.replace("...\n", "- dependency-name: y\n  dependency-version: 2.0.0\n...\n")
+# #72: grouped commits; tags Dependabot cannot read as semver come with no update-type
+GROUPED = ("Bump the group\n\nUpdates `postgres` from 17.11-alpine to 17.12-alpine\n"
+           "Updates `berriai/litellm` from v1.110.2 to 1.111.0\n"
+           "Updates `socket-proxy` from 1.13.2 to 1.14.0\n\n---\nupdated-dependencies:\n"
+           "- dependency-name: postgres\n  dependency-version: 17.12-alpine\n"
+           "- dependency-name: berriai/litellm\n  dependency-version: 1.111.0\n"
+           "- dependency-name: socket-proxy\n  dependency-version: 1.14.0\n"
+           "  update-type: version-update:semver-minor\n...\n")
+UNTYPED_MAJOR = GROUPED.replace("from 17.11-alpine to 17.12-alpine", "from 16.4-alpine to 17.12-alpine")
 
 
 def dependabot_repo(tmp_path, *messages):
@@ -129,6 +138,20 @@ def test_dependabot_commit_without_type_or_digest_is_not_exempt(tmp_path):
         assert not dependabot_pr(event("dependabot[bot]", "dependabot/docker_compose/infra/x", base, head), repo), messages
 
 
+def test_dependabot_grouped_commit_judges_each_entry(tmp_path):
+    """#72: an untyped entry passes only on its own same-major summary line, not on its neighbours'."""
+    from helpers.govlib import dependabot_pr
+    no_summary = GROUPED.replace("Updates `berriai/litellm` from v1.110.2 to 1.111.0\n", "")
+    no_number = GROUPED.replace("from 17.11-alpine to 17.12-alpine", "from latest to 17.12-alpine")
+    single = ("Bumps [x](https://example.test) from 1.2.3 to 1.3.0.\n\n---\nupdated-dependencies:\n"
+              "- dependency-name: x\n  dependency-version: 1.3.0\n...\n")
+    cases = (((GROUPED,), True), ((single,), True), ((GROUPED, DIGEST), True),
+             ((UNTYPED_MAJOR,), False), ((no_summary,), False), ((no_number,), False), ((GROUPED, MAJOR), False))
+    for i, (messages, expected) in enumerate(cases):
+        repo, base, head = dependabot_repo(tmp_path / str(i), *messages)
+        assert dependabot_pr(event("dependabot[bot]", "dependabot/docker_compose/infra/x", base, head), repo) is expected, i
+
+
 def test_dependabot_major_or_foreign_commit_is_not_exempt(tmp_path):
     """Security updates ignore the majors filter in dependabot.yml, so the check reads the commits."""
     from helpers.govlib import dependabot_pr
@@ -144,7 +167,8 @@ def test_worknote_check_skips_a_minor_dependabot_pr_only(tmp_path, monkeypatch):
     from helpers import govlib
     for i, (login, messages, expected) in enumerate((("dependabot[bot]", (MINOR,), 0), ("someone", (MINOR,), 1),
                                                      ("dependabot[bot]", (MAJOR,), 1),
-                                                     ("dependabot[bot]", (DIGEST,), 0))):
+                                                     ("dependabot[bot]", (DIGEST,), 0),
+                                                     ("dependabot[bot]", (UNTYPED_MAJOR,), 1))):
         repo, base, head = dependabot_repo(tmp_path / str(i), *messages)
         monkeypatch.setattr(govlib, "REPO", repo)
         monkeypatch.chdir(repo)                 # changed_files runs git in the working directory
