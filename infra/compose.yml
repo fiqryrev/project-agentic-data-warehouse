@@ -152,7 +152,7 @@ services:
       retries: 30
 
   langfuse-worker:
-    image: docker.langfuse.com/langfuse/langfuse-worker:4.83.0@sha256:a6eac4bb99df27dd01a090e63d1a54660ba14044ae5e4c1ef1c883cec5d68ee4
+    image: langfuse/langfuse-worker:4.83.0@sha256:a6eac4bb99df27dd01a090e63d1a54660ba14044ae5e4c1ef1c883cec5d68ee4
     profiles: [obs]
     restart: unless-stopped
     depends_on: &langfuse-deps
@@ -198,7 +198,7 @@ services:
       REDIS_TLS_ENABLED: "false"
 
   langfuse-web:
-    image: docker.langfuse.com/langfuse/langfuse:4.83.0@sha256:a91445265d1f5a13d666ef2f1491a437255fb9e5b7a76525d5543e4a4dc030f3
+    image: langfuse/langfuse:4.83.0@sha256:a91445265d1f5a13d666ef2f1491a437255fb9e5b7a76525d5543e4a4dc030f3
     profiles: [obs]
     restart: unless-stopped
     depends_on: *langfuse-deps

@@ -389,3 +389,6 @@ column comments (item 3). Both go to PLAN section 13 with the workaround.
 | Rerank model | `nvidia/nemotron-3.5-rerank-8b` at `ai.api.nvidia.com/v1/retrieval/nvidia/nemotron-3.5-rerank-8b/reranking` |
 
 Image digests are shortened here; M1/M8 record the full digests in the compose files.
+
+Since #74 the Langfuse images come from Docker Hub (`langfuse/langfuse`, `langfuse/langfuse-worker`)
+with the same digests, because Dependabot cannot sign in to `docker.langfuse.com`.
