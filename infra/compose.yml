@@ -57,7 +57,7 @@ x-airflow: &airflow
 
 services:
   airflow-db:
-    image: postgres:17.11-alpine@sha256:e5d2edd28b1f8d40a0a6c0c9cdc545b19b56a0d5d88f94bc11a97d970d4700d0
+    image: postgres:17.12-alpine@sha256:f9cf3e1f0066f0eb0c48707d864f0ac5941e9ff454a072077d97a4d278d07d73
     profiles: [core]
     restart: unless-stopped
     environment:
@@ -109,7 +109,7 @@ services:
 
   # --- obs profile (M8): LiteLLM gateway and Langfuse v4; versions from docs/m0-findings.md ---
   obs-db:
-    image: postgres:17.11-alpine@sha256:e5d2edd28b1f8d40a0a6c0c9cdc545b19b56a0d5d88f94bc11a97d970d4700d0
+    image: postgres:17.12-alpine@sha256:f9cf3e1f0066f0eb0c48707d864f0ac5941e9ff454a072077d97a4d278d07d73
     profiles: [obs]
     restart: unless-stopped
     environment:
@@ -132,7 +132,7 @@ services:
     extends:
       file: llm-gateway/service.yml
       service: llm-gateway
-    image: ghcr.io/berriai/litellm:v1.110.2@sha256:ef798594ca3db8d81bad2e1439f536f49b71fe095ee9f20416f5e149b4e22035
+    image: ghcr.io/berriai/litellm:1.111.0@sha256:ce00096d012719d58c52cecfa373f7c6256dd1b0ff08f6fa607e10e9628f1f46
     profiles: [obs]
     restart: unless-stopped
     command: ["--config", "/app/config.yaml", "--port", "4000"]
@@ -219,7 +219,7 @@ services:
       - "127.0.0.1:3001:3000"
 
   langfuse-clickhouse:
-    image: clickhouse/clickhouse-server:26.10.4.207@sha256:4f491abc44d9f4a1747c033c35ddd5bc385521305d85ca8251ba0824ff597035
+    image: clickhouse/clickhouse-server:26.10.10.3@sha256:b0784219f1821b8a9918732b8e6728dbed9246e13949c46e40d7c2a084d9ef9d
     profiles: [obs]
     restart: unless-stopped
     user: "101:101"
@@ -239,7 +239,7 @@ services:
 
   langfuse-minio:
     # Chainguard publishes no version tags; pinned by digest (M0).
-    image: cgr.dev/chainguard/minio@sha256:548147b5fc95a67e3e45285dff7e0e50326c3eb1977c6218039461771156c5e7
+    image: cgr.dev/chainguard/minio@sha256:f6243be11aaaa2fe654d260558e2b3fcef50135e78a3abfd0db802b13444f059
     profiles: [obs]
     restart: unless-stopped
     entrypoint: sh
@@ -440,7 +440,7 @@ services:
 
   # Airflow's refresh_ontology may restart exactly two containers and nothing else (PLAN 6).
   docker-proxy:
-    image: wollomatic/socket-proxy:1.13.2@sha256:ff95d6ff6c27853005ef85eb8f4ab5923dc3d2f1e055f98fb6aeeaceec3fe848
+    image: wollomatic/socket-proxy:1.14.0@sha256:fead157c4de4092461267092be49c993c2e6dd296a54c89ed04b8c870016b045
     profiles: [ontology]
     restart: unless-stopped
     networks: [default]
