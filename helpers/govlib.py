@@ -22,7 +22,12 @@ def pr_event() -> dict:
 DEPENDABOT = "dependabot[bot]"
 UPDATE_TYPE_RE = re.compile(r"^\s*update-type:\s*(\S+)", re.M)
 VERSION_RE = re.compile(r"^\s*dependency-version:\s*(\S+)", re.M)
+NAME_RE = re.compile(r"^\s*dependency-name:\s*(\S+)", re.M)
 DIGEST_RE = re.compile(r"^(sha256:)?[0-9a-f]{64}$")
+# Dependabot's summary lines: "Updates `x` from A to B" (grouped) or "Bumps [x](url) from A to B."
+FROM_TO_RE = re.compile(r"^(?:Updates|Bumps) \[?`?([^`\]\s]+)`?\]?(?:\([^)]*\))?"
+                        r" from `?([^`\s]+)`? to `?([^`\s]+?)`?\.?$", re.M)
+MAJOR_RE = re.compile(r"^v?(\d+)")
 
 
 def dependabot_messages(base: str, head: str, cwd: Path | None = None) -> list[str] | None:
@@ -35,18 +40,43 @@ def dependabot_messages(base: str, head: str, cwd: Path | None = None) -> list[s
     return [m for m in out.split("\x1e") if m.strip()]
 
 
-def dependabot_safe_commit(message: str) -> bool:
-    """A commit with Dependabot's metadata for a patch, minor or digest-only update.
+def dependabot_entries(message: str) -> list[str]:
+    """The entries of the `updated-dependencies` block, one string per `- dependency-name:`."""
+    block = message.split("updated-dependencies:", 1)[1]
+    return re.split(r"^- (?=dependency-name:)", block, flags=re.M)[1:]
 
-    An image pinned by digest only (`image@sha256:...`, no tag) has no version to compare, so
-    Dependabot writes no `update-type`; every `dependency-version` is then a digest (#69)."""
+
+def same_major(old: str, new: str) -> bool:
+    """True when both versions start with the same number, a leading `v` dropped."""
+    a, b = MAJOR_RE.match(old), MAJOR_RE.match(new)
+    return bool(a and b) and a.group(1) == b.group(1)
+
+
+def dependabot_safe_commit(message: str) -> bool:
+    """A commit with Dependabot's metadata in which every dependency is a patch, minor or
+    digest-only update. Each entry of a grouped commit qualifies on its own (#72):
+
+    - a non-major `update-type`;
+    - a digest as `dependency-version`: an image pinned by digest only has no version to
+      compare, so Dependabot writes no `update-type` (#69);
+    - no `update-type` (a tag Dependabot cannot read as semver, such as `17.11-alpine` or a
+      dropped `v`), and its `from A to B` summary line keeps the same leading major number.
+
+    Anything else (another major, no summary line, no leading number) is not exempt."""
     if "updated-dependencies:" not in message:
         return False
-    types = UPDATE_TYPE_RE.findall(message)
-    if types:
-        return not any(t.endswith("semver-major") for t in types)
-    versions = VERSION_RE.findall(message)
-    return bool(versions) and all(DIGEST_RE.match(v) for v in versions)
+    entries = dependabot_entries(message)
+    from_to = {name: (old, new) for name, old, new in FROM_TO_RE.findall(message)}
+    for entry in entries:
+        types, versions, names = UPDATE_TYPE_RE.findall(entry), VERSION_RE.findall(entry), NAME_RE.findall(entry)
+        if types:
+            if any(t.endswith("semver-major") for t in types):
+                return False
+        elif versions and all(DIGEST_RE.match(v) for v in versions):
+            continue
+        elif not (names and names[0] in from_to and same_major(*from_to[names[0]])):
+            return False
+    return bool(entries)
 
 
 def dependabot_pr(event: dict | None = None, cwd: Path | None = None) -> bool:
